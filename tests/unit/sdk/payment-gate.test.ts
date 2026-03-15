@@ -330,7 +330,7 @@ describe('createPaymentGate', () => {
   // ---- Field mapping ----
 
   describe('field mapping', () => {
-    it('should map amount to maxAmountRequired in verify request', async () => {
+    it('should map amount to amount in verify request', async () => {
       const handler = createHandler(options);
       const signature = createPaymentSignature();
       const request = createMockRequest({ 'payment-signature': signature });
@@ -339,7 +339,7 @@ describe('createPaymentGate', () => {
       await handler(request, reply, vi.fn());
 
       const verifyCall = (facilitator.verify as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(verifyCall.paymentRequirements.maxAmountRequired).toBe('2000000');
+      expect(verifyCall.paymentRequirements.amount).toBe('2000000');
       expect(verifyCall.paymentRequirements.payTo).toBe('addr_test1qz_recipient');
       expect(verifyCall.paymentRequirements.network).toBe('cardano:preview');
       expect(verifyCall.paymentRequirements.scheme).toBe('exact');
@@ -354,8 +354,8 @@ describe('createPaymentGate', () => {
       await handler(request, reply, vi.fn());
 
       const settleCall = (facilitator.settle as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(settleCall.transaction).toBe('base64txdata');
-      expect(settleCall.paymentRequirements.maxAmountRequired).toBe('2000000');
+      expect(settleCall.paymentPayload.payload.transaction).toBe('base64txdata');
+      expect(settleCall.paymentRequirements.amount).toBe('2000000');
     });
 
     it('should use custom asset and maxTimeoutSeconds when provided', async () => {

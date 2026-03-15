@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 
-import { PaymentRequirementsSchema } from '../verify/types.js';
+import { PaymentPayloadSchema, PaymentRequirementsSchema } from '../verify/types.js';
 
 // ---------------------------------------------------------------------------
 // x402 Settlement Wire Format Schemas (Zod)
@@ -14,28 +14,36 @@ import { PaymentRequirementsSchema } from '../verify/types.js';
 
 /**
  * SettleRequest -- POST /settle request body.
- * Same shape as /verify: base64 signed CBOR + payment requirements.
+ * Same shape as /verify per V2 spec: paymentPayload + paymentRequirements.
  */
 export const SettleRequestSchema = z.object({
-  /** Base64-encoded signed CBOR transaction */
-  transaction: z.string().min(1),
-  /** Payment requirements (same shape as /verify) */
+  /** x402 protocol version */
+  x402Version: z.literal(2),
+  /** Full payment payload (same as /verify) */
+  paymentPayload: PaymentPayloadSchema,
+  /** Payment requirements (same as /verify) */
   paymentRequirements: PaymentRequirementsSchema,
 });
 
 /**
  * SettleResponse -- POST /settle response.
- * Used for documentation and test assertions; not validated at runtime.
+ * Aligned with upstream x402 V2 spec.
  */
 export const SettleResponseSchema = z.object({
   /** Whether settlement succeeded */
   success: z.boolean(),
-  /** Transaction hash (present on success and timeout) */
-  transaction: z.string().optional(),
-  /** CAIP-2 chain ID (present on success) */
-  network: z.string().optional(),
-  /** Snake_case reason code (present on failure) */
-  reason: z.string().optional(),
+  /** Transaction hash (required -- empty string on failure) */
+  transaction: z.string(),
+  /** CAIP-2 chain ID (required) */
+  network: z.string(),
+  /** Address of the payer's wallet */
+  payer: z.string().optional(),
+  /** Error reason code (present on failure) */
+  errorReason: z.string().optional(),
+  /** Human-readable error message (present on failure) */
+  errorMessage: z.string().optional(),
+  /** Protocol extensions data */
+  extensions: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -91,17 +99,21 @@ export interface SettlementRecord {
 
 /**
  * Return type of the settlePayment() orchestrator.
- * Maps directly to the SettleResponse wire format.
+ * Maps directly to the SettleResponse wire format (V2 aligned).
  */
 export interface SettleResult {
   /** Whether settlement succeeded */
   success: boolean;
-  /** Transaction hash (present on success and timeout) */
-  transaction?: string;
-  /** CAIP-2 chain ID (present on success) */
-  network?: string;
-  /** Snake_case failure reason */
-  reason?: string;
+  /** Transaction hash (empty string on failure) */
+  transaction: string;
+  /** CAIP-2 chain ID */
+  network: string;
+  /** Address of the payer's wallet */
+  payer?: string;
+  /** Error reason code on failure */
+  errorReason?: string;
+  /** Human-readable error message on failure */
+  errorMessage?: string;
 }
 
 /**

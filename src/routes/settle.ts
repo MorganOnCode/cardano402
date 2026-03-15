@@ -2,7 +2,7 @@
 //
 // Validates the request body with Zod, assembles a VerifyContext from the
 // parsed request plus server state, calls settlePayment(), and returns the
-// result. All responses are HTTP 200 except truly unexpected server errors.
+// result. Aligned with x402 V2 spec (same request shape as /verify).
 
 import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';
@@ -42,12 +42,15 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       if (!parsed.success) {
         return reply.status(200).send({
           success: false,
-          reason: 'invalid_request',
+          transaction: '',
+          network: '',
+          errorReason: 'invalid_request',
+          errorMessage: 'Request body does not match expected format',
         });
       }
 
       // 2. Assemble VerifyContext from parsed request + server state
-      const { paymentRequirements } = parsed.data;
+      const { paymentPayload, paymentRequirements } = parsed.data;
       const chainConfig = fastify.config.chain;
       const verificationConfig = chainConfig.verification;
 
@@ -55,11 +58,11 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         scheme: paymentRequirements.scheme,
         network: paymentRequirements.network,
         payTo: paymentRequirements.payTo,
-        requiredAmount: BigInt(paymentRequirements.maxAmountRequired),
+        requiredAmount: BigInt(paymentRequirements.amount),
         maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
         asset: paymentRequirements.asset,
-        transactionCbor: parsed.data.transaction,
-        payerAddress: undefined,
+        transactionCbor: paymentPayload.payload.transaction,
+        payerAddress: paymentPayload.payload.payer,
         requestedAt: Date.now(),
         getCurrentSlot: () => fastify.chainProvider.getCurrentSlot(),
         getMinUtxoLovelace: (numAssets: number) =>
@@ -70,7 +73,7 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       };
 
       // 3. Convert base64 transaction to Uint8Array for submission
-      const cborBytes = Buffer.from(parsed.data.transaction, 'base64');
+      const cborBytes = Buffer.from(paymentPayload.payload.transaction, 'base64');
 
       // 4. Determine CAIP-2 network string
       const network = CAIP2_CHAIN_IDS[chainConfig.network as CardanoNetwork];

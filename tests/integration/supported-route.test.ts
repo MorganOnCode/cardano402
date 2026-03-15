@@ -126,8 +126,8 @@ describe('GET /supported Route', () => {
     });
 
     const body = JSON.parse(response.body);
-    expect(body.signers).toHaveProperty('cardano:preview');
-    expect(body.signers['cardano:preview']).toEqual([
+    expect(body.signers).toHaveProperty('cardano:*');
+    expect(body.signers['cardano:*']).toEqual([
       'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp',
     ]);
   });

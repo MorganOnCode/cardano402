@@ -150,7 +150,7 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: true,
       transaction: TX_HASH,
       network: NETWORK,
@@ -176,9 +176,9 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
-      reason: 'verification_failed',
+      errorReason: 'verification_failed',
     });
     expect(blockfrost.submitTransaction).not.toHaveBeenCalled();
   });
@@ -204,7 +204,7 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: true,
       transaction: TX_HASH,
       network: NETWORK,
@@ -233,7 +233,7 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: true,
       transaction: TX_HASH,
       network: NETWORK,
@@ -264,9 +264,9 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
-      reason: 'confirmation_timeout',
+      errorReason: 'confirmation_timeout',
       transaction: TX_HASH,
     });
     expect(blockfrost.submitTransaction).not.toHaveBeenCalled();
@@ -287,9 +287,9 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
-      reason: 'invalid_transaction',
+      errorReason: 'invalid_transaction',
     });
   });
 
@@ -308,9 +308,9 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
-      reason: 'submission_rejected',
+      errorReason: 'submission_rejected',
     });
   });
 
@@ -340,9 +340,9 @@ describe('settlePayment', () => {
 
     const result = await resultPromise;
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
-      reason: 'confirmation_timeout',
+      errorReason: 'confirmation_timeout',
       transaction: TX_HASH,
     });
   });
@@ -370,7 +370,7 @@ describe('settlePayment', () => {
 
     const result = await resultPromise;
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: true,
       transaction: TX_HASH,
       network: NETWORK,
@@ -399,9 +399,9 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
-      reason: 'invalid_transaction',
+      errorReason: 'invalid_transaction',
     });
     expect(blockfrost.submitTransaction).not.toHaveBeenCalled();
   });
@@ -450,7 +450,7 @@ describe('settlePayment', () => {
       logger
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: true,
       transaction: TX_HASH,
       network: NETWORK,

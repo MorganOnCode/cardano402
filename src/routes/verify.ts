@@ -58,7 +58,7 @@ const verifyRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         scheme: paymentRequirements.scheme,
         network: paymentRequirements.network,
         payTo: paymentRequirements.payTo,
-        requiredAmount: BigInt(paymentRequirements.maxAmountRequired),
+        requiredAmount: BigInt(paymentRequirements.amount),
         maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
         asset: paymentRequirements.asset,
         transactionCbor: paymentPayload.payload.transaction,

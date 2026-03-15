@@ -5,7 +5,7 @@
 // 2. Idempotency check via Redis SET NX (TOCTOU prevention)
 // 3. Submit raw CBOR to Blockfrost
 // 4. Poll for on-chain confirmation
-// 5. Return typed SettleResult
+// 5. Return typed SettleResult (V2 aligned)
 
 import { createHash } from 'node:crypto';
 
@@ -107,15 +107,15 @@ export async function pollConfirmation(
  * 3. If dedup hit: check existing record status and return appropriately
  * 4. Submit raw CBOR to Blockfrost
  * 5. Poll for on-chain confirmation
- * 6. Return typed SettleResult
+ * 6. Return typed SettleResult (V2 aligned)
  *
  * @param ctx - Verification context (same shape as /verify)
  * @param cborBytes - Raw CBOR bytes of the signed transaction
  * @param blockfrost - BlockfrostClient for submission and confirmation
  * @param redis - Redis client for idempotency dedup
- * @param network - CAIP-2 chain ID (e.g. "cardano:preprod")
+ * @param network - CAIP-2 chain ID (e.g. "cardano:preview")
  * @param logger - Fastify logger
- * @returns SettleResult with success/failure and reason
+ * @returns SettleResult with V2-aligned fields
  */
 export async function settlePayment(
   ctx: VerifyContext,
@@ -125,11 +125,20 @@ export async function settlePayment(
   network: string,
   logger: FastifyBaseLogger
 ): Promise<SettleResult> {
+  const payer = ctx.payerAddress;
+
   // ---- 1. Re-verify ----
   const verifyResult = await verifyPayment(ctx, logger);
   if (!verifyResult.isValid) {
     logger.info({ reason: verifyResult.invalidReason }, 'Settlement rejected: verification failed');
-    return { success: false, reason: 'verification_failed' };
+    return {
+      success: false,
+      transaction: '',
+      network,
+      payer,
+      errorReason: 'verification_failed',
+      errorMessage: verifyResult.invalidMessage ?? 'Payment verification failed',
+    };
   }
 
   // ---- 2. Idempotency / dedup check ----
@@ -150,7 +159,7 @@ export async function settlePayment(
 
   if (didClaim === null) {
     // Key already exists -- handle existing record
-    return handleExistingRecord(dedupKey, blockfrost, redis, network, logger);
+    return handleExistingRecord(dedupKey, blockfrost, redis, network, payer, logger);
   }
 
   // ---- 3. Submit to Blockfrost ----
@@ -166,7 +175,14 @@ export async function settlePayment(
         reason: 'invalid_transaction',
       };
       await redis.set(dedupKey, JSON.stringify(failedRecord), 'EX', DEDUP_TTL_SECONDS);
-      return { success: false, reason: 'invalid_transaction' };
+      return {
+        success: false,
+        transaction: '',
+        network,
+        payer,
+        errorReason: 'invalid_transaction',
+        errorMessage: 'Transaction rejected by the blockchain',
+      };
     }
 
     // Other errors: update dedup record to failed
@@ -177,7 +193,14 @@ export async function settlePayment(
     };
     await redis.set(dedupKey, JSON.stringify(failedRecord), 'EX', DEDUP_TTL_SECONDS);
     logger.error({ err: error }, 'Transaction submission failed');
-    return { success: false, reason: 'submission_rejected' };
+    return {
+      success: false,
+      transaction: '',
+      network,
+      payer,
+      errorReason: 'submission_rejected',
+      errorMessage: 'Transaction submission to blockchain failed',
+    };
   }
 
   // ---- 4. Update dedup record with txHash ----
@@ -204,7 +227,7 @@ export async function settlePayment(
       confirmedAt: Date.now(),
     };
     await redis.set(dedupKey, JSON.stringify(confirmedRecord), 'EX', DEDUP_TTL_SECONDS);
-    return { success: true, transaction: txHash, network };
+    return { success: true, transaction: txHash, network, payer };
   }
 
   // Timeout: update dedup record
@@ -213,7 +236,14 @@ export async function settlePayment(
     status: 'timeout',
   };
   await redis.set(dedupKey, JSON.stringify(timeoutRecord), 'EX', DEDUP_TTL_SECONDS);
-  return { success: false, reason: 'confirmation_timeout', transaction: txHash };
+  return {
+    success: false,
+    transaction: txHash,
+    network,
+    payer,
+    errorReason: 'confirmation_timeout',
+    errorMessage: 'Transaction submitted but confirmation timed out',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -229,12 +259,20 @@ async function handleExistingRecord(
   blockfrost: BlockfrostClient,
   redis: RedisLike,
   network: string,
+  payer: string | undefined,
   logger: FastifyBaseLogger
 ): Promise<SettleResult> {
   const raw = await redis.get(dedupKey);
   if (!raw) {
     // Record expired between SET NX and GET -- treat as internal error
-    return { success: false, reason: 'internal_error' };
+    return {
+      success: false,
+      transaction: '',
+      network,
+      payer,
+      errorReason: 'internal_error',
+      errorMessage: 'Settlement record expired unexpectedly',
+    };
   }
 
   const record = JSON.parse(raw) as SettlementRecord;
@@ -242,7 +280,7 @@ async function handleExistingRecord(
   switch (record.status) {
     case 'confirmed':
       logger.info({ txHash: record.txHash }, 'Duplicate submission: already confirmed');
-      return { success: true, transaction: record.txHash, network };
+      return { success: true, transaction: record.txHash, network, payer };
 
     case 'submitted':
     case 'timeout': {
@@ -257,16 +295,37 @@ async function handleExistingRecord(
         };
         await redis.set(dedupKey, JSON.stringify(confirmedRecord), 'EX', DEDUP_TTL_SECONDS);
         logger.info({ txHash: record.txHash }, 'Duplicate submission: now confirmed on-chain');
-        return { success: true, transaction: record.txHash, network };
+        return { success: true, transaction: record.txHash, network, payer };
       }
       // Still not confirmed
-      return { success: false, reason: 'confirmation_timeout', transaction: record.txHash };
+      return {
+        success: false,
+        transaction: record.txHash,
+        network,
+        payer,
+        errorReason: 'confirmation_timeout',
+        errorMessage: 'Transaction submitted but confirmation timed out',
+      };
     }
 
     case 'failed':
-      return { success: false, reason: record.reason ?? 'internal_error' };
+      return {
+        success: false,
+        transaction: '',
+        network,
+        payer,
+        errorReason: record.reason ?? 'internal_error',
+        errorMessage: 'Previous settlement attempt failed',
+      };
 
     default:
-      return { success: false, reason: 'internal_error' };
+      return {
+        success: false,
+        transaction: '',
+        network,
+        payer,
+        errorReason: 'internal_error',
+        errorMessage: 'Unknown settlement record status',
+      };
   }
 }

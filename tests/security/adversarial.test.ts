@@ -111,42 +111,53 @@ function createTestConfig(overrides?: Partial<Config>): Config {
 }
 
 function createVerifyPayload(overrides?: Record<string, unknown>) {
+  const reqs = {
+    scheme: 'exact',
+    network: 'cardano:preview',
+    asset: 'lovelace',
+    amount: '2000000',
+    payTo:
+      'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
+    maxTimeoutSeconds: 300,
+  };
   return {
+    x402Version: 2,
     paymentPayload: {
       x402Version: 2,
-      scheme: 'exact',
-      network: 'cardano:preview',
+      accepted: reqs,
       payload: {
         transaction: 'SGVsbG8gV29ybGQ=',
         payer:
           'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
       },
     },
-    paymentRequirements: {
-      scheme: 'exact',
-      network: 'cardano:preview',
-      asset: 'lovelace',
-      maxAmountRequired: '2000000',
-      payTo:
-        'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
-      maxTimeoutSeconds: 300,
-    },
+    paymentRequirements: reqs,
     ...overrides,
   };
 }
 
 function createSettlePayload(overrides?: Record<string, unknown>) {
+  const reqs = {
+    scheme: 'exact',
+    network: 'cardano:preview',
+    asset: 'lovelace',
+    amount: '2000000',
+    payTo:
+      'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
+    maxTimeoutSeconds: 300,
+  };
   return {
-    transaction: 'SGVsbG8gV29ybGQ=',
-    paymentRequirements: {
-      scheme: 'exact',
-      network: 'cardano:preview',
-      asset: 'lovelace',
-      maxAmountRequired: '2000000',
-      payTo:
-        'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
-      maxTimeoutSeconds: 300,
+    x402Version: 2,
+    paymentPayload: {
+      x402Version: 2,
+      accepted: reqs,
+      payload: {
+        transaction: 'SGVsbG8gV29ybGQ=',
+        payer:
+          'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
+      },
     },
+    paymentRequirements: reqs,
     ...overrides,
   };
 }
@@ -265,10 +276,17 @@ describe('Malformed Input Handling', () => {
       method: 'POST',
       url: '/verify',
       payload: {
+        x402Version: 2,
         paymentPayload: {
           x402Version: 2,
-          scheme: 'exact',
-          network: 'cardano:preview',
+          accepted: {
+            scheme: 'x'.repeat(1000),
+            network: 'cardano:preview',
+            amount: '2000000',
+            payTo:
+              'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
+            maxTimeoutSeconds: 300,
+          },
           payload: {
             transaction: 'a'.repeat(40000),
           },
@@ -276,7 +294,7 @@ describe('Malformed Input Handling', () => {
         paymentRequirements: {
           scheme: 'x'.repeat(1000),
           network: 'cardano:preview',
-          maxAmountRequired: '2000000',
+          amount: '2000000',
           payTo:
             'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
           maxTimeoutSeconds: 300,
@@ -422,7 +440,7 @@ describe('Token Confusion Defense', () => {
           scheme: 'exact',
           network: 'cardano:preview',
           asset: `${fakePolicyId}.${fakeAssetName}`,
-          maxAmountRequired: '1000000',
+          amount: '1000000',
           payTo:
             'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
           maxTimeoutSeconds: 300,
@@ -458,7 +476,7 @@ describe('Token Confusion Defense', () => {
           scheme: 'exact',
           network: 'cardano:preview',
           asset: mixedAsset,
-          maxAmountRequired: '1000000',
+          amount: '1000000',
           payTo:
             'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
           maxTimeoutSeconds: 300,

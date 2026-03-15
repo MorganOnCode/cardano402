@@ -78,13 +78,16 @@ export type PaymentSignaturePayload = z.infer<typeof PaymentSignaturePayloadSche
 
 // ---------------------------------------------------------------------------
 // X-Payment-Response header (resource server -> client, after settlement)
+// Aligned with V2 SettleResponse schema.
 // ---------------------------------------------------------------------------
 
 export const PaymentResponseHeaderSchema = z.object({
   success: z.boolean(),
-  transaction: z.string().optional(),
-  network: z.string().optional(),
-  reason: z.string().optional(),
+  transaction: z.string(),
+  network: z.string(),
+  payer: z.string().optional(),
+  errorReason: z.string().optional(),
+  errorMessage: z.string().optional(),
 });
 
 export type PaymentResponseHeader = z.infer<typeof PaymentResponseHeaderSchema>;

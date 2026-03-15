@@ -102,18 +102,24 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
     const payload = decoded.data;
 
     // 3. Build verify request from the payment payload
-    // Map the SDK's `amount` field to the facilitator's `maxAmountRequired` field
     const verifyRequest = {
+      x402Version: 2 as const,
       paymentPayload: {
         x402Version: 2 as const,
-        scheme: 'exact' as const,
-        network: payload.accepted.network,
+        accepted: {
+          scheme: 'exact' as const,
+          network: payload.accepted.network,
+          amount: options.amount,
+          asset: options.asset ?? 'lovelace',
+          payTo: options.payTo,
+          maxTimeoutSeconds: options.maxTimeoutSeconds ?? 300,
+        },
         payload: payload.payload,
       },
       paymentRequirements: {
         scheme: 'exact' as const,
         network: options.network,
-        maxAmountRequired: options.amount,
+        amount: options.amount,
         payTo: options.payTo,
         maxTimeoutSeconds: options.maxTimeoutSeconds ?? 300,
         asset: options.asset ?? 'lovelace',
@@ -150,11 +156,23 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
     let settleResult;
     try {
       settleResult = await options.facilitator.settle({
-        transaction: payload.payload.transaction,
+        x402Version: 2 as const,
+        paymentPayload: {
+          x402Version: 2 as const,
+          accepted: {
+            scheme: 'exact' as const,
+            network: options.network,
+            amount: options.amount,
+            asset: options.asset ?? 'lovelace',
+            payTo: options.payTo,
+            maxTimeoutSeconds: options.maxTimeoutSeconds ?? 300,
+          },
+          payload: payload.payload,
+        },
         paymentRequirements: {
           scheme: 'exact' as const,
           network: options.network,
-          maxAmountRequired: options.amount,
+          amount: options.amount,
           payTo: options.payTo,
           maxTimeoutSeconds: options.maxTimeoutSeconds ?? 300,
           asset: options.asset ?? 'lovelace',
@@ -177,7 +195,7 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
       reply402(reply, {
         ...paymentRequiredOptions,
         url: request.url,
-        error: `Settlement failed: ${settleResult.reason ?? 'unknown'}`,
+        error: `Settlement failed: ${settleResult.errorReason ?? 'unknown'}`,
       });
       return;
     }

@@ -51,27 +51,28 @@ function createTestVerifyRequest(
   paymentRequirementsOverrides?: Record<string, unknown>,
   topLevelOverrides?: Record<string, unknown>
 ) {
+  const reqs = {
+    scheme: 'exact',
+    network: 'cardano:preview',
+    asset: 'lovelace',
+    amount: '2000000',
+    payTo:
+      'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
+    maxTimeoutSeconds: 300,
+    ...paymentRequirementsOverrides,
+  };
   return {
+    x402Version: 2,
     paymentPayload: {
       x402Version: 2,
-      scheme: 'exact',
-      network: 'cardano:preview',
+      accepted: reqs,
       payload: {
         transaction: 'SGVsbG8gV29ybGQ=', // valid base64
         payer:
           'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp',
       },
     },
-    paymentRequirements: {
-      scheme: 'exact',
-      network: 'cardano:preview',
-      asset: 'lovelace',
-      maxAmountRequired: '2000000',
-      payTo:
-        'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
-      maxTimeoutSeconds: 300,
-      ...paymentRequirementsOverrides,
-    },
+    paymentRequirements: reqs,
     ...topLevelOverrides,
   };
 }

@@ -34,7 +34,6 @@ vi.mock('ioredis', () => {
 });
 
 // Mock settlePayment to avoid needing real CML/Blockfrost
-// Route-level integration tests focus on HTTP handling, not settlement logic
 const mockSettlePayment = vi.fn();
 vi.mock('../../src/settle/settle-payment.js', () => ({
   settlePayment: (...args: unknown[]) => mockSettlePayment(...args),
@@ -46,22 +45,33 @@ vi.mock('../../src/settle/settle-payment.js', () => ({
 // Test helpers
 // ---------------------------------------------------------------------------
 
+/** V2-aligned payment requirements */
+const basePaymentRequirements = {
+  scheme: 'exact',
+  network: 'cardano:preview',
+  asset: 'lovelace',
+  amount: '2000000',
+  payTo:
+    'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
+  maxTimeoutSeconds: 300,
+};
+
 function createTestSettleRequest(
   paymentRequirementsOverrides?: Record<string, unknown>,
   topLevelOverrides?: Record<string, unknown>
 ) {
+  const reqs = { ...basePaymentRequirements, ...paymentRequirementsOverrides };
   return {
-    transaction: 'SGVsbG8gV29ybGQ=', // valid base64
-    paymentRequirements: {
-      scheme: 'exact',
-      network: 'cardano:preview',
-      asset: 'lovelace',
-      maxAmountRequired: '2000000',
-      payTo:
-        'addr_test1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7',
-      maxTimeoutSeconds: 300,
-      ...paymentRequirementsOverrides,
+    x402Version: 2,
+    paymentPayload: {
+      x402Version: 2,
+      accepted: reqs,
+      payload: {
+        transaction: 'SGVsbG8gV29ybGQ=', // valid base64
+        payer: 'addr_test1qz...',
+      },
     },
+    paymentRequirements: reqs,
     ...topLevelOverrides,
   };
 }
@@ -144,7 +154,10 @@ describe('POST /settle Route', () => {
   it('should return HTTP 200 with success: false when verification fails', async () => {
     const failResult: SettleResult = {
       success: false,
-      reason: 'verification_failed',
+      transaction: '',
+      network: 'cardano:preview',
+      errorReason: 'verification_failed',
+      errorMessage: 'Payment verification failed',
     };
     mockSettlePayment.mockResolvedValueOnce(failResult);
 
@@ -158,7 +171,7 @@ describe('POST /settle Route', () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.success).toBe(false);
-    expect(body.reason).toBe('verification_failed');
+    expect(body.errorReason).toBe('verification_failed');
   });
 
   // ---- Valid requests: confirmation timeout ----
@@ -166,8 +179,10 @@ describe('POST /settle Route', () => {
   it('should return HTTP 200 with timeout reason when confirmation times out', async () => {
     const timeoutResult: SettleResult = {
       success: false,
-      reason: 'confirmation_timeout',
       transaction: 'abc123def456789012345678901234567890123456789012345678901234abcd',
+      network: 'cardano:preview',
+      errorReason: 'confirmation_timeout',
+      errorMessage: 'Transaction submitted but confirmation timed out',
     };
     mockSettlePayment.mockResolvedValueOnce(timeoutResult);
 
@@ -181,7 +196,7 @@ describe('POST /settle Route', () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.success).toBe(false);
-    expect(body.reason).toBe('confirmation_timeout');
+    expect(body.errorReason).toBe('confirmation_timeout');
     expect(body.transaction).toBe(
       'abc123def456789012345678901234567890123456789012345678901234abcd'
     );
@@ -189,27 +204,25 @@ describe('POST /settle Route', () => {
 
   // ---- Invalid request bodies ----
 
-  it('should return invalid_request for missing transaction field', async () => {
+  it('should return invalid_request for missing x402Version', async () => {
     const response = await server.inject({
       method: 'POST',
       url: '/settle',
       headers: { 'content-type': 'application/json' },
       payload: {
-        paymentRequirements: {
-          scheme: 'exact',
-          network: 'cardano:preview',
-          asset: 'lovelace',
-          maxAmountRequired: '2000000',
-          payTo: 'addr_test1qx...',
-          maxTimeoutSeconds: 300,
+        paymentPayload: {
+          x402Version: 2,
+          accepted: basePaymentRequirements,
+          payload: { transaction: 'SGVsbG8gV29ybGQ=' },
         },
+        paymentRequirements: basePaymentRequirements,
       },
     });
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.success).toBe(false);
-    expect(body.reason).toBe('invalid_request');
+    expect(body.errorReason).toBe('invalid_request');
   });
 
   it('should return invalid_request for missing paymentRequirements', async () => {
@@ -218,14 +231,19 @@ describe('POST /settle Route', () => {
       url: '/settle',
       headers: { 'content-type': 'application/json' },
       payload: {
-        transaction: 'SGVsbG8gV29ybGQ=',
+        x402Version: 2,
+        paymentPayload: {
+          x402Version: 2,
+          accepted: basePaymentRequirements,
+          payload: { transaction: 'SGVsbG8gV29ybGQ=' },
+        },
       },
     });
 
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.success).toBe(false);
-    expect(body.reason).toBe('invalid_request');
+    expect(body.errorReason).toBe('invalid_request');
   });
 
   it('should return invalid_request for empty body', async () => {
@@ -239,13 +257,17 @@ describe('POST /settle Route', () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.success).toBe(false);
-    expect(body.reason).toBe('invalid_request');
+    expect(body.errorReason).toBe('invalid_request');
   });
 
   // ---- VerifyContext assembly ----
 
   it('should pass VerifyContext and cborBytes to settlePayment with correct fields', async () => {
-    mockSettlePayment.mockResolvedValueOnce({ success: true });
+    mockSettlePayment.mockResolvedValueOnce({
+      success: true,
+      transaction: 'abc',
+      network: 'cardano:preview',
+    });
 
     await server.inject({
       method: 'POST',
@@ -264,7 +286,7 @@ describe('POST /settle Route', () => {
     expect(ctx.requiredAmount).toBe(BigInt('2000000'));
     expect(ctx.maxTimeoutSeconds).toBe(300);
     expect(ctx.transactionCbor).toBe('SGVsbG8gV29ybGQ=');
-    expect(ctx.payerAddress).toBeUndefined();
+    expect(ctx.payerAddress).toBe('addr_test1qz...');
     expect(ctx.configuredNetwork).toBe('cardano:preview');
     expect(ctx.feeMin).toBe(BigInt(150000));
     expect(ctx.feeMax).toBe(BigInt(5000000));
@@ -294,14 +316,17 @@ describe('POST /settle Route', () => {
     expect(response.statusCode).toBe(500);
     const body = JSON.parse(response.body);
     expect(body.error).toBe('Internal Server Error');
-    // Should NOT leak internal error details
     expect(body.message).not.toContain('WASM');
   });
 
   // ---- Route existence ----
 
   it('should respond to POST /settle (not 404)', async () => {
-    mockSettlePayment.mockResolvedValueOnce({ success: true });
+    mockSettlePayment.mockResolvedValueOnce({
+      success: true,
+      transaction: 'abc',
+      network: 'cardano:preview',
+    });
 
     const response = await server.inject({
       method: 'POST',
@@ -336,7 +361,11 @@ describe('POST /settle Route', () => {
   });
 
   it('should default asset to lovelace when omitted from settle request', async () => {
-    mockSettlePayment.mockResolvedValueOnce({ success: true });
+    mockSettlePayment.mockResolvedValueOnce({
+      success: true,
+      transaction: 'abc',
+      network: 'cardano:preview',
+    });
 
     // Omit asset field entirely -- Zod schema default should fill in 'lovelace'
     const payload = createTestSettleRequest();
@@ -355,7 +384,11 @@ describe('POST /settle Route', () => {
   });
 
   it('should provide getMinUtxoLovelace callback in settlePayment context', async () => {
-    mockSettlePayment.mockResolvedValueOnce({ success: true });
+    mockSettlePayment.mockResolvedValueOnce({
+      success: true,
+      transaction: 'abc',
+      network: 'cardano:preview',
+    });
 
     await server.inject({
       method: 'POST',

@@ -55,7 +55,8 @@ const supportedRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         ],
         extensions: [],
         signers: {
-          [network]: [signerAddress],
+          // CAIP family pattern per V2 spec (cardano:* matches all Cardano networks)
+          'cardano:*': [signerAddress],
         },
       };
 

@@ -61,8 +61,8 @@ export const PaymentRequirementsSchema = z
     network: z.string().regex(/^[a-z0-9]+:[a-z0-9]+$/, 'Must be a valid CAIP-2 chain ID'),
     /** Asset identifier ("lovelace" for ADA, "policyId.assetNameHex" for tokens) */
     asset: z.string().default('lovelace'),
-    /** Maximum lovelace amount as string (BigInt-safe for JSON) */
-    maxAmountRequired: z.string().min(1),
+    /** Payment amount in smallest unit as string (BigInt-safe for JSON) */
+    amount: z.string().min(1),
     /** Bech32 Cardano address of the payment recipient */
     payTo: z.string().min(1),
     /** Maximum time in seconds the payment is valid */
@@ -84,18 +84,27 @@ export const CardanoPayloadSchema = z.object({
 });
 
 /**
- * PaymentPayload -- full payment payload wrapper per x402 V2 envelope.
+ * PaymentPayload -- full payment payload wrapper per x402 V2 spec.
+ * Contains the accepted payment requirements and scheme-specific payload.
  */
 export const PaymentPayloadSchema = z
   .object({
     /** x402 protocol version */
     x402Version: z.literal(2),
-    /** Payment scheme */
-    scheme: z.literal('exact'),
-    /** CAIP-2 chain ID */
-    network: z.string(),
+    /** Resource being accessed (optional per spec) */
+    resource: z
+      .object({
+        url: z.string(),
+        description: z.string().optional(),
+        mimeType: z.string().optional(),
+      })
+      .optional(),
+    /** The PaymentRequirements the client chose to fulfill */
+    accepted: PaymentRequirementsSchema,
     /** Cardano-specific payload */
     payload: CardanoPayloadSchema,
+    /** Protocol extensions data */
+    extensions: z.record(z.string(), z.unknown()).optional(),
   })
   .passthrough();
 
@@ -103,6 +112,7 @@ export const PaymentPayloadSchema = z
  * VerifyRequest -- POST /verify request body.
  */
 export const VerifyRequestSchema = z.object({
+  x402Version: z.literal(2),
   paymentPayload: PaymentPayloadSchema,
   paymentRequirements: PaymentRequirementsSchema,
 });

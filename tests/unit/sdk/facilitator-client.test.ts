@@ -14,6 +14,50 @@ function mockFetchResponse(body: unknown, status = 200, statusText = 'OK'): Resp
   });
 }
 
+/** V2-aligned payment requirements */
+const paymentRequirements = {
+  scheme: 'exact' as const,
+  network: 'cardano:preview',
+  amount: '2000000',
+  payTo: 'addr_test1qx...',
+  maxTimeoutSeconds: 300,
+  asset: 'lovelace',
+};
+
+/** V2-aligned verify request */
+const verifyRequest = {
+  x402Version: 2 as const,
+  paymentPayload: {
+    x402Version: 2 as const,
+    accepted: paymentRequirements,
+    payload: {
+      transaction: 'SGVsbG8gV29ybGQ=',
+      payer: 'addr_test1qz...',
+    },
+  },
+  paymentRequirements,
+};
+
+/** V2-aligned settle request */
+const settleRequest = {
+  x402Version: 2 as const,
+  paymentPayload: {
+    x402Version: 2 as const,
+    accepted: paymentRequirements,
+    payload: {
+      transaction: 'SGVsbG8gV29ybGQ=',
+      payer: 'addr_test1qz...',
+    },
+  },
+  paymentRequirements,
+};
+
+/** V2-aligned status request */
+const statusRequest = {
+  transaction: 'a'.repeat(64),
+  paymentRequirements,
+};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -34,7 +78,6 @@ describe('FacilitatorClient', () => {
   describe('constructor', () => {
     it('should strip trailing slash from baseUrl', () => {
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000/' });
-      // Trigger a request to verify URL construction
       fetchSpy.mockResolvedValueOnce(
         mockFetchResponse({
           kinds: [],
@@ -48,8 +91,6 @@ describe('FacilitatorClient', () => {
 
     it('should use default timeout of 30000ms when not specified', async () => {
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
-      // We can't directly check the private field, but we can verify it works
-      // by checking that a normal request doesn't time out
       fetchSpy.mockResolvedValueOnce(
         mockFetchResponse({
           kinds: [],
@@ -86,26 +127,6 @@ describe('FacilitatorClient', () => {
   // ---- verify() ----
 
   describe('verify()', () => {
-    const verifyRequest = {
-      paymentPayload: {
-        x402Version: 2 as const,
-        scheme: 'exact' as const,
-        network: 'cardano:preview',
-        payload: {
-          transaction: 'SGVsbG8gV29ybGQ=',
-          payer: 'addr_test1qz...',
-        },
-      },
-      paymentRequirements: {
-        scheme: 'exact' as const,
-        network: 'cardano:preview',
-        maxAmountRequired: '2000000',
-        payTo: 'addr_test1qx...',
-        maxTimeoutSeconds: 300,
-        asset: 'lovelace',
-      },
-    };
-
     it('should send POST to /verify with correct body', async () => {
       fetchSpy.mockResolvedValueOnce(
         mockFetchResponse({ isValid: true, payer: 'addr_test1qz...' })
@@ -139,7 +160,6 @@ describe('FacilitatorClient', () => {
     });
 
     it('should throw on invalid response body (Zod validation failure)', async () => {
-      // Missing required isValid field
       fetchSpy.mockResolvedValueOnce(mockFetchResponse({ unexpected: 'data' }));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
       await expect(client.verify(verifyRequest)).rejects.toThrow('Invalid facilitator response');
@@ -149,18 +169,6 @@ describe('FacilitatorClient', () => {
   // ---- settle() ----
 
   describe('settle()', () => {
-    const settleRequest = {
-      transaction: 'SGVsbG8gV29ybGQ=',
-      paymentRequirements: {
-        scheme: 'exact' as const,
-        network: 'cardano:preview',
-        maxAmountRequired: '2000000',
-        payTo: 'addr_test1qx...',
-        maxTimeoutSeconds: 300,
-        asset: 'lovelace',
-      },
-    };
-
     it('should send POST to /settle with correct body', async () => {
       fetchSpy.mockResolvedValueOnce(
         mockFetchResponse({ success: true, transaction: 'abc123', network: 'cardano:preview' })
@@ -197,18 +205,6 @@ describe('FacilitatorClient', () => {
   // ---- status() ----
 
   describe('status()', () => {
-    const statusRequest = {
-      transaction: 'a'.repeat(64),
-      paymentRequirements: {
-        scheme: 'exact' as const,
-        network: 'cardano:preview',
-        maxAmountRequired: '2000000',
-        payTo: 'addr_test1qx...',
-        maxTimeoutSeconds: 300,
-        asset: 'lovelace',
-      },
-    };
-
     it('should send POST to /status with correct body', async () => {
       fetchSpy.mockResolvedValueOnce(
         mockFetchResponse({ status: 'confirmed', transaction: 'a'.repeat(64) })
@@ -241,7 +237,7 @@ describe('FacilitatorClient', () => {
         mockFetchResponse({
           kinds: [{ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }],
           extensions: [],
-          signers: { 'cardano:preview': ['addr_test1qz...'] },
+          signers: { 'cardano:*': ['addr_test1qz...'] },
         })
       );
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
@@ -258,18 +254,17 @@ describe('FacilitatorClient', () => {
       const expected = {
         kinds: [{ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }],
         extensions: [],
-        signers: { 'cardano:preview': ['addr_test1qz...'] },
+        signers: { 'cardano:*': ['addr_test1qz...'] },
       };
       fetchSpy.mockResolvedValueOnce(mockFetchResponse(expected));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
       const result = await client.supported();
       expect(result.kinds).toHaveLength(1);
       expect(result.kinds[0].x402Version).toBe(2);
-      expect(result.signers['cardano:preview']).toEqual(['addr_test1qz...']);
+      expect(result.signers['cardano:*']).toEqual(['addr_test1qz...']);
     });
 
     it('should throw on invalid response', async () => {
-      // Missing required signers field
       fetchSpy.mockResolvedValueOnce(mockFetchResponse({ kinds: [], extensions: [] }));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
       await expect(client.supported()).rejects.toThrow('Invalid facilitator response');
@@ -282,7 +277,7 @@ describe('FacilitatorClient', () => {
     it('should throw timeout error when request exceeds timeout', async () => {
       const client = new FacilitatorClient({
         baseUrl: 'http://localhost:3000',
-        timeout: 1, // 1ms timeout -- will race against fetch
+        timeout: 1,
       });
       fetchSpy.mockImplementation(
         (_url: string | URL | Request, init?: RequestInit) =>
@@ -304,7 +299,7 @@ describe('FacilitatorClient', () => {
     it('should respect custom timeout value', async () => {
       const client = new FacilitatorClient({
         baseUrl: 'http://localhost:3000',
-        timeout: 50, // 50ms
+        timeout: 50,
       });
       fetchSpy.mockImplementation(
         (_url: string | URL | Request, init?: RequestInit) =>
