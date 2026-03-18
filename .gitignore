@@ -34,3 +34,4 @@ logs/
 # Test artifacts
 .vitest/
 tests/fixtures/
+.env.client
