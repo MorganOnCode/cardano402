@@ -259,7 +259,7 @@ export class ChainProvider {
   // ---- Private helpers ----
 
   /**
-   * Get coins_per_utxo_byte from protocol parameters with 5-minute cache.
+   * Get coins_per_utxo_size from protocol parameters with 5-minute cache.
    */
   private async getCoinsPerUtxoByte(): Promise<bigint> {
     const now = Date.now();
@@ -271,8 +271,18 @@ export class ChainProvider {
       return this.protocolParamsCache.coinsPerUtxoByte;
     }
 
-    const params = (await this.blockfrost.getEpochParameters()) as { coins_per_utxo_byte: string };
-    const coinsPerUtxoByte = BigInt(params.coins_per_utxo_byte);
+    const params = (await this.blockfrost.getEpochParameters()) as {
+      coins_per_utxo_size: string | null;
+      coins_per_utxo_byte: string | null;
+    };
+
+    // Blockfrost API uses coins_per_utxo_size (Babbage/Conway era).
+    // Fall back to coins_per_utxo_byte for older responses.
+    const rawValue = params.coins_per_utxo_size ?? params.coins_per_utxo_byte;
+    if (!rawValue) {
+      throw new Error('Protocol parameters missing coins_per_utxo_size');
+    }
+    const coinsPerUtxoByte = BigInt(rawValue);
 
     this.protocolParamsCache = {
       coinsPerUtxoByte,

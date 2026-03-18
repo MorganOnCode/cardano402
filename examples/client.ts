@@ -87,7 +87,7 @@ async function main(): Promise<void> {
   logDetail('Server status', String(healthBody.status));
   logDetail('Dependencies', JSON.stringify(healthBody.dependencies));
 
-  if (healthRes.status !== 200 || healthBody.status !== 'ok') {
+  if (healthRes.status !== 200 || healthBody.status !== 'healthy') {
     console.error('\nServer is not healthy. Start the server and try again.');
     process.exit(1);
   }
