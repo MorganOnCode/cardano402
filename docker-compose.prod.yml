@@ -1,0 +1,67 @@
+# Production deployment — VPS (Hetzner / DigitalOcean / etc.)
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   - ./config/config.json present with Blockfrost key + seed phrase
+#   - REDIS_PASSWORD set in environment or .env file
+#
+# The facilitator container mounts config.json read-only at runtime.
+# Secrets never appear in the image.
+
+services:
+  facilitator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: x402-fac:latest
+    container_name: x402-facilitator
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/config.json:/app/config/config.json:ro
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  redis:
+    image: redis:7-alpine
+    container_name: x402-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  redis_data:

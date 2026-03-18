@@ -39,6 +39,9 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 # Copy built output from build stage
 COPY --from=build /app/dist ./dist
 
+# Copy landing page (served at / by @fastify/static)
+COPY landing/ ./landing/
+
 # Copy config example (actual config mounted at runtime)
 COPY config/config.example.json ./config/config.example.json
 
