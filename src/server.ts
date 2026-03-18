@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
 
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
+import staticFiles from '@fastify/static';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import type { FastifyInstance } from 'fastify';
@@ -18,6 +20,7 @@ import { createChainProvider, createRedisClient, disconnectRedis } from './chain
 import type { Config } from './config/index.js';
 import { errorHandlerPlugin } from './plugins/error-handler.js';
 import { requestLoggerPlugin } from './plugins/request-logger.js';
+import { demoRoutesPlugin } from './routes/demo.js';
 import { downloadRoutesPlugin } from './routes/download.js';
 import { healthRoutesPlugin } from './routes/health.js';
 import { settleRoutesPlugin } from './routes/settle.js';
@@ -174,6 +177,18 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   await server.register(supportedRoutesPlugin);
   await server.register(uploadRoutesPlugin);
   await server.register(downloadRoutesPlugin);
+  await server.register(demoRoutesPlugin);
+
+  // Landing page — serve landing/index.html at / (and static assets)
+  // Must be registered after API routes so /docs etc. take precedence
+  await server.register(staticFiles, {
+    root: resolve(process.cwd(), 'landing'),
+    prefix: '/',
+    // Don't redirect /foo to /foo/ — keep SPA-style routing clean
+    redirect: false,
+    // Serve index.html for /
+    index: 'index.html',
+  });
 
   return server;
 }

@@ -22,7 +22,8 @@ const UPLOAD_BODY_LIMIT = 10 * 1024 * 1024; // 10MB
 const uploadRoutes: FastifyPluginCallback = (fastify, _options, done) => {
   // Create FacilitatorClient pointing to ourselves (same-process facilitator)
   const facilitatorBaseUrl = `http://${fastify.config.server.host === '0.0.0.0' ? '127.0.0.1' : fastify.config.server.host}:${fastify.config.server.port}`;
-  const facilitator = new FacilitatorClient({ baseUrl: facilitatorBaseUrl });
+  // Use 150s timeout — settle endpoint polls for confirmation up to 120s on testnet
+  const facilitator = new FacilitatorClient({ baseUrl: facilitatorBaseUrl, timeout: 150_000 });
 
   const chainConfig = fastify.config.chain;
   const network = CAIP2_CHAIN_IDS[chainConfig.network as CardanoNetwork];
