@@ -116,8 +116,10 @@ const demoRoutes: FastifyPluginCallback = (fastify, _options, done) => {
 
       const supportedRes = await fetch(`${serverUrl}/supported`);
       const supportedBody = (await supportedRes.json()) as Record<string, unknown>;
-      const signers = supportedBody.signers as { address: string }[] | undefined;
-      const facilitatorAddress = signers?.[0]?.address ?? 'unknown';
+      const signers = supportedBody.signers as Record<string, string[]> | undefined;
+      const facilitatorAddress = signers
+        ? (Object.values(signers)[0]?.[0] ?? 'unknown')
+        : 'unknown';
       emit(reply, 'step', {
         step: 2,
         total: 7,

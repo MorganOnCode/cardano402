@@ -499,6 +499,16 @@
       margin-top: 2.5rem;
     }
     @media (max-width: 800px) { .demo-wrap { grid-template-columns: 1fr; } }
+    @media (max-width: 480px) {
+      .demo-panel-header { padding: 0.75rem 1rem; }
+      .demo-log { padding: 0.75rem 1rem; min-height: 200px; max-height: 260px; }
+      .demo-result { margin: 0 1rem 1rem; padding: 0.75rem; }
+      .demo-result-row { flex-wrap: wrap; gap: 0.25rem; }
+      .demo-result-row .value { text-align: left; font-size: 0.7rem; }
+      .demo-footer { padding: 0.6rem 1rem; gap: 0.5rem; }
+      .demo-run-btn { font-size: 0.75rem; padding: 0.5rem 1rem; }
+      .proof-grid { grid-template-columns: 1fr; }
+    }
 
     .demo-panel {
       background: var(--bg-card);
@@ -558,6 +568,13 @@
       gap: 0.75rem;
       align-items: baseline;
       animation: fadeSlide 0.3s ease;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 480px) {
+      .demo-log-line { gap: 0.4rem; }
+      .log-step { width: 2.5em; }
+      .log-label { flex-basis: calc(100% - 3rem); }
+      .log-detail { flex-basis: 100%; padding-left: 2.9rem; font-size: 0.68rem; }
     }
     @keyframes fadeSlide { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: none; } }
     .log-step {
@@ -567,7 +584,7 @@
       text-align: right;
     }
     .log-label { color: var(--accent); font-weight: 600; flex-shrink: 0; }
-    .log-detail { color: var(--text-muted); word-break: break-all; }
+    .log-detail { color: var(--text-muted); word-break: break-all; min-width: 0; overflow: hidden; }
     .log-error  { color: var(--red); }
 
     .demo-result {
@@ -633,6 +650,43 @@
       color: var(--text-dim);
       flex: 1;
     }
+
+    /* Progress bar — shown during step 6 confirmation wait */
+    .demo-progress {
+      height: 2px;
+      background: var(--border);
+      overflow: hidden;
+      display: none;
+    }
+    .demo-progress.visible { display: block; }
+    .demo-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      width: 0%;
+      transition: width 0.5s ease;
+    }
+    .demo-progress-bar.indeterminate {
+      width: 40%;
+      animation: indeterminate 1.8s ease-in-out infinite;
+    }
+    @keyframes indeterminate {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    /* Elapsed timer chip */
+    .demo-timer {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.15rem 0.4rem;
+      display: none;
+      white-space: nowrap;
+    }
+    .demo-timer.visible { display: inline; }
 
     /* ═══════════════════════════════════════════
        VERIFICATION PIPELINE
@@ -1157,6 +1211,10 @@
               <div class="demo-dot" id="demoDot"></div>
               <span>live demo · cardano preview testnet</span>
             </div>
+            <span class="demo-timer" id="demoTimer">0s</span>
+          </div>
+          <div class="demo-progress" id="demoProgress">
+            <div class="demo-progress-bar" id="demoProgressBar"></div>
           </div>
           <div class="demo-log" id="demoLog">
             <div class="demo-log-idle" id="demoIdle">
@@ -1648,16 +1706,72 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
     // ── Live Demo Widget ──────────────────────────────────────────────────
 
     let demoInProgress = false;
+    let elapsedInterval = null;
+    let cooldownInterval = null;
+    let demoStartTime = null;
 
     function setDemoState(state) {
       const dot = document.getElementById('demoDot');
       const btn = document.getElementById('demoRunBtn');
       const statusText = document.getElementById('demoStatusText');
+      const timer = document.getElementById('demoTimer');
+      const progress = document.getElementById('demoProgress');
+      const progressBar = document.getElementById('demoProgressBar');
+
       dot.className = 'demo-dot ' + (state === 'running' ? 'running' : state === 'success' ? 'success' : state === 'error' ? 'error' : '');
-      btn.disabled = state === 'running';
-      btn.textContent = state === 'running' ? 'Running…' : 'Run Demo →';
-      if (state === 'running') statusText.textContent = 'Live — Cardano preview testnet';
-      if (state === 'idle')    statusText.textContent = 'Preview testnet · no real funds';
+      btn.disabled = (state === 'running' || state === 'cooldown');
+
+      if (state === 'running') {
+        btn.textContent = 'Running…';
+        statusText.textContent = 'Live — Cardano preview testnet';
+        timer.classList.add('visible');
+        progress.classList.add('visible');
+        progressBar.classList.add('indeterminate');
+      } else {
+        progressBar.classList.remove('indeterminate');
+        progress.classList.remove('visible');
+        timer.classList.remove('visible');
+        if (state === 'idle')    { btn.textContent = 'Run Demo →'; statusText.textContent = 'Preview testnet · no real funds'; }
+        if (state === 'success') { btn.textContent = 'Run Again →'; }
+        if (state === 'error')   { btn.textContent = 'Retry →'; statusText.textContent = 'Demo failed — check server'; }
+      }
+    }
+
+    function startElapsedTimer() {
+      demoStartTime = Date.now();
+      if (elapsedInterval) clearInterval(elapsedInterval);
+      elapsedInterval = setInterval(() => {
+        const secs = Math.floor((Date.now() - demoStartTime) / 1000);
+        const el = document.getElementById('demoTimer');
+        if (el) el.textContent = secs + 's';
+      }, 500);
+    }
+
+    function stopElapsedTimer() {
+      if (elapsedInterval) { clearInterval(elapsedInterval); elapsedInterval = null; }
+    }
+
+    function startCooldownTimer(ms) {
+      if (cooldownInterval) clearInterval(cooldownInterval);
+      const btn = document.getElementById('demoRunBtn');
+      const statusText = document.getElementById('demoStatusText');
+      btn.disabled = true;
+      const tick = () => {
+        const remaining = Math.ceil(ms / 1000);
+        if (remaining <= 0) {
+          clearInterval(cooldownInterval);
+          cooldownInterval = null;
+          btn.textContent = 'Run Demo →';
+          btn.disabled = false;
+          statusText.textContent = 'Preview testnet · no real funds';
+          return;
+        }
+        btn.textContent = `Cooldown ${remaining}s`;
+        statusText.textContent = `Demo wallet resetting… ${remaining}s`;
+        ms -= 500;
+      };
+      tick();
+      cooldownInterval = setInterval(tick, 500);
     }
 
     function appendLog(step, total, label, detail, isError) {
@@ -1672,6 +1786,15 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
         `<span class="log-detail${isError ? ' log-error' : ''}">${detail ?? ''}</span>`;
       log.appendChild(line);
       log.scrollTop = log.scrollHeight;
+
+      // Show indeterminate bar during step 6 (confirmation wait), deterministic after
+      const progressBar = document.getElementById('demoProgressBar');
+      if (!isError && typeof step === 'number') {
+        const pct = Math.round((step / total) * 100);
+        if (!progressBar.classList.contains('indeterminate')) {
+          progressBar.style.width = pct + '%';
+        }
+      }
     }
 
     function showResult(data) {
@@ -1684,6 +1807,12 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
       const link = document.getElementById('resScanUrl');
       link.href = data.scanUrl;
       el.classList.add('visible');
+
+      // Snap progress bar to 100%
+      const progressBar = document.getElementById('demoProgressBar');
+      progressBar.classList.remove('indeterminate');
+      progressBar.style.transition = 'width 0.4s ease';
+      progressBar.style.width = '100%';
     }
 
     async function runDemo() {
@@ -1704,18 +1833,28 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
           document.getElementById('demoStatusText').textContent = 'Another demo is running — try again shortly';
           return;
         }
-        const secs = Math.ceil(status.cooldownRemainingMs / 1000);
-        document.getElementById('demoStatusText').textContent = `Cooldown: ${secs}s remaining`;
+        startCooldownTimer(status.cooldownRemainingMs);
         return;
       }
 
       demoInProgress = true;
       setDemoState('running');
+      startElapsedTimer();
+
+      // Reset progress bar
+      const progressBar = document.getElementById('demoProgressBar');
+      progressBar.classList.remove('indeterminate');
+      progressBar.style.transition = 'none';
+      progressBar.style.width = '0%';
+      // Trigger reflow then enable animation
+      void progressBar.offsetWidth;
+      progressBar.style.transition = 'width 0.5s ease';
+      progressBar.classList.add('indeterminate');
 
       // Clear previous result
       document.getElementById('demoResult').classList.remove('visible');
       const log = document.getElementById('demoLog');
-      log.innerHTML = '<div class="demo-log-idle" id="demoIdle" style="font-style:normal;color:var(--text-muted)">Starting…</div>';
+      log.innerHTML = '<div class="demo-log-idle" id="demoIdle" style="font-style:normal;color:var(--text-muted)">Connecting…</div>';
 
       try {
         const res = await fetch('/demo/run', { method: 'POST' });
@@ -1724,6 +1863,7 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
           const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
           appendLog('!', '!', 'Error', err.message ?? err.error ?? 'Unknown error', true);
           setDemoState('error');
+          stopElapsedTimer();
           demoInProgress = false;
           return;
         }
@@ -1754,18 +1894,28 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
             try { parsed = JSON.parse(data); } catch { continue; }
 
             if (event === 'step') {
+              // When we hit step 6 (settlement), switch from indeterminate to known progress
+              if (parsed.step === 6 && parsed.detail && parsed.detail.includes('Confirmed')) {
+                progressBar.classList.remove('indeterminate');
+                progressBar.style.width = '85%';
+              }
               appendLog(parsed.step, parsed.total, parsed.label, parsed.detail ?? '', false);
             } else if (event === 'result') {
+              stopElapsedTimer();
               showResult(parsed);
               setDemoState('success');
               appendLog('✓', '✓', 'Complete', `Tx confirmed on-chain`, false);
+              // Start cooldown timer for next run
+              startCooldownTimer(30_000);
             } else if (event === 'error') {
+              stopElapsedTimer();
               appendLog('✗', '✗', 'Failed', parsed.message ?? 'Unknown error', true);
               setDemoState('error');
             }
           }
         }
       } catch (e) {
+        stopElapsedTimer();
         appendLog('✗', '✗', 'Network error', e.message ?? 'Connection lost', true);
         setDemoState('error');
       } finally {
@@ -1775,6 +1925,11 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
         }
       }
     }
+
+    // Check cooldown on page load (in case visitor refreshes mid-cooldown)
+    fetch('/demo/status').then(r => r.json()).then(s => {
+      if (!s.ready && s.cooldownRemainingMs > 0) startCooldownTimer(s.cooldownRemainingMs);
+    }).catch(() => {});
   </script>
 </body>
 </html>
