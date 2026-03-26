@@ -502,12 +502,17 @@
     ═══════════════════════════════════════════ */
     .demo-wrap {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 2rem;
       align-items: start;
       margin-top: 2.5rem;
     }
-    @media (max-width: 800px) { .demo-wrap { grid-template-columns: 1fr; } }
+    .proof-section-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+    @media (max-width: 900px) { .proof-section-grid { grid-template-columns: 1fr; } }
     @media (max-width: 480px) {
       .demo-panel-header { padding: 0.75rem 1rem; }
       .demo-log { padding: 0.75rem 1rem; min-height: 200px; max-height: 260px; }
@@ -1253,9 +1258,9 @@
           </div>
         </div>
 
-        <!-- Left: mainnet verified proof -->
+        <!-- All proof cards in horizontal grid -->
         <div class="fade-in">
-          <div class="proof-grid">
+          <div class="proof-section-grid">
             <div class="proof-card" style="border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.04);">
               <div class="proof-header">
                 <div class="proof-icon" style="background:rgba(56, 189, 248, 0.12);">⛓</div>
@@ -1283,12 +1288,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Right: testnet proof transactions -->
-        <div class="fade-in">
-          <div class="proof-grid">
             <div class="proof-card">
               <div class="proof-header">
                 <div class="proof-icon" style="background:var(--green-glow);">✅</div>
@@ -1346,7 +1345,6 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
   </section>
