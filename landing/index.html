@@ -1835,7 +1835,7 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
       const el = document.getElementById('demoResult');
       const short = (s) => s.length > 24 ? s.slice(0, 12) + '…' + s.slice(-8) : s;
       document.getElementById('resTxHash').textContent = short(data.txHash);
-      document.getElementById('resCid').textContent = short(data.cid);
+      document.getElementById('resCid').textContent = data.cid ? short(data.cid) : 'n/a (verify-only demo)';
       document.getElementById('resAmount').textContent =
         (parseInt(data.amount, 10) / 1_000_000).toFixed(0) + ' ADA on ' + data.network;
       const link = document.getElementById('resScanUrl');
