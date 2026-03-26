@@ -8,6 +8,7 @@
   <meta property="og:description" content="The first x402 payment facilitator for Cardano mainnet. Pay for any API with ADA.">
   <meta property="og:url" content="https://cardano402.com">
   <meta property="og:type" content="website">
+  <meta property="og:image" content="https://cardano402.com/og-image.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -1038,7 +1039,7 @@
         <li><a href="#failures">Security</a></li>
         <li><a href="#sdk">SDK</a></li>
       </ul>
-      <a href="https://github.com/MorganOnCode/x402-fac" target="_blank" class="gh-link">
+      <a href="https://github.com/morganic-jarvis-agent/cardano-x402" target="_blank" class="gh-link">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         View source
       </a>
@@ -1057,7 +1058,7 @@
         The first Cardano payment facilitator on mainnet. Request a resource, get a <code>402</code>, pay with ADA, access granted.
       </p>
       <div class="hero-ctas">
-        <a href="https://cardano402.com/supported" target="_blank" class="btn btn-primary">
+        <a href="https://github.com/morganic-jarvis-agent/cardano-x402" target="_blank" class="btn btn-primary">
           Get started →
         </a>
         <a href="#proof" class="btn btn-ghost">See live proof ↓</a>
@@ -1228,7 +1229,7 @@
               <span class="label">Tx Hash</span>
               <span class="value" id="resTxHash">—</span>
             </div>
-            <div class="demo-result-row">
+            <div class="demo-result-row" id="resCidRow">
               <span class="label">File CID</span>
               <span class="value" id="resCid">—</span>
             </div>
@@ -1682,11 +1683,11 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
           Clone the repo, configure Blockfrost, start the server. Follow the testnet guide for an end-to-end payment in under 10 minutes.
         </p>
         <div class="hero-ctas">
-          <a href="https://github.com/MorganOnCode/x402-fac" target="_blank" class="btn btn-primary">
+          <a href="https://github.com/morganic-jarvis-agent/cardano-x402" target="_blank" class="btn btn-primary">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
             View on GitHub
           </a>
-          <a href="https://github.com/MorganOnCode/x402-fac/blob/master/preview-testnet-guide.md" target="_blank" class="btn btn-ghost">Testnet guide →</a>
+          <a href="https://github.com/morganic-jarvis-agent/cardano-x402/blob/master/preview-testnet-guide.md" target="_blank" class="btn btn-ghost">Testnet guide →</a>
         </div>
       </div>
     </div>
@@ -1700,9 +1701,9 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
           <a href="https://cardano402.com" target="_blank" style="color: var(--text-dim);">cardano402.com</a> · Apache-2.0 · Built on Cardano
         </div>
         <ul class="footer-links">
-          <li><a href="https://github.com/MorganOnCode/x402-fac" target="_blank">GitHub</a></li>
-          <li><a href="https://github.com/MorganOnCode/x402-fac/blob/master/docs/architecture.md" target="_blank">Docs</a></li>
-          <li><a href="https://github.com/MorganOnCode/x402-fac/issues/22" target="_blank">Test Results</a></li>
+          <li><a href="https://github.com/morganic-jarvis-agent/cardano-x402" target="_blank">GitHub</a></li>
+          <li><a href="https://github.com/morganic-jarvis-agent/cardano-x402/blob/master/docs/architecture.md" target="_blank">Docs</a></li>
+          <li><a href="https://github.com/morganic-jarvis-agent/cardano-x402/issues/22" target="_blank">Test Results</a></li>
         </ul>
       </div>
     </div>
@@ -1836,6 +1837,7 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
       const short = (s) => s.length > 24 ? s.slice(0, 12) + '…' + s.slice(-8) : s;
       document.getElementById('resTxHash').textContent = short(data.txHash);
       document.getElementById('resCid').textContent = data.cid ? short(data.cid) : 'n/a (verify-only demo)';
+      document.getElementById('resCidRow').style.display = data.cid ? 'flex' : 'none';
       document.getElementById('resAmount').textContent =
         (parseInt(data.amount, 10) / 1_000_000).toFixed(0) + ' ADA on ' + data.network;
       const link = document.getElementById('resScanUrl');
