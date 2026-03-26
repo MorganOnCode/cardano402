@@ -39,3 +39,4 @@ tests/fixtures/
 data/
 .bg-shell/
 .env.client
+config/config.mainnet.json

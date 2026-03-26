@@ -41,6 +41,18 @@ export const ConfigSchema = z.object({
   // Chain provider configuration (Blockfrost, network, cache, reservation, Redis)
   chain: ChainConfigSchema,
 
+  // Demo configuration (optional -- separate testnet credentials for the live demo widget)
+  demo: z
+    .object({
+      /** Blockfrost project ID for demo (typically Preview testnet) */
+      blockfrostProjectId: z.string().min(1),
+      /** Seed phrase for demo wallet (Preview testnet wallet) */
+      seedPhrase: z.string().min(1),
+      /** Network for demo transactions */
+      network: z.enum(['Preview', 'Preprod']).default('Preview'),
+    })
+    .optional(),
+
   // Storage backend configuration (optional -- defaults to filesystem)
   storage: z
     .object({

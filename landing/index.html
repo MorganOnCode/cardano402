@@ -3,21 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>x402 — Cardano Payment Facilitator</title>
+  <title>cardano402 — Cardano Payment Facilitator</title>
+  <meta property="og:title" content="cardano402 — Cardano Payment Facilitator">
+  <meta property="og:description" content="The first x402 payment facilitator for Cardano mainnet. Pay for any API with ADA.">
+  <meta property="og:url" content="https://cardano402.com">
+  <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #08090d;
-      --bg-elevated: #0e1018;
-      --bg-card: #12141c;
-      --bg-card-hover: #181b26;
-      --border: #1e2230;
-      --border-active: #2a3050;
-      --text: #d4d8e8;
-      --text-muted: #6b7394;
-      --text-dim: #3d4466;
+      --bg: #f8f9fc;
+      --bg-elevated: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f0f4ff;
+      --border: #e2e8f0;
+      --border-active: #cbd5e1;
+      --text: #1a202c;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
       --accent: #38bdf8;
       --accent-glow: rgba(56, 189, 248, 0.15);
       --accent-glow-strong: rgba(56, 189, 248, 0.3);
@@ -54,7 +58,7 @@
       content: '';
       position: fixed;
       inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.01'/%3E%3C/svg%3E");
       pointer-events: none;
       z-index: 9999;
     }
@@ -67,7 +71,7 @@
         linear-gradient(var(--border) 1px, transparent 1px),
         linear-gradient(90deg, var(--border) 1px, transparent 1px);
       background-size: 80px 80px;
-      opacity: 0.15;
+      opacity: 0.05;
       pointer-events: none;
       z-index: 0;
       mask-image: radial-gradient(ellipse 70% 50% at 50% 30%, black 20%, transparent 70%);
@@ -80,7 +84,7 @@
       height: 600px;
       border-radius: 50%;
       filter: blur(120px);
-      opacity: 0.07;
+      opacity: 0.04;
       pointer-events: none;
       z-index: 0;
     }
@@ -109,7 +113,7 @@
       z-index: 100;
       padding: 1rem 2rem;
       backdrop-filter: blur(20px) saturate(1.5);
-      background: rgba(8, 9, 13, 0.8);
+      background: rgba(255, 255, 255, 0.9);
       border-bottom: 1px solid var(--border);
     }
     nav .nav-inner {
@@ -123,7 +127,7 @@
       font-family: var(--font-mono);
       font-size: 1.1rem;
       font-weight: 600;
-      color: var(--text);
+      color: #0f172a;
       letter-spacing: -0.02em;
     }
     nav .logo span { color: var(--accent); }
@@ -192,7 +196,7 @@
       font-weight: 400;
       line-height: 1.05;
       letter-spacing: -0.03em;
-      color: #f0f2fa;
+      color: #0f172a;
       margin-bottom: 1.5rem;
     }
     .hero h1 em {
@@ -274,7 +278,7 @@
       font-family: var(--font-display);
       font-size: clamp(2rem, 4vw, 3rem);
       font-weight: 400;
-      color: #f0f2fa;
+      color: #0f172a;
       margin-bottom: 1rem;
       letter-spacing: -0.02em;
     }
@@ -826,7 +830,7 @@
     .stat-value {
       font-family: var(--font-display);
       font-size: 2.5rem;
-      color: #f0f2fa;
+      color: #0f172a;
       line-height: 1;
       margin-bottom: 0.25rem;
     }
@@ -849,8 +853,8 @@
       align-items: start;
     }
     .code-block {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+      background: #1e1e2e;
+      border: 1px solid #2a2a3e;
       border-radius: 10px;
       overflow: hidden;
     }
@@ -859,11 +863,11 @@
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem 1rem;
-      background: var(--bg-elevated);
-      border-bottom: 1px solid var(--border);
+      background: #181825;
+      border-bottom: 1px solid #2a2a3e;
       font-family: var(--font-mono);
       font-size: 0.75rem;
-      color: var(--text-muted);
+      color: #6b7394;
     }
     .code-header .dot-r { width: 8px; height: 8px; border-radius: 50%; background: #f87171; }
     .code-header .dot-y { width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; }
@@ -877,12 +881,12 @@
       font-family: var(--font-mono);
       font-size: 0.8rem;
       line-height: 1.7;
-      color: var(--text-muted);
+      color: #a6adc8;
     }
     .code-body .kw { color: var(--purple); }
     .code-body .fn { color: var(--accent); }
     .code-body .str { color: var(--green); }
-    .code-body .cm { color: var(--text-dim); font-style: italic; }
+    .code-body .cm { color: #6b7394; font-style: italic; }
     .code-body .num { color: var(--orange); }
     .code-body .type { color: #fbbf24; }
 
@@ -1046,16 +1050,15 @@
     <div class="container">
       <div class="hero-badge">
         <span class="dot"></span>
-        Verified on Cardano Preview Testnet
+        🟢 Live on Cardano Mainnet
       </div>
       <h1>Pay for anything<br>with <em>HTTP 402</em></h1>
       <p class="subtitle">
-        The x402 protocol turns any API endpoint into a paywall. Request a resource, get a <code>402</code>, pay with Cardano, access granted. No accounts. No subscriptions. Just transactions.
+        The first Cardano payment facilitator on mainnet. Request a resource, get a <code>402</code>, pay with ADA, access granted.
       </p>
       <div class="hero-ctas">
-        <a href="https://github.com/MorganOnCode/x402-fac" target="_blank" class="btn btn-primary">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-          Get started
+        <a href="https://cardano402.com/supported" target="_blank" class="btn btn-primary">
+          Get started →
         </a>
         <a href="#proof" class="btn btn-ghost">See live proof ↓</a>
       </div>
@@ -1074,8 +1077,8 @@
         <div class="stat-label">Verification Checks</div>
       </div>
       <div class="stat">
-        <div class="stat-value">3</div>
-        <div class="stat-label">On-chain Transactions</div>
+        <div class="stat-value">✓</div>
+        <div class="stat-label">Live on Mainnet</div>
       </div>
       <div class="stat">
         <div class="stat-value">5<span class="accent">/5</span></div>
@@ -1194,17 +1197,15 @@
   <!-- PROOF — Live on-chain evidence -->
   <section class="section" id="proof">
     <div class="container">
-      <div class="section-label fade-in">Live Demo</div>
-      <h2 class="section-title fade-in">Real transactions. On-chain. Right now.</h2>
+      <div class="section-label fade-in">On-Chain Proof</div>
+      <h2 class="section-title fade-in">Proven on-chain. Mainnet and testnet.</h2>
       <p class="section-desc fade-in">
-        Watch the full 7-step x402 payment cycle run against the Cardano Preview testnet.
-        The demo wallet signs a real transaction, settlement is confirmed on-chain, and a file
-        is uploaded and downloaded — all in under 60 seconds.
+        Real transactions, verified on-chain. Tested end-to-end on Preview testnet, now live on Cardano mainnet — processing real ADA payments through the full x402 verify → settle pipeline.
       </p>
 
       <div class="demo-wrap">
 
-        <!-- Left: interactive run panel -->
+        <!-- Left: interactive demo panel (testnet) -->
         <div class="demo-panel fade-in">
           <div class="demo-panel-header">
             <div class="demo-panel-title">
@@ -1246,7 +1247,40 @@
           </div>
         </div>
 
-        <!-- Right: past confirmed transactions -->
+        <!-- Left: mainnet verified proof -->
+        <div class="fade-in">
+          <div class="proof-grid">
+            <div class="proof-card" style="border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.04);">
+              <div class="proof-header">
+                <div class="proof-icon" style="background:rgba(56, 189, 248, 0.12);">⛓</div>
+                <div>
+                  <div class="proof-title">Mainnet — First Transaction</div>
+                  <div class="proof-subtitle">Full verify → settle → on-chain confirmation on Cardano mainnet</div>
+                </div>
+              </div>
+              <div class="proof-details">
+                <div class="proof-row">
+                  <span class="label">Tx Hash</span>
+                  <span class="value"><a href="https://cardanoscan.io/transaction/ce1e3ab11fd155c9fb2b16b5e8d2feb466c7b8317e7e2ee98c07772150ffb38a" target="_blank" class="tx-hash">ce1e3ab1...50ffb38a</a></span>
+                </div>
+                <div class="proof-row">
+                  <span class="label">Block</span>
+                  <span class="value">13,204,540</span>
+                </div>
+                <div class="proof-row">
+                  <span class="label">Network</span>
+                  <span class="value" style="color:var(--accent)">cardano:mainnet</span>
+                </div>
+                <div class="proof-row">
+                  <span class="label">Pipeline</span>
+                  <span class="value" style="color:var(--green)">10/10 checks passed → settled → confirmed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: testnet proof transactions -->
         <div class="fade-in">
           <div class="proof-grid">
             <div class="proof-card">
@@ -1663,7 +1697,7 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
     <div class="container">
       <div class="footer-inner">
         <div class="footer-left">
-          x402-fac · Apache-2.0 · Built on Cardano
+          <a href="https://cardano402.com" target="_blank" style="color: var(--text-dim);">cardano402.com</a> · Apache-2.0 · Built on Cardano
         </div>
         <ul class="footer-links">
           <li><a href="https://github.com/MorganOnCode/x402-fac" target="_blank">GitHub</a></li>
