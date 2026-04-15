@@ -73,7 +73,7 @@
     ]
   },
   "dependencies": {
-    "@blockfrost/blockfrost-js": "^6.1.0",
+    "@blockfrost/blockfrost-js": "^6.1.1",
     "@fastify/cors": "^11.2.0",
     "@fastify/error": "^4.2.0",
     "@fastify/helmet": "^13.0.2",
