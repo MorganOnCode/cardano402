@@ -73,12 +73,35 @@ export const PaymentRequirementsSchema = z
   .passthrough();
 
 /**
+ * Nonce for the Cardano `exact` scheme.
+ *
+ * Per the x402 Cardano spec: the nonce MUST be a UTXO reference of the form
+ * `txHash#index`, MUST be one of the transaction's inputs, and MUST be unspent
+ * in the current on-chain UTXO set at verification time.
+ *
+ * Format is enforced: 64 lowercase hex chars + '#' + decimal index.
+ *
+ * Spec: https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md#facilitator-verification-rules
+ */
+export const NonceSchema = z
+  .string()
+  .regex(/^[0-9a-f]{64}#\d+$/, 'nonce must be of the form txHash#index (lowercase hex hash)')
+  .describe('UTXO reference consumed as input and unspent on-chain');
+
+/**
  * CardanoPayload -- what the client sends as the payment payload.
  * Transaction-based model: the client builds and signs the full tx.
  */
 export const CardanoPayloadSchema = z.object({
   /** Base64-encoded signed CBOR transaction */
   transaction: z.string().min(1),
+  /**
+   * Spec-required UTXO reference (`txHash#index`) used as a replay nonce.
+   * The facilitator verifies it is one of the tx inputs and that the UTXO
+   * is unspent. Optional in the schema for migration tolerance; rejected at
+   * runtime by checkNonce when chain.verification.requireNonce is true.
+   */
+  nonce: NonceSchema.optional(),
   /** Bech32 address of the payer (declared by client, optional) */
   payer: z.string().optional(),
 });
@@ -206,6 +229,32 @@ export interface VerifyContext {
    *  For ADA-only outputs, numAssets=0. For token outputs, numAssets=1+.
    *  Optional -- checkMinUtxo skips when absent (existing routes won't have it until Plan 03). */
   getMinUtxoLovelace?: (numAssets: number) => Promise<bigint>;
+
+  /**
+   * Spec-mandated nonce: UTXO reference of the form `txHash#index`.
+   * checkNonce verifies this is one of the tx inputs and unspent on-chain.
+   * Optional during migration; missing values are rejected when
+   * `requireNonce` is true.
+   */
+  declaredNonce?: { txHash: string; index: number };
+
+  /**
+   * Whether the nonce field is required. When true, missing nonces are
+   * rejected with `nonce_required`. When false (legacy clients), checkNonce
+   * skips the wire-format check but still verifies UTXO inputs of the tx
+   * are unspent if any nonce is declared.
+   *
+   * Default: derived from chain.verification.requireNonce config; defaults
+   * to true to match the x402 Cardano spec.
+   */
+  requireNonce?: boolean;
+
+  /**
+   * Resolves whether a UTXO reference is unspent on-chain.
+   * Optional callback so unit tests can inject a stub.
+   * Returns true if the UTXO exists and is unspent in the current set.
+   */
+  isUtxoUnspent?: (txHash: string, index: number) => Promise<boolean>;
 
   // Pipeline state (set by earlier checks, consumed by later checks)
   /** Parsed transaction set by checkCborValid, consumed by all subsequent checks */

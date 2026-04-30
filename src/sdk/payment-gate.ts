@@ -205,15 +205,22 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
       success: true,
       transaction: settleResult.transaction,
       network: settleResult.network,
+      // Settlement only proceeds past the gate after on-chain confirmation,
+      // so we annotate the response with the spec-required extensions.status.
+      extensions: { status: 'confirmed' },
     };
 
     // Store on request for route handlers to access
     (request as FastifyRequest & { x402Settlement?: PaymentResponseHeader }).x402Settlement =
       paymentResponse;
 
-    // Set X-Payment-Response header on the reply
+    // Encode once, emit under both header names. X-Payment-Response is the
+    // canonical name (matches base x402); PAYMENT-RESPONSE is emitted for
+    // compatibility with strict x402 Cardano spec readers and will be removed
+    // in a future major version once upstream has reconciled the two specs.
     const responseHeaderValue = Buffer.from(JSON.stringify(paymentResponse)).toString('base64');
     void reply.header('X-Payment-Response', responseHeaderValue);
+    void reply.header('PAYMENT-RESPONSE', responseHeaderValue);
 
     // Allow through to the route handler
   };

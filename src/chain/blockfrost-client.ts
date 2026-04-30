@@ -229,6 +229,69 @@ export class BlockfrostClient {
       throw error;
     }
   }
+
+  /**
+   * Determine whether the UTXO at txHash#index is unspent in the current
+   * on-chain UTXO set.
+   *
+   * Strategy: fetch the producing transaction's UTXOs (`txsUtxos(txHash)`),
+   * locate the output at `index`, then ask Blockfrost for the UTxOs at that
+   * output's address (`addressesUtxos(addr)`) and check whether any of them
+   * carry the same `tx_hash + output_index`.
+   *
+   * Returns:
+   *   - true  if the UTXO exists and is currently unspent
+   *   - false if the producing tx exists but the output is missing or already spent
+   *
+   * Throws:
+   *   - if the producing tx itself is not found on-chain (404)
+   *   - on any non-404 Blockfrost error
+   *
+   * Spec: x402 Cardano scheme — facilitator MUST verify nonce UTXO is unspent.
+   */
+  async isUtxoUnspent(txHash: string, index: number): Promise<boolean> {
+    let txUtxos: { outputs?: { address: string; output_index: number }[] };
+    try {
+      txUtxos = await withRetry(
+        () =>
+          this.api.txsUtxos(txHash) as Promise<{
+            outputs: { address: string; output_index: number }[];
+          }>,
+        'isUtxoUnspent.txsUtxos',
+        this.log
+      );
+    } catch (error) {
+      if (error instanceof BlockfrostServerError && error.status_code === 404) {
+        // Producing tx not found at all: cannot be a valid unspent UTXO.
+        return false;
+      }
+      throw error;
+    }
+
+    const target = (txUtxos.outputs ?? []).find((o) => o.output_index === index);
+    if (!target) {
+      // Output index does not exist on the producing tx.
+      return false;
+    }
+
+    // Pull the UTxOs at the holding address and look for our (txHash, index).
+    let addrUtxos: { tx_hash: string; output_index: number }[];
+    try {
+      addrUtxos = (await withRetry(
+        () => this.api.addressesUtxos(target.address),
+        'isUtxoUnspent.addressesUtxos',
+        this.log
+      )) as { tx_hash: string; output_index: number }[];
+    } catch (error) {
+      if (error instanceof BlockfrostServerError && error.status_code === 404) {
+        // Address has no UTxOs at all -> our target is definitely spent.
+        return false;
+      }
+      throw error;
+    }
+
+    return addrUtxos.some((u) => u.tx_hash === txHash && u.output_index === index);
+  }
 }
 
 /**

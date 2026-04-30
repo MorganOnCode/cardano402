@@ -98,6 +98,15 @@ export async function pollConfirmation(
 // Settlement orchestrator
 // ---------------------------------------------------------------------------
 
+export interface SettlePaymentOptions {
+  /**
+   * Whether the operator has opted into emitting `extensions.status: "mempool"`
+   * for transactions that submit but do not confirm before timeout.
+   * Default false (per x402 Cardano spec recommendation).
+   */
+  allowMempool?: boolean;
+}
+
 /**
  * Settle a payment by re-verifying, deduplicating, submitting, and polling.
  *
@@ -107,7 +116,7 @@ export async function pollConfirmation(
  * 3. If dedup hit: check existing record status and return appropriately
  * 4. Submit raw CBOR to Blockfrost
  * 5. Poll for on-chain confirmation
- * 6. Return typed SettleResult (V2 aligned)
+ * 6. Return typed SettleResult (V2 aligned), including `extensions.status`
  *
  * @param ctx - Verification context (same shape as /verify)
  * @param cborBytes - Raw CBOR bytes of the signed transaction
@@ -115,6 +124,7 @@ export async function pollConfirmation(
  * @param redis - Redis client for idempotency dedup
  * @param network - CAIP-2 chain ID (e.g. "cardano:preview")
  * @param logger - Fastify logger
+ * @param options - Optional settlement-time switches (e.g. allowMempool)
  * @returns SettleResult with V2-aligned fields
  */
 export async function settlePayment(
@@ -123,8 +133,10 @@ export async function settlePayment(
   blockfrost: BlockfrostClient,
   redis: RedisLike,
   network: string,
-  logger: FastifyBaseLogger
+  logger: FastifyBaseLogger,
+  options: SettlePaymentOptions = {}
 ): Promise<SettleResult> {
+  const allowMempool = options.allowMempool ?? false;
   const payer = ctx.payerAddress;
 
   // ---- 1. Re-verify ----
@@ -227,7 +239,13 @@ export async function settlePayment(
       confirmedAt: Date.now(),
     };
     await redis.set(dedupKey, JSON.stringify(confirmedRecord), 'EX', DEDUP_TTL_SECONDS);
-    return { success: true, transaction: txHash, network, payer };
+    return {
+      success: true,
+      transaction: txHash,
+      network,
+      payer,
+      extensions: { status: 'confirmed' },
+    };
   }
 
   // Timeout: update dedup record
@@ -236,6 +254,20 @@ export async function settlePayment(
     status: 'timeout',
   };
   await redis.set(dedupKey, JSON.stringify(timeoutRecord), 'EX', DEDUP_TTL_SECONDS);
+
+  if (allowMempool) {
+    // Operator opt-in: return success with status: "mempool". Spec
+    // strongly discourages this for resources of real value because
+    // Cardano's Ouroboros Praos has probabilistic finality.
+    return {
+      success: true,
+      transaction: txHash,
+      network,
+      payer,
+      extensions: { status: 'mempool' },
+    };
+  }
+
   return {
     success: false,
     transaction: txHash,
@@ -280,7 +312,13 @@ async function handleExistingRecord(
   switch (record.status) {
     case 'confirmed':
       logger.info({ txHash: record.txHash }, 'Duplicate submission: already confirmed');
-      return { success: true, transaction: record.txHash, network, payer };
+      return {
+        success: true,
+        transaction: record.txHash,
+        network,
+        payer,
+        extensions: { status: 'confirmed' },
+      };
 
     case 'submitted':
     case 'timeout': {
@@ -295,7 +333,13 @@ async function handleExistingRecord(
         };
         await redis.set(dedupKey, JSON.stringify(confirmedRecord), 'EX', DEDUP_TTL_SECONDS);
         logger.info({ txHash: record.txHash }, 'Duplicate submission: now confirmed on-chain');
-        return { success: true, transaction: record.txHash, network, payer };
+        return {
+          success: true,
+          transaction: record.txHash,
+          network,
+          payer,
+          extensions: { status: 'confirmed' },
+        };
       }
       // Still not confirmed
       return {

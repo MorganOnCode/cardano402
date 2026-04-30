@@ -11,7 +11,8 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 export const SupportedPaymentKindSchema = z.object({
-  x402Version: z.number(),
+  // Spec pins x402 protocol to v2; older clients should be rejected loudly.
+  x402Version: z.literal(2),
   scheme: z.string(),
   network: z.string(),
   extra: z.record(z.string(), z.unknown()).optional(),
@@ -62,8 +63,30 @@ export type PaymentRequiredResponse = z.infer<typeof PaymentRequiredResponseSche
 // Payment-Signature header (client -> resource server)
 // ---------------------------------------------------------------------------
 
+/**
+ * Nonce for the Cardano `exact` scheme: a UTXO reference of the form
+ * `txHash#index`. Per the x402 Cardano spec, this UTXO MUST be included as
+ * an input in the signed transaction and MUST be unspent in the current
+ * UTXO set when verified.
+ *
+ * Spec: https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md
+ */
+export const NonceSchema = z
+  .string()
+  .regex(/^[0-9a-f]{64}#\d+$/, 'nonce must be of the form txHash#index (lowercase hex hash)')
+  .describe(
+    'UTXO reference (txHash#index) that MUST be consumed as a tx input and MUST be unspent'
+  );
+
 export const CardanoPaymentPayloadSchema = z.object({
   transaction: z.string().min(1),
+  /**
+   * REQUIRED per spec: a `txHash#index` UTXO reference that must be one of
+   * the transaction's inputs and must be currently unspent. Replay protection.
+   * Made optional only to support staged migration; verifier rejects when
+   * absent if `requireNonce` is enabled in chain.verification config.
+   */
+  nonce: NonceSchema.optional(),
   payer: z.string().optional(),
 });
 
@@ -77,9 +100,20 @@ export const PaymentSignaturePayloadSchema = z.object({
 export type PaymentSignaturePayload = z.infer<typeof PaymentSignaturePayloadSchema>;
 
 // ---------------------------------------------------------------------------
-// X-Payment-Response header (resource server -> client, after settlement)
-// Aligned with V2 SettleResponse schema.
+// X-Payment-Response / PAYMENT-RESPONSE header (resource server -> client).
+//
+// Two header names, one payload. X-Payment-Response is the canonical form
+// (matches base x402); PAYMENT-RESPONSE is emitted in parallel for
+// compatibility with the literal Cardano spec wording.
+//
+// `extensions.status` per the Cardano spec is one of:
+//   - "confirmed" (recommended; tx is in a block)
+//   - "mempool"   (tx accepted by node but not yet in a block; spec says
+//                  this SHOULD NOT be used for resources with real value
+//                  due to Ouroboros Praos rollback risk)
 // ---------------------------------------------------------------------------
+
+export const PaymentExtensionsStatusSchema = z.enum(['confirmed', 'mempool']);
 
 export const PaymentResponseHeaderSchema = z.object({
   success: z.boolean(),
@@ -88,6 +122,13 @@ export const PaymentResponseHeaderSchema = z.object({
   payer: z.string().optional(),
   errorReason: z.string().optional(),
   errorMessage: z.string().optional(),
+  extensions: z
+    .object({
+      status: PaymentExtensionsStatusSchema.optional(),
+    })
+    .passthrough()
+    .optional(),
 });
 
 export type PaymentResponseHeader = z.infer<typeof PaymentResponseHeaderSchema>;
+export type PaymentExtensionsStatus = z.infer<typeof PaymentExtensionsStatusSchema>;

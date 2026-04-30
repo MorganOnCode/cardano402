@@ -10,6 +10,7 @@
 import { CML } from '@lucid-evolution/lucid';
 
 import { deserializeTransaction } from './cbor.js';
+import { parseNonce } from './nonce.js';
 import { SUPPORTED_TOKENS, LOVELACE_UNIT, assetToUnit } from './token-registry.js';
 import { CAIP2_TO_NETWORK_ID } from './types.js';
 import type { CheckResult, VerifyCheck, VerifyContext } from './types.js';
@@ -380,6 +381,122 @@ export function checkFee(ctx: VerifyContext): CheckResult {
 }
 
 // ---------------------------------------------------------------------------
+// Check 11: Spec-mandated nonce (UTXO reference, must be tx input + unspent)
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate the spec-mandated `nonce` field.
+ *
+ * Per the x402 Cardano spec, `payload.nonce` MUST be a UTXO reference
+ * (`txHash#index`) that:
+ *   1. Is included as one of the transaction's inputs.
+ *   2. Is unspent in the current on-chain UTXO set.
+ *
+ * Behaviour matrix (controlled by ctx.requireNonce, default true):
+ *   - declaredNonce missing && requireNonce=true   -> reject `nonce_required`
+ *   - declaredNonce missing && requireNonce=false  -> pass (legacy mode)
+ *   - declaredNonce present, but doesn't match any tx input -> reject `nonce_not_in_inputs`
+ *   - declaredNonce present, matches input, but isUtxoUnspent() returns false
+ *       -> reject `nonce_utxo_spent`
+ *   - declaredNonce present, isUtxoUnspent callback absent
+ *       -> pass with warning detail (so unit tests can run without chain access)
+ */
+export async function checkNonce(ctx: VerifyContext): Promise<CheckResult> {
+  if (!ctx._parsedTx) {
+    return { check: 'nonce', passed: false, reason: 'cbor_required' };
+  }
+
+  const required = ctx.requireNonce ?? true;
+
+  if (!ctx.declaredNonce) {
+    if (required) {
+      return {
+        check: 'nonce',
+        passed: false,
+        reason: 'nonce_required',
+        details: {
+          message:
+            'payload.nonce is required by the x402 Cardano scheme. Set chain.verification.requireNonce=false to allow legacy clients.',
+        },
+      };
+    }
+    return { check: 'nonce', passed: true, details: { skipped: 'no_nonce_declared' } };
+  }
+
+  // Nonce declared: must match a tx input.
+  const { txHash, index } = ctx.declaredNonce;
+  const matchesInput = ctx._parsedTx.body.inputs.some(
+    (input) => input.txHash === txHash && Number(input.index) === index
+  );
+
+  if (!matchesInput) {
+    return {
+      check: 'nonce',
+      passed: false,
+      reason: 'nonce_not_in_inputs',
+      details: {
+        nonce: `${txHash}#${index}`,
+        inputs: ctx._parsedTx.body.inputs.map((i) => `${i.txHash}#${String(i.index)}`),
+      },
+    };
+  }
+
+  // Nonce matches an input; verify the UTXO is unspent.
+  if (!ctx.isUtxoUnspent) {
+    // No callback wired. The spec is explicit: the facilitator MUST verify
+    // the UTXO is unspent. In spec-compliant mode (requireNonce=true) we
+    // fail closed rather than silently pass — this prevents a production
+    // misconfiguration from disabling replay protection.
+    if (required) {
+      return {
+        check: 'nonce',
+        passed: false,
+        reason: 'nonce_lookup_unavailable',
+        details: {
+          message:
+            'isUtxoUnspent callback is not configured. Cannot verify the nonce UTXO is unspent as the spec requires.',
+        },
+      };
+    }
+    // Legacy mode only: surface that we did not chain-verify the UTXO.
+    return {
+      check: 'nonce',
+      passed: true,
+      details: { skipped: 'isUtxoUnspent_callback_missing' },
+    };
+  }
+
+  let unspent: boolean;
+  try {
+    unspent = await ctx.isUtxoUnspent(txHash, index);
+  } catch (error) {
+    return {
+      check: 'nonce',
+      passed: false,
+      reason: 'nonce_lookup_failed',
+      details: {
+        nonce: `${txHash}#${index}`,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+
+  if (!unspent) {
+    return {
+      check: 'nonce',
+      passed: false,
+      reason: 'nonce_utxo_spent',
+      details: { nonce: `${txHash}#${index}` },
+    };
+  }
+
+  return { check: 'nonce', passed: true };
+}
+
+// Re-export parseNonce so callers (route handlers) have one import path
+export { parseNonce };
+
+// ---------------------------------------------------------------------------
 // Ordered check array
 // ---------------------------------------------------------------------------
 
@@ -389,6 +506,7 @@ export function checkFee(ctx: VerifyContext): CheckResult {
  * checkTokenSupported MUST precede checkRecipient (fast rejection of unsupported tokens).
  * checkRecipient MUST precede checkAmount (it populates ctx._matchingOutputAmount).
  * checkMinUtxo MUST follow checkAmount (needs _matchingOutputIndex).
+ * checkNonce MUST follow checkCborValid (needs parsed inputs).
  */
 export const VERIFICATION_CHECKS: VerifyCheck[] = [
   checkCborValid, // 1. Parse CBOR
@@ -401,4 +519,5 @@ export const VERIFICATION_CHECKS: VerifyCheck[] = [
   checkWitness, // 8. Check signatures present
   checkTtl, // 9. Check TTL not expired
   checkFee, // 10. Check fee bounds
+  checkNonce, // 11. Spec-mandated nonce (replay prevention)
 ];

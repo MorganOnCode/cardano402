@@ -1,7 +1,8 @@
-// x402-fac type definitions
+// cardano402 type definitions
 
 import type Redis from 'ioredis';
 
+import type { ServiceCatalog } from '../catalog.js';
 import type { ChainProvider } from '../chain/provider.js';
 import type { Config } from '../config/index.js';
 import type { PaymentResponseHeader } from '../sdk/types.js';
@@ -18,6 +19,7 @@ declare module 'fastify' {
     redis: Redis;
     chainProvider: ChainProvider;
     storage: StorageBackend;
+    catalog: ServiceCatalog;
   }
 
   interface FastifyRequest {

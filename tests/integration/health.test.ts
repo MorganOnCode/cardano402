@@ -54,6 +54,8 @@ describe('Health Endpoint', () => {
         maxTimeoutSeconds: 300,
         feeMinLovelace: 150000,
         feeMaxLovelace: 5000000,
+        requireNonce: false,
+        confirmationMode: 'confirmed_only' as const,
       },
     },
     storage: {

@@ -77,12 +77,34 @@ export const ChainConfigSchema = z
         feeMinLovelace: z.number().int().min(100000).max(500000).default(150000),
         /** Maximum acceptable fee in lovelace (sanity check upper bound) */
         feeMaxLovelace: z.number().int().min(1000000).max(10000000).default(5000000),
+        /**
+         * Whether `payload.nonce` is required by the verifier.
+         * Per the x402 Cardano spec, nonces are MANDATORY. Default true.
+         * Set to false to allow legacy clients during a migration window
+         * (the verifier still validates structure if a nonce is supplied).
+         */
+        requireNonce: z.boolean().default(true),
+        /**
+         * Settlement confirmation mode for the `extensions.status` field on
+         * the PAYMENT-RESPONSE / X-Payment-Response header.
+         *
+         *   - "confirmed_only" (default): only emit `status: confirmed` after
+         *     block inclusion. Polling timeouts result in success=false.
+         *   - "allow_mempool":  the operator opts into emitting
+         *     `status: mempool` for transactions that submit but do not
+         *     confirm before timeout. STRONGLY DISCOURAGED by the spec.
+         *
+         * Spec: https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md
+         */
+        confirmationMode: z.enum(['confirmed_only', 'allow_mempool']).default('confirmed_only'),
       })
       .default(() => ({
         graceBufferSeconds: 30,
         maxTimeoutSeconds: 300,
         feeMinLovelace: 150000,
         feeMaxLovelace: 5000000,
+        requireNonce: true,
+        confirmationMode: 'confirmed_only' as const,
       })),
   })
   .superRefine((data, ctx) => {

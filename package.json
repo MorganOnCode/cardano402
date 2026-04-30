@@ -9,9 +9,9 @@
       "libsodium-wrappers-sumo": "0.8.2"
     }
   },
-  "name": "x402-fac",
-  "version": "1.0.0",
-  "description": "Cardano x402 payment facilitator with resource server SDK",
+  "name": "cardano402",
+  "version": "1.1.0",
+  "description": "Open-source x402 payment facilitator and resource server SDK for Cardano. Agent-native, registry-free.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -34,7 +34,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "tsx watch --inspect src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=.env --inspect src/index.ts",
     "build": "tsup",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
@@ -53,18 +53,21 @@
     "x402",
     "cardano",
     "payment",
-    "facilitator"
+    "facilitator",
+    "agent",
+    "mcp",
+    "stripe-for-agents"
   ],
   "author": "",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MorganOnCode/x402-fac.git"
+    "url": "https://github.com/MorganOnCode/cardano402.git"
   },
   "bugs": {
-    "url": "https://github.com/MorganOnCode/x402-fac/issues"
+    "url": "https://github.com/MorganOnCode/cardano402/issues"
   },
-  "homepage": "https://github.com/MorganOnCode/x402-fac#readme",
+  "homepage": "https://github.com/MorganOnCode/cardano402#readme",
   "packageManager": "pnpm@10.8.1",
   "lint-staged": {
     "*.ts": [

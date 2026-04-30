@@ -15,8 +15,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: x402-fac:latest
-    container_name: x402-facilitator
+    image: cardano402:latest
+    container_name: cardano402
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -25,12 +25,11 @@ services:
       - ./data:/app/data
     environment:
       - NODE_ENV=production
-      - MAINNET=true
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 5s
       start_period: 15s
@@ -43,7 +42,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: x402-redis
+    container_name: cardano402-redis
     restart: unless-stopped
     command: >
       redis-server

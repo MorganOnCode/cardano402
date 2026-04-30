@@ -27,7 +27,7 @@ export const SettleRequestSchema = z.object({
 
 /**
  * SettleResponse -- POST /settle response.
- * Aligned with upstream x402 V2 spec.
+ * Aligned with upstream x402 V2 spec and the x402 Cardano scheme doc.
  */
 export const SettleResponseSchema = z.object({
   /** Whether settlement succeeded */
@@ -42,8 +42,19 @@ export const SettleResponseSchema = z.object({
   errorReason: z.string().optional(),
   /** Human-readable error message (present on failure) */
   errorMessage: z.string().optional(),
-  /** Protocol extensions data */
-  extensions: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * Protocol extensions. The Cardano scheme doc requires `extensions.status`
+   * with values `confirmed | mempool` on successful settlement (see
+   * x402-foundation/x402 spec, section "PAYMENT-RESPONSE Header Payload").
+   * `mempool` is permitted but strongly discouraged because Cardano has
+   * probabilistic finality (Ouroboros Praos rollbacks).
+   */
+  extensions: z
+    .object({
+      status: z.enum(['confirmed', 'mempool']).optional(),
+    })
+    .passthrough()
+    .optional(),
 });
 
 /**
@@ -100,6 +111,11 @@ export interface SettlementRecord {
 /**
  * Return type of the settlePayment() orchestrator.
  * Maps directly to the SettleResponse wire format (V2 aligned).
+ *
+ * `extensions.status` follows the x402 Cardano spec:
+ *   - "confirmed" once the tx is in a block
+ *   - "mempool"  if the operator has explicitly opted into mempool returns
+ *                via chain.verification.confirmationMode = "allow_mempool"
  */
 export interface SettleResult {
   /** Whether settlement succeeded */
@@ -114,6 +130,11 @@ export interface SettleResult {
   errorReason?: string;
   /** Human-readable error message on failure */
   errorMessage?: string;
+  /** Spec-required extensions container */
+  extensions?: {
+    status?: 'confirmed' | 'mempool';
+    [k: string]: unknown;
+  };
 }
 
 /**
