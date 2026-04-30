@@ -306,10 +306,11 @@ describe('createPaymentGate', () => {
         success: true,
         transaction: 'abc123def456',
         network: 'cardano:preview',
+        extensions: { status: 'confirmed' },
       });
     });
 
-    it('should set X-Payment-Response header on reply', async () => {
+    it('should set both X-Payment-Response and PAYMENT-RESPONSE headers on reply', async () => {
       const handler = createHandler(options);
       const signature = createPaymentSignature();
       const request = createMockRequest({ 'payment-signature': signature });
@@ -317,13 +318,20 @@ describe('createPaymentGate', () => {
 
       await handler(request, reply, vi.fn());
 
-      expect(reply.header).toHaveBeenCalledWith('X-Payment-Response', expect.any(String));
-      // Decode and verify
-      const headerValue = (reply.header as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+      const headerCalls = (reply.header as ReturnType<typeof vi.fn>).mock.calls;
+      const headerNames = headerCalls.map((c) => c[0]);
+      expect(headerNames).toContain('X-Payment-Response');
+      expect(headerNames).toContain('PAYMENT-RESPONSE');
+
+      // Decode and verify the canonical header value
+      const xCall = headerCalls.find((c) => c[0] === 'X-Payment-Response');
+      expect(xCall).toBeDefined();
+      const headerValue = xCall![1] as string;
       const decoded = JSON.parse(Buffer.from(headerValue, 'base64').toString('utf-8'));
       expect(decoded.success).toBe(true);
       expect(decoded.transaction).toBe('abc123def456');
       expect(decoded.network).toBe('cardano:preview');
+      expect(decoded.extensions).toEqual({ status: 'confirmed' });
     });
   });
 

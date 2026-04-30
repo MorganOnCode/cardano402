@@ -7,7 +7,7 @@ services:
 
   ipfs:
     image: ipfs/kubo:latest
-    container_name: x402-ipfs
+    container_name: cardano402-ipfs
     ports:
       - "4001:4001"      # P2P swarm
       - "5001:5001"      # HTTP API
@@ -20,7 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: x402-redis
+    container_name: cardano402-redis
     ports:
       - "6379:6379"
     volumes:
@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: x402-facilitator
+    container_name: cardano402
     profiles:
       - production
     ports:
@@ -48,7 +48,7 @@ services:
 
   redis-prod:
     image: redis:7-alpine
-    container_name: x402-redis-prod
+    container_name: cardano402-redis-prod
     profiles:
       - production
     ports:

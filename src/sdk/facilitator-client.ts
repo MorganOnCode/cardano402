@@ -24,18 +24,48 @@ export interface FacilitatorClientOptions {
   timeout?: number;
   /** Additional headers to send with every request */
   headers?: Record<string, string>;
+  /**
+   * If true, the client sends the base x402 form
+   * `{ x402Version, paymentHeader: <base64-string>, paymentRequirements }`.
+   *
+   * If false (default), the client sends the cardano402-native form
+   * `{ x402Version, paymentPayload: <object>, paymentRequirements }`.
+   *
+   * Both shapes are accepted by cardano402's facilitator endpoints.
+   */
+  sendRawHeader?: boolean;
+}
+
+/**
+ * Convert a cardano402-native VerifyRequest/SettleRequest into the
+ * base x402 `{ paymentHeader: base64 }` form.
+ */
+function toRawHeaderRequest(req: VerifyRequest | SettleRequest): {
+  x402Version: 2;
+  paymentHeader: string;
+  paymentRequirements: VerifyRequest['paymentRequirements'];
+} {
+  const json = JSON.stringify(req.paymentPayload);
+  const paymentHeader = Buffer.from(json, 'utf-8').toString('base64');
+  return {
+    x402Version: 2,
+    paymentHeader,
+    paymentRequirements: req.paymentRequirements,
+  };
 }
 
 export class FacilitatorClient {
   private readonly baseUrl: string;
   private readonly timeout: number;
   private readonly headers: Record<string, string>;
+  private readonly sendRawHeader: boolean;
 
   constructor(options: FacilitatorClientOptions) {
     // Strip trailing slash for consistent URL building
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.timeout = options.timeout ?? 30_000;
     this.headers = options.headers ?? {};
+    this.sendRawHeader = options.sendRawHeader ?? false;
   }
 
   /**
@@ -43,7 +73,8 @@ export class FacilitatorClient {
    * POST /verify
    */
   async verify(request: VerifyRequest): Promise<VerifyResponse> {
-    return this.post('/verify', request, VerifyResponseSchema);
+    const body = this.sendRawHeader ? toRawHeaderRequest(request) : request;
+    return this.post('/verify', body, VerifyResponseSchema);
   }
 
   /**
@@ -51,7 +82,8 @@ export class FacilitatorClient {
    * POST /settle
    */
   async settle(request: SettleRequest): Promise<SettleResponse> {
-    return this.post('/settle', request, SettleResponseSchema);
+    const body = this.sendRawHeader ? toRawHeaderRequest(request) : request;
+    return this.post('/settle', body, SettleResponseSchema);
   }
 
   /**

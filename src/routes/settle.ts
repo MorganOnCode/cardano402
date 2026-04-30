@@ -9,8 +9,14 @@ import fp from 'fastify-plugin';
 import { z } from 'zod';
 
 import type { CardanoNetwork } from '../chain/types.js';
+import { resolveAssetTransferMethod } from '../sdk/methods.js';
 import { settlePayment } from '../settle/settle-payment.js';
-import { SettleRequestSchema, SettleResponseSchema } from '../settle/types.js';
+import { SettleResponseSchema } from '../settle/types.js';
+import { parseNonce } from '../verify/nonce.js';
+import {
+  FacilitatorRequestEnvelopeSchema,
+  normaliseFacilitatorRequest,
+} from '../verify/request-shape.js';
 import { CAIP2_CHAIN_IDS } from '../verify/types.js';
 import type { VerifyContext } from '../verify/types.js';
 
@@ -19,9 +25,11 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
     '/settle',
     {
       schema: {
-        description: 'Submit a signed Cardano transaction for on-chain settlement',
+        description:
+          'Submit a signed Cardano transaction for on-chain settlement. ' +
+          'Accepts either {paymentPayload: object} or {paymentHeader: base64} body shape.',
         tags: ['Facilitator'],
-        body: SettleRequestSchema,
+        body: FacilitatorRequestEnvelopeSchema,
         response: {
           200: SettleResponseSchema,
           500: z.object({ error: z.string(), message: z.string() }),
@@ -36,10 +44,10 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       },
     },
     async (request, reply) => {
-      // 1. Parse and validate request body with Zod (handler-level, not Fastify schema)
-      const parsed = SettleRequestSchema.safeParse(request.body);
+      // 1. Parse the envelope and accept either body shape (Track A3).
+      const envelope = FacilitatorRequestEnvelopeSchema.safeParse(request.body);
 
-      if (!parsed.success) {
+      if (!envelope.success) {
         return reply.status(200).send({
           success: false,
           transaction: '',
@@ -49,10 +57,25 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         });
       }
 
+      const normalised = normaliseFacilitatorRequest(envelope.data);
+      if (!normalised.ok) {
+        return reply.status(200).send({
+          success: false,
+          transaction: '',
+          network: '',
+          errorReason: 'invalid_request',
+          errorMessage: normalised.error.message,
+        });
+      }
+
       // 2. Assemble VerifyContext from parsed request + server state
-      const { paymentPayload, paymentRequirements } = parsed.data;
+      const { paymentPayload, paymentRequirements } = normalised.data;
       const chainConfig = fastify.config.chain;
       const verificationConfig = chainConfig.verification;
+
+      const declaredNonce = paymentPayload.payload.nonce
+        ? (parseNonce(paymentPayload.payload.nonce) ?? undefined)
+        : undefined;
 
       const ctx: VerifyContext = {
         scheme: paymentRequirements.scheme,
@@ -70,6 +93,11 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         configuredNetwork: CAIP2_CHAIN_IDS[chainConfig.network as CardanoNetwork],
         feeMin: BigInt(verificationConfig.feeMinLovelace),
         feeMax: BigInt(verificationConfig.feeMaxLovelace),
+        // Spec-mandated nonce hooks (Track A1)
+        declaredNonce,
+        requireNonce: verificationConfig.requireNonce,
+        isUtxoUnspent: (txHash: string, index: number) =>
+          fastify.chainProvider.blockfrostClient.isUtxoUnspent(txHash, index),
       };
 
       // 3. Convert base64 transaction to Uint8Array for submission
@@ -77,6 +105,23 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
 
       // 4. Determine CAIP-2 network string
       const network = CAIP2_CHAIN_IDS[chainConfig.network as CardanoNetwork];
+
+      // Only the default address-to-address method can be settled today.
+      const method = resolveAssetTransferMethod(
+        paymentRequirements.extra as Record<string, unknown> | undefined
+      );
+      if (method !== 'default') {
+        const reason =
+          method === 'unknown' ? 'method_not_supported' : 'method_not_implemented';
+        return reply.status(200).send({
+          success: false,
+          transaction: '',
+          network,
+          errorReason: reason,
+          errorMessage:
+            'Only assetTransferMethod="default" is settled by this facilitator.',
+        });
+      }
 
       // 5. Call settlement orchestrator
       try {
@@ -86,7 +131,8 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
           fastify.chainProvider.blockfrostClient,
           fastify.redis,
           network,
-          fastify.log
+          fastify.log,
+          { allowMempool: verificationConfig.confirmationMode === 'allow_mempool' }
         );
 
         // 6. Return result as HTTP 200

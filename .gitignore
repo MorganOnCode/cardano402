@@ -5,8 +5,11 @@ node_modules/
 dist/
 
 # Environment and config (secrets)
+# Treat every JSON in config/ as sensitive by default. Only the explicit
+# example template is committed.
+config/*.json
+!config/config.example.json
 config.json
-config/config.json
 config/cmds.bash
 .env
 .env.*
@@ -40,3 +43,16 @@ data/
 .bg-shell/
 .env.client
 config/config.mainnet.json
+
+# Workspace scratch (not for commit)
+.auditing/
+.planning/
+
+# pnpm install temporary files (orphans from failed installs)
+_tmp_*
+
+# Vendored x402-rs reference impl is NOT a submodule and should be moved
+# out-of-tree before the next public push. Until then, keep it ignored
+# from clean checkouts.
+x402-rs-main/
+

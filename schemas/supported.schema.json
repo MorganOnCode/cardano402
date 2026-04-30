@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cardano402.com/schemas/v2/supported.schema.json",
+  "title": "x402 v2 GET /supported response (Cardano)",
+  "type": "object",
+  "required": ["kinds"],
+  "properties": {
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["x402Version", "scheme", "network"],
+        "properties": {
+          "x402Version": { "const": 2 },
+          "scheme": { "type": "string" },
+          "network": { "type": "string" },
+          "extra": { "type": "object" }
+        }
+      }
+    },
+    "extensions": {
+      "type": "array",
+      "description": "cardano402 superset; base x402 spec ignores this field."
+    },
+    "signers": {
+      "type": "object",
+      "description": "cardano402 superset; CAIP-family pattern -> bech32 addresses.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}

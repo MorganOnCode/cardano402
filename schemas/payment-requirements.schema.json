@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cardano402.com/schemas/v2/payment-requirements.schema.json",
+  "title": "x402 v2 PaymentRequirements (Cardano)",
+  "type": "object",
+  "required": ["x402Version", "resource", "accepts"],
+  "properties": {
+    "x402Version": { "const": 2 },
+    "error": { "type": ["string", "null"] },
+    "resource": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "mimeType": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "accepts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["scheme", "network", "amount", "asset", "payTo", "maxTimeoutSeconds"],
+        "properties": {
+          "scheme": { "const": "exact" },
+          "network": {
+            "type": "string",
+            "pattern": "^cardano:(mainnet|preprod|preview)$"
+          },
+          "amount": { "type": "string", "pattern": "^[0-9]+$" },
+          "asset": {
+            "type": "string",
+            "description": "Either 'lovelace' or '${policyIdHex}.${assetNameHex}'"
+          },
+          "payTo": { "type": "string", "minLength": 1 },
+          "maxTimeoutSeconds": { "type": "integer", "minimum": 1 },
+          "extra": { "type": ["object", "null"] }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,7 +1,13 @@
 // GET /supported route -- returns facilitator capabilities (PROT-03).
 //
 // Reports supported chains, schemes, and signer addresses per the x402 V2 spec.
-// Resource servers call this to discover what the facilitator supports.
+//
+// Shape policy: this response is a SUPERSET of the base x402 `/supported`
+// shape. The base x402 spec defines `{ kinds: [...] }` only. cardano402
+// additionally surfaces `extensions` and `signers` so Cardano-aware clients
+// can introspect facilitator capabilities (e.g. discover the facilitator's
+// signing address). A base-x402 client that reads only `kinds` will find a
+// strict-shape match and ignore the extras, so this is fully compatible.
 
 import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';

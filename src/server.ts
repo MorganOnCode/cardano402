@@ -16,6 +16,7 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod';
 
+import { ServiceCatalog } from './catalog.js';
 import { createChainProvider, createRedisClient, disconnectRedis } from './chain/index.js';
 import type { Config } from './config/index.js';
 import { errorHandlerPlugin } from './plugins/error-handler.js';
@@ -28,6 +29,7 @@ import { statusRoutesPlugin } from './routes/status.js';
 import { supportedRoutesPlugin } from './routes/supported.js';
 import { uploadRoutesPlugin } from './routes/upload.js';
 import { verifyRoutesPlugin } from './routes/verify.js';
+import { wellKnownRoutesPlugin } from './routes/well-known.js';
 import { createStorageBackend } from './storage/index.js';
 
 // Import types to ensure augmentation is loaded
@@ -93,10 +95,16 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
       'Content-Type',
       'Authorization',
       'X-Request-ID',
+      // Payment-Signature is the request-side header name from the x402
+      // Cardano spec; we accept both the canonical PAYMENT-SIGNATURE casing
+      // and the kebab-case form (HTTP headers are case-insensitive on the
+      // wire, but CORS allowlists must enumerate them).
       'Payment-Signature',
+      'PAYMENT-SIGNATURE',
       'Payment-Required',
     ],
-    exposedHeaders: ['Payment-Required', 'X-Payment-Response'],
+    // Both header names are emitted in parallel. See sdk/types.ts.
+    exposedHeaders: ['Payment-Required', 'X-Payment-Response', 'PAYMENT-RESPONSE'],
   });
 
   // Multipart support (file uploads)
@@ -169,6 +177,17 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   server.decorate('storage', storage);
   server.log.info({ backend: config.storage.backend }, 'Storage layer initialized');
 
+  // ---- Service catalog (paid-route registry for /.well-known/ discovery) ----
+  const catalog = new ServiceCatalog();
+  catalog.setServer({
+    name: 'cardano402',
+    description:
+      'Open-source x402 payment facilitator and resource server SDK for Cardano.',
+    contact: 'https://github.com/MorganOnCode/cardano402',
+    url: undefined,
+  });
+  server.decorate('catalog', catalog);
+
   // Routes
   await server.register(healthRoutesPlugin);
   await server.register(verifyRoutesPlugin);
@@ -178,6 +197,7 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   await server.register(uploadRoutesPlugin);
   await server.register(downloadRoutesPlugin);
   await server.register(demoRoutesPlugin);
+  await server.register(wellKnownRoutesPlugin);
 
   // Landing page — serve landing/index.html at / (and static assets)
   // Must be registered after API routes so /docs etc. take precedence

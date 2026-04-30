@@ -125,7 +125,9 @@ const demoRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       });
 
       const supportedRes = await fetch(`${serverUrl}/supported`);
-      const supportedBody = (await supportedRes.json()) as Record<string, unknown>;
+      // Consume the body so the connection releases; the contents aren't used
+      // here, only the fact that the endpoint responded.
+      await supportedRes.json();
       emit(reply, 'step', {
         step: 2,
         total: 7,

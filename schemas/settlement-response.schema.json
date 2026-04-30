@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cardano402.com/schemas/v2/settlement-response.schema.json",
+  "title": "x402 v2 PAYMENT-RESPONSE / SettleResponse (Cardano)",
+  "type": "object",
+  "required": ["success", "transaction", "network"],
+  "properties": {
+    "success": { "type": "boolean" },
+    "transaction": { "type": "string" },
+    "network": { "type": "string" },
+    "payer": { "type": "string" },
+    "errorReason": { "type": "string" },
+    "errorMessage": { "type": "string" },
+    "extensions": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["confirmed", "mempool"],
+          "description": "confirmed: tx in block. mempool: accepted but not in a block yet (strongly discouraged)."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

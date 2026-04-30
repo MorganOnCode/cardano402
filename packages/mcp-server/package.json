@@ -1,0 +1,19 @@
+{
+  "name": "@cardano402/mcp-server",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "description": "MCP server that exposes paid HTTP endpoints as MCP tools, paying via the x402 Cardano scheme.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "bin": {
+    "cardano402-mcp": "src/cli.ts"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MorganOnCode/cardano402.git",
+    "directory": "packages/mcp-server"
+  },
+  "publishConfig": { "access": "public" }
+}

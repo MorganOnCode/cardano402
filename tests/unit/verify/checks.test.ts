@@ -12,6 +12,7 @@ import {
   checkFee,
   checkMinUtxo,
   checkNetwork,
+  checkNonce,
   checkRecipient,
   checkScheme,
   checkTokenSupported,
@@ -818,8 +819,8 @@ describe('checkFee', () => {
 // ---------------------------------------------------------------------------
 
 describe('VERIFICATION_CHECKS', () => {
-  it('exports an array of 10 check functions', () => {
-    expect(VERIFICATION_CHECKS).toHaveLength(10);
+  it('exports an array of 11 check functions', () => {
+    expect(VERIFICATION_CHECKS).toHaveLength(11);
   });
 
   it('has checks in the correct order', () => {
@@ -833,5 +834,135 @@ describe('VERIFICATION_CHECKS', () => {
     expect(VERIFICATION_CHECKS[7]).toBe(checkWitness);
     expect(VERIFICATION_CHECKS[8]).toBe(checkTtl);
     expect(VERIFICATION_CHECKS[9]).toBe(checkFee);
+    expect(VERIFICATION_CHECKS[10]).toBe(checkNonce);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkNonce (Track A1 — x402 Cardano spec mandate)
+// ---------------------------------------------------------------------------
+
+describe('checkNonce', () => {
+  const txHash = 'a'.repeat(64);
+  const otherHash = 'b'.repeat(64);
+
+  it('passes when no nonce declared and requireNonce is false', async () => {
+    const ctx = makeCtx({ requireNonce: false });
+    ctx._parsedTx = makeParsedTx();
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(true);
+  });
+
+  it('rejects when no nonce declared and requireNonce is true (default per spec)', async () => {
+    const ctx = makeCtx();
+    ctx._parsedTx = makeParsedTx();
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('nonce_required');
+  });
+
+  it('rejects when declared nonce does not appear in tx inputs', async () => {
+    const ctx = makeCtx({
+      declaredNonce: { txHash: otherHash, index: 0 },
+      isUtxoUnspent: vi.fn().mockResolvedValue(true),
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        inputs: [{ txHash, index: 0n }],
+      },
+    });
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('nonce_not_in_inputs');
+  });
+
+  it('rejects when declared nonce matches an input but UTXO is spent', async () => {
+    const isUtxoUnspent = vi.fn().mockResolvedValue(false);
+    const ctx = makeCtx({
+      declaredNonce: { txHash, index: 0 },
+      isUtxoUnspent,
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        inputs: [{ txHash, index: 0n }],
+      },
+    });
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('nonce_utxo_spent');
+    expect(isUtxoUnspent).toHaveBeenCalledWith(txHash, 0);
+  });
+
+  it('passes when nonce matches an input and UTXO is unspent', async () => {
+    const ctx = makeCtx({
+      declaredNonce: { txHash, index: 0 },
+      isUtxoUnspent: vi.fn().mockResolvedValue(true),
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        inputs: [{ txHash, index: 0n }],
+      },
+    });
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(true);
+  });
+
+  it('reports nonce_lookup_failed when chain query throws', async () => {
+    const ctx = makeCtx({
+      declaredNonce: { txHash, index: 0 },
+      isUtxoUnspent: vi.fn().mockRejectedValue(new Error('blockfrost down')),
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        inputs: [{ txHash, index: 0n }],
+      },
+    });
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('nonce_lookup_failed');
+  });
+
+  it('fails closed when isUtxoUnspent is missing in spec-compliant mode (requireNonce default true)', async () => {
+    const ctx = makeCtx({
+      declaredNonce: { txHash, index: 0 },
+      // intentionally no isUtxoUnspent
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        inputs: [{ txHash, index: 0n }],
+      },
+    });
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('nonce_lookup_unavailable');
+  });
+
+  it('passes with skipped detail when isUtxoUnspent is missing in legacy mode (requireNonce=false)', async () => {
+    const ctx = makeCtx({
+      requireNonce: false,
+      declaredNonce: { txHash, index: 0 },
+      // intentionally no isUtxoUnspent
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        inputs: [{ txHash, index: 0n }],
+      },
+    });
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(true);
+    expect(result.details).toMatchObject({ skipped: 'isUtxoUnspent_callback_missing' });
+  });
+
+  it('returns cbor_required when ctx._parsedTx is missing', async () => {
+    const ctx = makeCtx({ declaredNonce: { txHash, index: 0 } });
+    const result = await checkNonce(ctx);
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('cbor_required');
   });
 });

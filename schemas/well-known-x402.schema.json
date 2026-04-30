@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cardano402.com/schemas/v2/well-known-x402.schema.json",
+  "title": "/.well-known/x402.json (cardano402 discovery manifest)",
+  "type": "object",
+  "required": ["x402Version", "server", "endpoints"],
+  "properties": {
+    "x402Version": { "const": 2 },
+    "server": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "contact": { "type": "string" },
+        "url": { "type": "string", "format": "uri" }
+      },
+      "additionalProperties": true
+    },
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["method", "path", "scheme", "network", "amount", "asset", "payTo", "maxTimeoutSeconds"],
+        "properties": {
+          "method": { "type": "string", "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"] },
+          "path": { "type": "string" },
+          "scheme": { "const": "exact" },
+          "network": { "type": "string", "pattern": "^cardano:(mainnet|preprod|preview)$" },
+          "amount": { "type": "string", "pattern": "^[0-9]+$" },
+          "asset": { "type": "string" },
+          "payTo": { "type": "string" },
+          "maxTimeoutSeconds": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string" },
+          "inputSchema": {},
+          "outputSchema": {}
+        }
+      }
+    },
+    "facilitator": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

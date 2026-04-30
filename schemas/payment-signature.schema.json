@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cardano402.com/schemas/v2/payment-signature.schema.json",
+  "title": "x402 v2 PAYMENT-SIGNATURE header payload (Cardano)",
+  "type": "object",
+  "required": ["x402Version", "accepted", "payload"],
+  "properties": {
+    "x402Version": { "const": 2 },
+    "resource": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "mimeType": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "accepted": {
+      "type": "object",
+      "required": ["scheme", "network", "amount", "asset", "payTo", "maxTimeoutSeconds"],
+      "properties": {
+        "scheme": { "const": "exact" },
+        "network": { "type": "string" },
+        "amount": { "type": "string" },
+        "asset": { "type": "string" },
+        "payTo": { "type": "string" },
+        "maxTimeoutSeconds": { "type": "integer" },
+        "extra": { "type": ["object", "null"] }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "required": ["transaction", "nonce"],
+      "properties": {
+        "transaction": {
+          "type": "string",
+          "description": "Base64-encoded signed Cardano transaction CBOR"
+        },
+        "nonce": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}#[0-9]+$",
+          "description": "UTXO reference (txHash#index) consumed as a tx input. MUST be unspent at verification time."
+        },
+        "payer": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
