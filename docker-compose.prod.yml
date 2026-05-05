@@ -25,6 +25,9 @@ services:
       - ./data:/app/data
     environment:
       - NODE_ENV=production
+      # Mainnet safety guardrail (src/chain/config.ts). Must be "true" when
+      # config.json has chain.network = "Mainnet"; "false" otherwise.
+      - MAINNET=${MAINNET:-false}
     depends_on:
       redis:
         condition: service_healthy
