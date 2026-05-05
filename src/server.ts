@@ -77,7 +77,18 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   await server.register(helmet, {
     global: true,
     // CSP can be customized per-route if needed
-    contentSecurityPolicy: isDev ? false : undefined,
+    contentSecurityPolicy: isDev
+      ? false
+      : {
+          useDefaults: true,
+          directives: {
+            'script-src': ["'self'", "'unsafe-inline'"],
+            'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+            'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
+            'img-src': ["'self'", 'data:'],
+            'connect-src': ["'self'"],
+          },
+        },
   });
 
   // Rate limiting

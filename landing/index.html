@@ -1254,7 +1254,7 @@
           </div>
           <div class="demo-footer">
             <span class="demo-status-text" id="demoStatusText">Preview testnet · no real funds</span>
-            <button class="demo-run-btn" id="demoRunBtn" onclick="runDemo()">Run Demo →</button>
+            <button class="demo-run-btn" id="demoRunBtn" type="button">Run Demo →</button>
           </div>
         </div>
 
@@ -1964,6 +1964,9 @@ app.<span class="fn">post</span>(<span class="str">'/api/generate'</span>, {
         }
       }
     }
+
+    // Wire up the Run Demo button (CSP forbids inline onclick attributes)
+    document.getElementById('demoRunBtn')?.addEventListener('click', runDemo);
 
     // Check cooldown on page load (in case visitor refreshes mid-cooldown)
     fetch('/demo/status').then(r => r.json()).then(s => {
