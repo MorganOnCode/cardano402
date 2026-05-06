@@ -239,13 +239,20 @@ function Spinner() {
 }
 
 function SimpleMode({ steps, result, error, running }) {
+  // A step is "done" when a later step has started, or when the run has
+  // completed (result event arrived). The previous regex on `detail` left
+  // steps stuck "active" when a step's final server message didn't happen
+  // to contain words like "OK" or "Tx hash" — e.g. step 2/3 on every run,
+  // and step 5 on the prod mainnet config (network_mismatch fallback).
+  const maxStepStarted = steps.reduce((m, s) => Math.max(m, s?.step || 0), 0);
   return (
     <div>
       <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
         {STEP_LABELS_SIMPLE.map((s, i) => {
           const live = steps[i];
-          const isDone = live && (i + 1 < (live.step || 0) || (live.detail && /✅|OK|passed|Confirmed|submitted|Tx hash/i.test(live.detail)));
-          const isActive = live && !isDone && running;
+          const stepNum = i + 1;
+          const isDone = !!live && (stepNum < maxStepStarted || (!!result && stepNum <= maxStepStarted));
+          const isActive = !!live && !isDone && running;
           const idle = !live;
           return (
             <li key={s.n} style={{

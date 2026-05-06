@@ -72,9 +72,9 @@ function SequenceDiagram() {
         gap: 'clamp(20px, 6vw, 80px)',
         paddingBottom: 8,
       }}>
-        {/* Two vertical lifelines */}
-        <Lifeline />
-        <Lifeline />
+        {/* Two vertical lifelines, anchored to each lane's column center */}
+        <Lifeline left="25%" />
+        <Lifeline left="75%" />
 
         {/* Steps stacked vertically */}
         <div style={{
@@ -121,20 +121,18 @@ function Lane({ emoji, name, sub, align }) {
   );
 }
 
-function Lifeline() {
+function Lifeline({ left }) {
   return (
     <div aria-hidden style={{
       position: 'absolute', top: 0, bottom: 0,
+      left,
       width: 2,
+      transform: 'translateX(-50%)',
       background: 'repeating-linear-gradient(to bottom, rgba(10,16,36,0.35) 0 6px, transparent 6px 12px)',
       pointerEvents: 'none',
     }} />
   );
 }
-
-// Hide the second lifeline using nth-child via inline style trick:
-// Instead, render lifelines absolutely positioned at the lane centers via a wrapper.
-// Simpler approach below: render them inside the grid columns directly.
 
 function SeqStep({ n, dir, color, label, sub }) {
   const reverse = dir === 'left';

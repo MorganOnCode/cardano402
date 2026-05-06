@@ -13,7 +13,7 @@ function HeroTerminal({ showStickers }) {
           <div>
             <div className="pill" style={{ marginBottom: 28 }}>
               <span className="dot"></span>
-              <span className="mono" style={{ fontSize: 12 }}>open source · apache-2.0 · 383 tests</span>
+              <span className="mono" style={{ fontSize: 12 }}>open source · apache-2.0 · zero npm deps in browser</span>
             </div>
 
             <h1 style={{
