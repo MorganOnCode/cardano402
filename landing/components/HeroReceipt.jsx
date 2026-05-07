@@ -1,27 +1,32 @@
 // HeroReceipt.jsx — paper receipt motif, warm cream
 
 function HeroReceipt({ showStickers }) {
+  const isMobile = (window.useIsMobile || (() => false))();
   return (
-    <section style={{ paddingTop: 40, paddingBottom: 100, position: 'relative', overflow: 'hidden' }}>
+    <section style={{
+      paddingTop: isMobile ? 24 : 40,
+      paddingBottom: isMobile ? 56 : 100,
+      position: 'relative', overflow: 'hidden',
+    }}>
       <div className="wrap" style={{ position: 'relative' }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1.05fr 0.95fr',
-          gap: 60,
+          gridTemplateColumns: isMobile ? '1fr' : '1.05fr 0.95fr',
+          gap: isMobile ? 40 : 60,
           alignItems: 'center',
-          minHeight: 620,
+          minHeight: isMobile ? 0 : 620,
         }}>
           <div>
-            <div className="pill" style={{ marginBottom: 28 }}>
+            <div className="pill" style={{ marginBottom: isMobile ? 20 : 28 }}>
               <span className="dot"></span>
               <span className="mono" style={{ fontSize: 12 }}>HTTP 402 · Cardano · live on preview</span>
             </div>
 
             <h1 style={{
-              fontSize: 'clamp(56px, 7vw, 96px)',
-              lineHeight: 0.95,
+              fontSize: isMobile ? 'clamp(36px, 9vw, 56px)' : 'clamp(56px, 7vw, 96px)',
+              lineHeight: 0.98,
               letterSpacing: '-0.035em',
-              margin: '0 0 24px',
+              margin: '0 0 20px',
               fontWeight: 700,
               textWrap: 'balance',
             }}>
@@ -41,11 +46,12 @@ function HeroReceipt({ showStickers }) {
             </h1>
 
             <p style={{
-              fontSize: 20, lineHeight: 1.5, maxWidth: 540,
-              opacity: 0.78, margin: '0 0 36px',
+              fontSize: isMobile ? 17 : 20,
+              lineHeight: 1.5, maxWidth: 540,
+              opacity: 0.78, margin: '0 0 28px',
             }}>
               <strong style={{ fontWeight: 600, opacity: 1 }}>x402</strong> turns the dusty
-              "<span className="mono" style={{ fontSize: 17 }}>402 Payment Required</span>" status code
+              "<span className="mono" style={{ fontSize: isMobile ? 14 : 17 }}>402 Payment Required</span>" status code
               into a real payment rail. <strong style={{ fontWeight: 600, opacity: 1 }}>cardano402</strong> is
               the open implementation that settles those payments on Cardano — built so agents,
               APIs and humans can pay per-request without sign-ups, subscriptions, or middlemen.
@@ -59,7 +65,12 @@ function HeroReceipt({ showStickers }) {
               <a href="#how" className="btn ghost">See it work</a>
             </div>
 
-            <div style={{ marginTop: 36, display: 'flex', gap: 24, fontSize: 13.5, opacity: 0.65 }}>
+            <div style={{
+              marginTop: isMobile ? 24 : 36,
+              display: 'flex', flexWrap: 'wrap',
+              gap: isMobile ? '10px 18px' : 24,
+              fontSize: 13.5, opacity: 0.65,
+            }}>
               <span><span className="mono" style={{ fontWeight: 700, color: 'var(--ink)' }}>10</span> verification checks</span>
               <span><span className="mono" style={{ fontWeight: 700, color: 'var(--ink)' }}>4</span> tokens (ADA · USDM · DJED · iUSD)</span>
               <span><span className="mono" style={{ fontWeight: 700, color: 'var(--ink)' }}>0</span> middlemen</span>
@@ -67,9 +78,15 @@ function HeroReceipt({ showStickers }) {
           </div>
 
           {/* RECEIPT */}
-          <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-            <Receipt />
-            {showStickers && (
+          <div style={{
+            position: 'relative',
+            display: 'flex', justifyContent: 'center',
+            // Reserve room for stickers on desktop only — they're hidden on mobile.
+            paddingTop: isMobile ? 0 : 12,
+            paddingBottom: isMobile ? 0 : 12,
+          }}>
+            <Receipt isMobile={isMobile} />
+            {showStickers && !isMobile && (
               <>
                 <div className="sticker" style={{
                   top: -10, left: -30,
@@ -98,18 +115,21 @@ function HeroReceipt({ showStickers }) {
   );
 }
 
-function Receipt() {
+function Receipt({ isMobile }) {
   return (
     <div style={{
-      width: 380,
+      width: '100%',
+      maxWidth: 380,
       background: 'white',
-      filter: 'drop-shadow(0 30px 40px rgba(10, 16, 36, 0.18))',
-      transform: 'rotate(-2deg)',
+      filter: 'drop-shadow(0 24px 36px rgba(10, 16, 36, 0.16))',
+      // Drop the playful tilt on mobile so the receipt doesn't visually clip its container.
+      transform: isMobile ? 'rotate(0deg)' : 'rotate(-2deg)',
       position: 'relative',
-      // zigzag bottom edge
-      maskImage: 'linear-gradient(black, black), radial-gradient(circle at 8px 100%, transparent 6px, black 6.5px)',
+      // The mask SVG uses preserveAspectRatio='none' and 100% sizing, so it
+      // stretches cleanly when the parent narrows below 380px.
       WebkitMask: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='380' height='800' preserveAspectRatio='none'><defs><pattern id='zig' x='0' y='0' width='16' height='10' patternUnits='userSpaceOnUse'><polygon points='0,0 8,10 16,0' fill='black'/></pattern></defs><rect width='380' height='790' fill='black'/><rect y='790' width='380' height='10' fill='url(%23zig)' transform='scale(1,-1) translate(0,-800)'/></svg>") top left / 100% 100% no-repeat`,
-      padding: '32px 28px 50px',
+      maskImage: 'inherit',
+      padding: isMobile ? '26px 22px 42px' : '32px 28px 50px',
       fontFamily: "'JetBrains Mono', monospace",
       color: '#0a1024',
     }}>

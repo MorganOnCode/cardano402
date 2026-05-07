@@ -1,26 +1,31 @@
 // HeroTerminal.jsx — friendly terminal-as-diner-menu
 
 function HeroTerminal({ showStickers }) {
+  const isMobile = (window.useIsMobile || (() => false))();
   return (
-    <section style={{ paddingTop: 40, paddingBottom: 100, position: 'relative', overflow: 'hidden' }}>
+    <section style={{
+      paddingTop: isMobile ? 24 : 40,
+      paddingBottom: isMobile ? 56 : 100,
+      position: 'relative', overflow: 'hidden',
+    }}>
       <div className="wrap" style={{ position: 'relative' }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1.1fr',
-          gap: 60,
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 1.1fr',
+          gap: isMobile ? 40 : 60,
           alignItems: 'center',
         }}>
           <div>
-            <div className="pill" style={{ marginBottom: 28 }}>
+            <div className="pill" style={{ marginBottom: isMobile ? 20 : 28 }}>
               <span className="dot"></span>
               <span className="mono" style={{ fontSize: 12 }}>open source · apache-2.0 · zero npm deps in browser</span>
             </div>
 
             <h1 style={{
-              fontSize: 'clamp(54px, 7vw, 92px)',
-              lineHeight: 0.95,
+              fontSize: isMobile ? 'clamp(36px, 9vw, 56px)' : 'clamp(54px, 7vw, 92px)',
+              lineHeight: 0.98,
               letterSpacing: '-0.03em',
-              margin: '0 0 24px',
+              margin: '0 0 20px',
               fontWeight: 700,
               textWrap: 'balance',
             }}>
@@ -39,8 +44,8 @@ function HeroTerminal({ showStickers }) {
             </h1>
 
             <p style={{
-              fontSize: 19, lineHeight: 1.5, maxWidth: 480,
-              opacity: 0.78, margin: '0 0 32px',
+              fontSize: isMobile ? 16.5 : 19, lineHeight: 1.5, maxWidth: 480,
+              opacity: 0.78, margin: '0 0 28px',
             }}>
               The x402 protocol turns HTTP itself into a payment system. cardano402 is the
               facilitator that makes it work on Cardano — verified, settled, and out of your way.
@@ -57,8 +62,8 @@ function HeroTerminal({ showStickers }) {
 
           {/* terminal */}
           <div style={{ position: 'relative' }}>
-            <Terminal />
-            {showStickers && (
+            <Terminal isMobile={isMobile} />
+            {showStickers && !isMobile && (
               <div className="sticker" style={{
                 top: -16, right: 40,
                 background: 'var(--peach)', color: 'var(--ink)',
@@ -76,7 +81,7 @@ function HeroTerminal({ showStickers }) {
   );
 }
 
-function Terminal() {
+function Terminal({ isMobile }) {
   const [step, setStep] = React.useState(0);
   React.useEffect(() => {
     const id = setInterval(() => setStep((s) => (s + 1) % 6), 1800);
@@ -86,12 +91,15 @@ function Terminal() {
   return (
     <div style={{
       background: '#0a1024',
-      borderRadius: 22,
+      borderRadius: isMobile ? 16 : 22,
       border: '3px solid var(--ink)',
-      boxShadow: '12px 12px 0 var(--peach)',
+      boxShadow: isMobile ? '6px 6px 0 var(--peach)' : '12px 12px 0 var(--peach)',
       overflow: 'hidden',
       fontFamily: "'JetBrains Mono', monospace",
-      transform: 'rotate(1deg)',
+      transform: isMobile ? 'rotate(0deg)' : 'rotate(1deg)',
+      // Leave room for the offset shadow so it doesn't get clipped by section overflow.
+      marginRight: isMobile ? 6 : 0,
+      marginBottom: isMobile ? 6 : 0,
     }}>
       {/* titlebar */}
       <div style={{
@@ -108,7 +116,15 @@ function Terminal() {
         </span>
       </div>
 
-      <div style={{ padding: '24px 22px', fontSize: 13.5, lineHeight: 1.7, color: '#e8ecff', height: 440, overflow: 'hidden' }}>
+      <div style={{
+        padding: isMobile ? '18px 16px' : '24px 22px',
+        fontSize: isMobile ? 12.5 : 13.5,
+        lineHeight: 1.7, color: '#e8ecff',
+        // Auto height on mobile (content might wrap), fixed on desktop for consistent visual weight.
+        height: isMobile ? 'auto' : 440,
+        minHeight: isMobile ? 280 : 440,
+        overflow: 'hidden',
+      }}>
         <Line><Prompt /> curl -X POST api.example.com/summarize</Line>
         {step >= 1 && (
           <>
