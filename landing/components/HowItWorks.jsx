@@ -1,16 +1,20 @@
 // HowItWorks.jsx — section: intro + LiveDemo first, then a single sequence diagram
 
 function HowItWorks() {
+  const isMobile = (window.useIsMobile || (() => false))();
   return (
     <section id="how" style={{ background: 'var(--cream)', borderTop: '1.5px solid var(--ink)', borderBottom: '1.5px solid var(--ink)' }}>
       <div className="wrap">
-        <div style={{ maxWidth: 720, marginBottom: 40 }}>
+        <div style={{ maxWidth: 720, marginBottom: isMobile ? 28 : 40 }}>
           <span className="eyebrow">§ how it works</span>
           <h2 className="section-title">
             One <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: 'italic', color: 'var(--blue)' }}>handshake</span>. Settled in seconds.
           </h2>
-          <p style={{ fontSize: 19, lineHeight: 1.5, opacity: 0.78, maxWidth: 600 }}>
-            x402 is just HTTP with a payment in the middle. Your server says <span className="mono" style={{ fontSize: 16, fontWeight: 500 }}>402</span>, the
+          <p style={{
+            fontSize: isMobile ? 16 : 19,
+            lineHeight: 1.5, opacity: 0.78, maxWidth: 600,
+          }}>
+            x402 is just HTTP with a payment in the middle. Your server says <span className="mono" style={{ fontSize: isMobile ? 14 : 16, fontWeight: 500 }}>402</span>, the
             client signs a Cardano tx, retries, your server verifies via cardano402, and the resource is delivered.
             That's it.
           </p>
@@ -20,12 +24,12 @@ function HowItWorks() {
         <LiveDemo />
 
         {/* Sequence diagram below */}
-        <div style={{ marginTop: 80 }}>
+        <div style={{ marginTop: isMobile ? 48 : 80 }}>
           <div className="eyebrow" style={{ marginBottom: 12 }}>§ the four steps</div>
           <h3 style={{
-            fontSize: 'clamp(26px, 3vw, 36px)',
+            fontSize: 'clamp(22px, 4vw, 36px)',
             fontWeight: 700, letterSpacing: '-0.02em',
-            margin: '0 0 32px', maxWidth: 640,
+            margin: '0 0 24px', maxWidth: 640,
           }}>
             Behind every paid request, the same four moves.
           </h3>

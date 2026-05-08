@@ -17,6 +17,7 @@ const FACILITATOR_BASE = (typeof window !== 'undefined' && window.location.hostn
   : 'https://cardano402.com';
 
 function LiveDemo() {
+  const isMobile = (window.useIsMobile || (() => false))();
   const [mode, setMode] = React.useState('simple');
   const [status, setStatus] = React.useState({ running: false, cooldownRemainingMs: 0, ready: true });
   const [steps, setSteps] = React.useState([]); // array of { step, total, label, detail }
@@ -121,26 +122,29 @@ function LiveDemo() {
 
   return (
     <div style={{
-      marginTop: 56,
+      marginTop: isMobile ? 36 : 56,
       background: 'white',
       border: '2px solid var(--ink)',
-      borderRadius: 24,
+      borderRadius: isMobile ? 18 : 24,
       overflow: 'hidden',
-      boxShadow: '8px 8px 0 var(--ink)',
+      boxShadow: isMobile ? '4px 4px 0 var(--ink)' : '8px 8px 0 var(--ink)',
     }}>
       {/* Header strip */}
       <div style={{
-        padding: '20px 28px',
+        padding: isMobile ? '16px 18px' : '20px 28px',
         borderBottom: '2px solid var(--ink)',
         background: 'var(--paper-2)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: 16, flexWrap: 'wrap',
+        gap: 12, flexWrap: 'wrap',
       }}>
         <div>
           <div className="mono" style={{ fontSize: 11, opacity: 0.6, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
             try it · cardano preview testnet
           </div>
-          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>
+          <div style={{
+            fontSize: isMobile ? 18 : 22,
+            fontWeight: 700, letterSpacing: '-0.01em',
+          }}>
             Run a real on-chain payment, right now.
           </div>
         </div>
@@ -164,7 +168,7 @@ function LiveDemo() {
       </div>
 
       {/* Body */}
-      <div style={{ padding: 28 }}>
+      <div style={{ padding: isMobile ? 18 : 28 }}>
         {/* Run button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 24 }}>
           {showHands && (

@@ -64,10 +64,12 @@
   .nav {
     display: flex; align-items: center; justify-content: space-between;
     padding: 22px 0;
+    gap: 16px;
   }
   .logo {
     display: inline-flex; align-items: center; gap: 10px;
     font-weight: 700; font-size: 18px; letter-spacing: -0.01em;
+    text-decoration: none;
   }
   .logo-mark {
     width: 30px; height: 30px; border-radius: 9px;
@@ -75,10 +77,41 @@
     display: grid; place-items: center;
     font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px;
     transform: rotate(-4deg);
+    flex-shrink: 0;
   }
   .nav-links { display: flex; gap: 28px; align-items: center; font-size: 15px; }
   .nav-links a { text-decoration: none; opacity: 0.75; }
   .nav-links a:hover { opacity: 1; }
+  .nav-burger {
+    display: none;
+    background: transparent; border: 1.5px solid var(--ink);
+    width: 40px; height: 40px; border-radius: 10px;
+    cursor: pointer; padding: 0;
+    align-items: center; justify-content: center;
+    color: var(--ink);
+  }
+  .nav-burger:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .nav-burger span {
+    display: block; width: 18px; height: 2px;
+    background: currentColor; border-radius: 2px;
+    position: relative;
+  }
+  .nav-burger span::before,
+  .nav-burger span::after {
+    content: ''; position: absolute; left: 0;
+    width: 18px; height: 2px; background: currentColor; border-radius: 2px;
+  }
+  .nav-burger span::before { top: -6px; }
+  .nav-burger span::after { top: 6px; }
+  .nav-drawer {
+    display: none;
+    flex-direction: column; gap: 14px;
+    padding: 18px 0 4px;
+    border-top: 1.5px solid rgba(10,16,36,0.12);
+    margin-top: 4px;
+  }
+  .nav-drawer a { text-decoration: none; font-size: 17px; padding: 6px 0; }
+  .nav-drawer.open { display: flex; }
   .btn {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 11px 18px; border-radius: 999px;
@@ -144,6 +177,28 @@
 
   /* selection */
   ::selection { background: var(--peach); color: var(--ink); }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 900px) {
+    .wrap { padding: 0 20px; }
+    section { padding: 56px 0; }
+    .nav { padding: 18px 0; }
+    .nav-links { display: none; }
+    .nav-burger { display: inline-flex; }
+    h2.section-title { font-size: clamp(30px, 7vw, 48px); margin: 10px 0 18px; }
+    footer { padding: 32px 0 44px; margin-top: 24px; }
+    footer .row { gap: 28px; }
+    footer .col { flex: 1 1 45%; min-width: 140px; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 0 16px; }
+    section { padding: 44px 0; }
+    .btn { padding: 10px 16px; font-size: 14px; }
+    .pill { font-size: 12px; }
+    h2.section-title { font-size: clamp(28px, 8.5vw, 40px); }
+    footer .col { flex: 1 1 100%; }
+    footer .signoff { font-size: 12.5px; }
+  }
 </style>
 </head>
 <body>
@@ -154,6 +209,7 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
+<script type="text/babel" src="hooks.jsx"></script>
 <script type="text/babel" src="components/HeroReceipt.jsx"></script>
 <script type="text/babel" src="components/HeroTerminal.jsx"></script>
 <script type="text/babel" src="components/LiveDemo.jsx"></script>

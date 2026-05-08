@@ -52,8 +52,13 @@ const CASES = [
 ];
 
 function UseCases({ layout = 'cards' }) {
+  const isMobile = (window.useIsMobile || (() => false))();
   return (
-    <section id="cases" style={{ paddingTop: 100, paddingBottom: 100, position: 'relative' }}>
+    <section id="cases" style={{
+      paddingTop: isMobile ? 60 : 100,
+      paddingBottom: isMobile ? 60 : 100,
+      position: 'relative',
+    }}>
       <div className="wrap">
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24, marginBottom: 50 }}>
           <div style={{ maxWidth: 680 }}>
@@ -69,7 +74,7 @@ function UseCases({ layout = 'cards' }) {
 
         {layout === 'cards' && <CardsLayout />}
         {layout === 'grid' && <GridLayout />}
-        {layout === 'rolodex' && <RolodexLayout />}
+        {layout === 'rolodex' && <RolodexLayout isMobile={isMobile} />}
       </div>
     </section>
   );
@@ -133,47 +138,80 @@ function GridLayout() {
   );
 }
 
-function RolodexLayout() {
+function RolodexLayout({ isMobile }) {
   const [active, setActive] = React.useState(0);
+
+  // Mobile: stack tabs above the content panel and let the tab row scroll horizontally
+  // if needed. Desktop: keep the original 320px sidebar + content layout.
+  const wrapperStyle = isMobile
+    ? { display: 'flex', flexDirection: 'column', gap: 18 }
+    : { display: 'grid', gridTemplateColumns: '320px 1fr', gap: 24, alignItems: 'flex-start' };
+
+  const tabsStyle = isMobile
+    ? {
+        display: 'flex', flexDirection: 'row', gap: 8,
+        overflowX: 'auto', paddingBottom: 4,
+        // Hide scrollbar visually on iOS while keeping horizontal scroll usable.
+        WebkitOverflowScrolling: 'touch',
+        scrollSnapType: 'x mandatory',
+      }
+    : { display: 'flex', flexDirection: 'column', gap: 8 };
+
+  const tabBaseStyle = (i) => ({
+    textAlign: 'left',
+    background: i === active ? CASES[i].color : 'white',
+    border: '2px solid var(--ink)',
+    borderRadius: 14,
+    padding: isMobile ? '10px 14px' : '14px 16px',
+    cursor: 'pointer',
+    fontFamily: 'inherit', fontWeight: 600,
+    transform: !isMobile && i === active ? 'translateX(8px)' : 'none',
+    transition: 'transform .15s ease, background .15s ease',
+    display: 'flex', alignItems: 'center', gap: 10,
+    flex: isMobile ? '0 0 auto' : undefined,
+    scrollSnapAlign: isMobile ? 'start' : undefined,
+    whiteSpace: isMobile ? 'nowrap' : 'normal',
+  });
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 24, alignItems: 'flex-start' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={wrapperStyle}>
+      <div style={tabsStyle}>
         {CASES.map((c, i) => (
-          <button key={i}
-            onClick={() => setActive(i)}
-            style={{
-              textAlign: 'left',
-              background: i === active ? c.color : 'white',
-              border: '2px solid var(--ink)',
-              borderRadius: 14,
-              padding: '14px 16px',
-              cursor: 'pointer',
-              fontFamily: 'inherit', fontWeight: 600,
-              transform: i === active ? 'translateX(8px)' : 'none',
-              transition: 'transform .15s ease, background .15s ease',
-              display: 'flex', alignItems: 'center', gap: 10,
-            }}>
-            <span style={{ fontSize: 22 }}>{c.icon}</span>
-            <span style={{ fontSize: 15 }}>{c.title}</span>
+          <button key={i} onClick={() => setActive(i)} style={tabBaseStyle(i)}>
+            <span style={{ fontSize: isMobile ? 18 : 22 }}>{c.icon}</span>
+            <span style={{ fontSize: isMobile ? 13.5 : 15 }}>{c.title}</span>
           </button>
         ))}
       </div>
       <div style={{
         background: CASES[active].color,
         border: '2px solid var(--ink)',
-        borderRadius: 22,
-        padding: 36,
-        minHeight: 360,
+        borderRadius: isMobile ? 18 : 22,
+        padding: isMobile ? 22 : 36,
+        minHeight: isMobile ? 0 : 360,
       }}>
         <div className="mono" style={{ fontSize: 12, marginBottom: 12 }}>// {CASES[active].tag}</div>
-        <h3 style={{ margin: '0 0 16px', fontSize: 32, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{CASES[active].title}</h3>
-        <p style={{ margin: '0 0 24px', fontSize: 17, lineHeight: 1.5, opacity: 0.85, maxWidth: 520 }}>{CASES[active].body}</p>
+        <h3 style={{
+          margin: '0 0 14px',
+          fontSize: isMobile ? 24 : 32,
+          fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15,
+        }}>{CASES[active].title}</h3>
+        <p style={{
+          margin: '0 0 20px',
+          fontSize: isMobile ? 15 : 17,
+          lineHeight: 1.5, opacity: 0.85, maxWidth: 520,
+        }}>{CASES[active].body}</p>
         <pre style={{
-          padding: '14px 18px',
+          padding: isMobile ? '12px 14px' : '14px 18px',
           background: 'rgba(10, 16, 36, 0.9)', color: 'var(--paper)',
-          borderRadius: 12, fontSize: 13, lineHeight: 1.6,
+          borderRadius: 12,
+          fontSize: isMobile ? 12 : 13,
+          lineHeight: 1.6,
           fontFamily: "'JetBrains Mono', monospace",
-          whiteSpace: 'pre-wrap', display: 'inline-block', margin: 0,
+          whiteSpace: 'pre-wrap',
+          display: isMobile ? 'block' : 'inline-block',
+          margin: 0,
+          overflowX: 'auto',
         }}>{CASES[active].code}</pre>
       </div>
     </div>
