@@ -24,6 +24,9 @@ coverage/
 *.swp
 *.swo
 
+# Claude Code (local-only settings, agent memory, scratch)
+.claude/
+
 # macOS
 .DS_Store
 
