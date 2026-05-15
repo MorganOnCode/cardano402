@@ -85,6 +85,15 @@ async function readSkillMd(): Promise<string> {
   return cachedSkillMd;
 }
 
+let cachedFaviconSvg: string | null = null;
+
+async function readFaviconSvg(): Promise<string> {
+  if (cachedFaviconSvg === null) {
+    cachedFaviconSvg = await readFile(resolve(process.cwd(), 'landing/favicon.svg'), 'utf-8');
+  }
+  return cachedFaviconSvg;
+}
+
 const agentDiscoveryRoutes: FastifyPluginCallback = (fastify, _options, done) => {
   fastify.get('/robots.txt', async (_req, reply) => {
     return reply.type('text/plain; charset=utf-8').status(200).send(ROBOTS_TXT);
@@ -101,6 +110,17 @@ const agentDiscoveryRoutes: FastifyPluginCallback = (fastify, _options, done) =>
   fastify.get('/SKILL.md', async (_req, reply) => {
     const body = await readSkillMd();
     return reply.type('text/markdown; charset=utf-8').status(200).send(body);
+  });
+
+  // /favicon.ico — legacy fallback path that crawlers and old browsers probe
+  // unconditionally. Serving the same SVG (with the correct image/svg+xml
+  // content type) means the 200 satisfies the probe and stops the request,
+  // which kills the steady stream of /favicon.ico 404s in production logs.
+  // Modern browsers prefer the <link rel="icon" type="image/svg+xml"> in
+  // landing/index.html and never hit this route.
+  fastify.get('/favicon.ico', async (_req, reply) => {
+    const body = await readFaviconSvg();
+    return reply.type('image/svg+xml').status(200).send(body);
   });
 
   done();

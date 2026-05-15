@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -26,6 +26,12 @@ describe('Agent-discovery routes', () => {
     originalCwd = process.cwd();
     tmpDir = mkdtempSync(join(tmpdir(), 'cardano402-skill-'));
     writeFileSync(join(tmpDir, 'SKILL.md'), '# Test SKILL\n\nFixture body.\n');
+    // The /favicon.ico route reads `${cwd}/landing/favicon.svg` -- fixture it.
+    mkdirSync(join(tmpDir, 'landing'));
+    writeFileSync(
+      join(tmpDir, 'landing', 'favicon.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>\n'
+    );
     process.chdir(tmpDir);
   });
 
@@ -107,6 +113,22 @@ describe('Agent-discovery routes', () => {
       server = await createServer();
       const res = await server.inject({ method: 'GET', url: '/sitemap.xml' });
       expect(res.body).toMatch(/^<\?xml version="1\.0"/);
+    });
+  });
+
+  describe('GET /favicon.ico', () => {
+    it('returns 200 with image/svg+xml content type (kills bot 404 noise)', async () => {
+      server = await createServer();
+      const res = await server.inject({ method: 'GET', url: '/favicon.ico' });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toContain('image/svg+xml');
+    });
+
+    it('serves the SVG body so even bots that ignore <link> get a valid image', async () => {
+      server = await createServer();
+      const res = await server.inject({ method: 'GET', url: '/favicon.ico' });
+      expect(res.body).toContain('<svg');
+      expect(res.body).toContain('</svg>');
     });
   });
 
