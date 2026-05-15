@@ -15,6 +15,50 @@
 4. Start server: `pnpm dev`
 5. Verify: `curl http://localhost:3000/health`
 
+## Manual deploy procedure
+
+Production deploys run manually from a tailnet-attached laptop (the VPS is Tailscale-only, no public SSH). The canonical "phased deploy" pattern used for any change that touches `docker-compose.prod.yml` or `Dockerfile`:
+
+```bash
+# On the VPS, in /opt/cardano402
+git pull origin master
+
+# Phase 1 — preserve current image as a rollback tag
+docker tag cardano402:latest cardano402:rollback-$(date +%Y-%m-%d)
+
+# Phase 2 — build the new image (no production impact)
+docker compose -f docker-compose.prod.yml build --no-cache facilitator
+
+# Phase 3 — smoke-test on a side port (no production impact)
+docker run --rm -d --name cardano402-smoke -p 127.0.0.1:3001:3000 \
+  -v /opt/cardano402/config/config.json:/app/config/config.json:ro \
+  --network cardano402_default \
+  -e NODE_ENV=production -e MAINNET=true \
+  cardano402:latest
+sleep 8 && curl -s http://127.0.0.1:3001/health && docker stop cardano402-smoke
+
+# Phase 4 — swap (~30s downtime, watch for healthy)
+docker compose -f docker-compose.prod.yml up -d facilitator
+for i in $(seq 1 30); do
+  [ "$(docker inspect cardano402 --format '{{.State.Health.Status}}')" = "healthy" ] && break
+  sleep 2
+done
+
+# Phase 5 — verify
+curl -s http://localhost:3000/health
+docker inspect cardano402 --format 'mem_limit: {{.HostConfig.Memory}}  restartCount: {{.RestartCount}}'
+docker logs --since 5m cardano402 2>&1 | grep -iE '"level":(50|40)' | head -5
+```
+
+**Rollback** if Phase 4 or 5 reveals a problem:
+
+```bash
+docker tag cardano402:rollback-<date> cardano402:latest
+docker compose -f docker-compose.prod.yml up -d facilitator
+```
+
+For routine deploys (no Dockerfile or compose change), `bash deploy.sh` runs the same pull + build + restart sequence in one shot — it skips the phased smoke-test gate, so use the phased procedure above whenever the change could affect container behavior.
+
 ## Production Deployment (Docker)
 
 ### 1. Create production config
