@@ -22,6 +22,7 @@ Disallow: /verify
 Disallow: /settle
 Disallow: /upload
 Disallow: /files/
+Disallow: /metrics
 
 Sitemap: /sitemap.xml
 `;

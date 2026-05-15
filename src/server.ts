@@ -25,6 +25,7 @@ import { agentDiscoveryRoutesPlugin } from './routes/agent-discovery.js';
 import { demoRoutesPlugin } from './routes/demo.js';
 import { downloadRoutesPlugin } from './routes/download.js';
 import { healthRoutesPlugin } from './routes/health.js';
+import { metricsRoutesPlugin } from './routes/metrics.js';
 import { settleRoutesPlugin } from './routes/settle.js';
 import { statusRoutesPlugin } from './routes/status.js';
 import { supportedRoutesPlugin } from './routes/supported.js';
@@ -218,6 +219,10 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   await server.register(demoRoutesPlugin);
   await server.register(wellKnownRoutesPlugin);
   await server.register(agentDiscoveryRoutesPlugin);
+  // Metrics plugin registers an onResponse hook that tracks ALL routes
+  // (regardless of registration order via fastify-plugin's encapsulation
+  // bypass). The hook skips /metrics and /health internally.
+  await server.register(metricsRoutesPlugin);
 
   // Landing page — serve landing/index.html at / (and static assets)
   // Must be registered after API routes so /docs etc. take precedence
