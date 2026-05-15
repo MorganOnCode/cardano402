@@ -32,8 +32,10 @@ services:
       redis:
         condition: service_healthy
     # Cap memory + CPU so a runaway request loop can't OOM-kill the host.
-    # 512m fits the steady-state RSS (~120-180m) with comfortable headroom.
-    mem_limit: 512m
+    # 768m gives ~5x headroom over steady-state RSS (~120-180m). Generous on
+    # purpose: tightening later is easy, debugging an OOM-kill of a payment
+    # facilitator under real traffic is not.
+    mem_limit: 768m
     cpus: 1.0
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
@@ -59,9 +61,9 @@ services:
       --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
-    # Matches redis-server --maxmemory 256m with a small overhead for the
-    # process itself; prevents a memory leak from blasting the host.
-    mem_limit: 320m
+    # Sits above redis-server --maxmemory 256m with comfortable overhead so
+    # AOF rewrite spikes don't trip the limit.
+    mem_limit: 384m
     cpus: 0.5
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
