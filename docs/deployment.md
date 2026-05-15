@@ -155,6 +155,14 @@ Image details:
 - **Size:** ~180 MB
 - **Health check:** Built-in (`wget` to `/health` every 30s)
 
+## Production deploys are manual by design
+
+There is no auto-deploy on merge. The VPS is reachable only over Tailscale and SSH is closed to the public internet — adding a GitHub-Actions deploy key would require widening the firewall to GitHub's runner IP ranges, which is a worse security posture than `bash deploy.sh` from a tailnet-attached laptop. See [`operations.md` § Manual deploy procedure](operations.md#manual-deploy-procedure) for the canonical runbook.
+
+CI (`.github/workflows/ci.yml`) still runs on every push and PR — lint, typecheck, test, build, docker build, security audit. It only runs inside the GitHub-Actions runner and makes no outbound SSH connection.
+
+If auto-deploy ever becomes desirable again, the right approach is the [Tailscale GitHub Action](https://github.com/tailscale/github-action), which attaches the runner to your tailnet for the deploy duration without opening any public port. Deferred until there's actual need.
+
 ## Bare Metal Deployment
 
 If you prefer running without Docker:
