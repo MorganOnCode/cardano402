@@ -15,6 +15,10 @@
 4. Start server: `pnpm dev`
 5. Verify: `curl http://localhost:3000/health`
 
+## Backups
+
+See [`backup-restore.md`](backup-restore.md) for the encrypted off-host backup runbook (restic, nightly cron, retention policy, restore procedure, disaster recovery scenarios).
+
 ## Manual deploy procedure
 
 Production deploys run manually from a tailnet-attached laptop (the VPS is Tailscale-only, no public SSH). The canonical "phased deploy" pattern used for any change that touches `docker-compose.prod.yml` or `Dockerfile`:
