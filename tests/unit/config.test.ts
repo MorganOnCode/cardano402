@@ -136,6 +136,68 @@ describe('Config Loading', () => {
     }
   });
 
+  describe('Redis password production guardrail', () => {
+    it('rejects production env with no chain.redis.password', () => {
+      const cfg = {
+        env: 'production',
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379 },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|password/);
+    });
+
+    it('rejects production env with empty chain.redis.password', () => {
+      const cfg = {
+        env: 'production',
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: '' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|password/);
+    });
+
+    it('rejects production env with whitespace-only chain.redis.password', () => {
+      const cfg = {
+        env: 'production',
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: '   ' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|password/);
+    });
+
+    it('accepts production env with a non-empty chain.redis.password', () => {
+      const cfg = {
+        env: 'production',
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+
+    it('accepts development env with no chain.redis.password (dev compose has no auth)', () => {
+      const cfg = {
+        env: 'development',
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'localhost', port: 6379 },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+  });
+
   it('should reject mainnet without MAINNET=true env var', () => {
     const mainnetConfig = {
       chain: {
