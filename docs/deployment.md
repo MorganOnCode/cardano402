@@ -135,7 +135,7 @@ pnpm dev
 |---------|---------|------|-------------|
 | *(default)* | `redis` | 6379 | Dev Redis (no auth) |
 | *(default)* | `ipfs` | 5001, 8080 | IPFS node (API + gateway) |
-| `production` | `x402-facilitator` | 3000 | Facilitator server |
+| `production` | `facilitator` | 3000 | Facilitator server |
 | `production` | `redis-prod` | 6380 | Production Redis (with auth) |
 
 The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting.
@@ -145,8 +145,8 @@ The production profile includes a health check on `redis-prod` -- the facilitato
 Build and run the image manually:
 
 ```bash
-docker build -t x402-fac .
-docker run -p 3000:3000 -v ./config:/app/config:ro x402-fac
+docker build -t cardano402 .
+docker run -p 3000:3000 -v ./config:/app/config:ro cardano402
 ```
 
 Image details:

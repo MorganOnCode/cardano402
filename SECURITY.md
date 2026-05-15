@@ -8,13 +8,13 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in x402-fac, please report it responsibly.
+If you discover a security vulnerability in cardano402, please report it responsibly.
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
 ### How to Report
 
-1. [Create a GitHub security advisory](https://github.com/MorganOnCode/x402-fac/security/advisories/new) (preferred)
+1. [Create a GitHub security advisory](https://github.com/MorganOnCode/cardano402/security/advisories/new) (preferred)
 2. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -39,7 +39,7 @@ We follow coordinated disclosure:
 
 ## Scope
 
-This policy covers the x402-fac repository and its published npm packages.
+This policy covers the cardano402 repository and its published npm packages.
 
 ## Known Security Properties
 

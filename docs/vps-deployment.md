@@ -32,8 +32,8 @@ usermod -aG docker $USER
 ## 3. Clone the repo
 
 ```bash
-git clone https://github.com/MorganOnCode/x402-fac.git
-cd x402-fac
+git clone https://github.com/MorganOnCode/cardano402.git
+cd cardano402
 ```
 
 ## 4. Create config
@@ -112,7 +112,7 @@ certbot --nginx -d YOUR_DOMAIN
 ## 8. Ongoing updates
 
 ```bash
-cd x402-fac
+cd cardano402
 bash deploy.sh   # pulls git + rebuilds + restarts
 ```
 
