@@ -93,7 +93,12 @@ const demoRoutes: FastifyPluginCallback = (fastify, _options, done) => {
 
     demoRunning = true;
 
-    const serverUrl = `http://127.0.0.1:${fastify.config.server.port}`;
+    // Self-call uses the configured server.host so the demo works with any
+    // bind address. When listening on the wildcard (0.0.0.0), substitute
+    // 127.0.0.1 since the wildcard isn't a valid client address.
+    const configuredHost = fastify.config.server.host;
+    const selfHost = configuredHost === '0.0.0.0' ? '127.0.0.1' : configuredHost;
+    const serverUrl = `http://${selfHost}:${fastify.config.server.port}`;
 
     try {
       // ---- Step 1: Health check ----
@@ -143,9 +148,10 @@ const demoRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         detail: 'Connecting to Cardano Preview testnet via Blockfrost…',
       });
 
-      const blockfrostUrl = demoNetwork === 'Preprod'
-        ? 'https://cardano-preprod.blockfrost.io/api/v0'
-        : 'https://cardano-preview.blockfrost.io/api/v0';
+      const blockfrostUrl =
+        demoNetwork === 'Preprod'
+          ? 'https://cardano-preprod.blockfrost.io/api/v0'
+          : 'https://cardano-preview.blockfrost.io/api/v0';
       const provider = new Blockfrost(blockfrostUrl, blockfrostKey);
       const lucid = await Lucid(provider, demoNetwork);
       lucid.selectWallet.fromSeed(seedPhrase);
