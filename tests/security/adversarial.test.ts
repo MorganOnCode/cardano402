@@ -1,4 +1,4 @@
-// Adversarial security test suite for x402-fac
+// Adversarial security test suite for cardano402
 //
 // Validates security properties across five categories:
 // 1. Secret leakage prevention (API keys, seed phrases never in responses)

@@ -41,8 +41,8 @@ docker compose --profile production up -d
 ```
 
 This starts:
-- `x402-facilitator` -- the payment facilitator (port 3000)
-- `x402-redis-prod` -- Redis with authentication (port 6380)
+- `cardano402` -- the payment facilitator (port 3000)
+- `cardano402-redis-prod` -- Redis with authentication (port 6380)
 
 ### 4. Verify deployment
 
@@ -126,7 +126,7 @@ Production logs are structured JSON (pino format):
 
 Use `pino-pretty` for human-readable output during debugging:
 ```
-docker logs x402-facilitator | npx pino-pretty
+docker logs cardano402 | npx pino-pretty
 ```
 
 Key log fields:

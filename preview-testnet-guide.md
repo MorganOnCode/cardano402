@@ -24,7 +24,7 @@ Then fund it:
 ## Step 3: Start Redis
 
 ```bash
-cd ~/Documents/CODE/x402-fac
+cd ~/Documents/CODE/cardano402
 pnpm docker:up
 ```
 
