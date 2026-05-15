@@ -12,11 +12,15 @@ COPY package.json pnpm-lock.yaml ./
 # Install all dependencies (including dev for build)
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# Copy source code AND landing page AND build scripts so `pnpm build`
+# can produce both the backend dist/ and landing/dist/app.js bundle.
 COPY src/ src/
+COPY landing/ landing/
+COPY scripts/build-landing.mjs scripts/
 COPY tsconfig.json tsconfig.build.json tsup.config.ts ./
 
-# Build
+# `pnpm build` runs tsup (backend -> dist/) and build-landing
+# (landing JSX -> landing/dist/app.js, with React + ReactDOM bundled).
 RUN pnpm build
 
 # Stage 2: Production
@@ -39,8 +43,11 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 # Copy built output from build stage
 COPY --from=build /app/dist ./dist
 
-# Copy landing page (served at / by @fastify/static)
-COPY landing/ ./landing/
+# Copy the landing page WITH its precompiled bundle from the build stage.
+# The host-side landing/ doesn't have landing/dist (it's gitignored and only
+# materialised during a build), so we pull the whole tree from the build
+# stage where the bundle exists at landing/dist/app.js.
+COPY --from=build /app/landing ./landing
 
 # Copy agent-discovery surface (served at /SKILL.md by the agent-discovery plugin)
 COPY SKILL.md ./SKILL.md

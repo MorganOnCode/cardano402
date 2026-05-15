@@ -95,26 +95,33 @@ describe('Landing page', () => {
     expect(response.body).toContain('nav-drawer');
   });
 
-  it('serves the shared hooks bundle so components can read useIsMobile', async () => {
-    const response = await server.inject({ method: 'GET', url: '/hooks.jsx' });
+  it('references the precompiled landing bundle (drops Babel-in-browser)', async () => {
+    const response = await server.inject({ method: 'GET', url: '/' });
 
     expect(response.statusCode).toBe(200);
-    expect(response.body).toContain('useIsMobile');
-    expect(response.body).toContain('window.matchMedia');
+    // The new architecture loads a single precompiled bundle
+    expect(response.body).toMatch(/<script\s+src="\/dist\/app\.js"[^>]*defer/);
   });
 
-  it('serves component bundles', async () => {
-    const components = [
-      'components/HeroReceipt.jsx',
-      'components/HeroTerminal.jsx',
-      'components/LiveDemo.jsx',
-      'components/HowItWorks.jsx',
-      'components/UseCases.jsx',
-      'components/MorganBlock.jsx',
-    ];
-    for (const path of components) {
-      const r = await server.inject({ method: 'GET', url: `/${path}` });
-      expect(r.statusCode, `expected 200 for /${path}`).toBe(200);
-    }
+  it('does NOT load Babel standalone or any unpkg.com script (drops unsafe-eval)', async () => {
+    const response = await server.inject({ method: 'GET', url: '/' });
+
+    // Reverting to Babel-in-browser would force `unsafe-eval` back into the CSP.
+    expect(response.body).not.toContain('@babel/standalone');
+    expect(response.body).not.toContain('unpkg.com');
+    expect(response.body).not.toMatch(/type=["']text\/babel["']/);
+  });
+
+  it('ships a strict CSP without unsafe-eval and without third-party script sources', async () => {
+    const response = await server.inject({ method: 'GET', url: '/' });
+
+    const csp = response.headers['content-security-policy'];
+    expect(csp, 'CSP header should be set in non-dev env').toBeDefined();
+    const cspStr = String(csp);
+    // Hardened: the script-src directive must not allow eval or unpkg.com
+    expect(cspStr).not.toMatch(/script-src[^;]*'unsafe-eval'/);
+    expect(cspStr).not.toMatch(/script-src[^;]*unpkg\.com/);
+    // 'self' must still be present so /dist/app.js loads
+    expect(cspStr).toMatch(/script-src[^;]*'self'/);
   });
 });
