@@ -5,6 +5,10 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  # Allow deploy.yml to depend on this workflow as a reusable workflow
+  # (`uses: ./.github/workflows/ci.yml`). Without workflow_call, deploy.yml
+  # fails at parse time with a 0-second failure on every merge.
+  workflow_call:
 
 permissions:
   contents: read
