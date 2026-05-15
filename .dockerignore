@@ -19,3 +19,7 @@ logs
 .vitest
 *.md
 !package.json
+# SKILL.md is served at /SKILL.md by src/routes/agent-discovery.ts and must
+# exist in the production image; the *.md exclusion above would otherwise
+# silently break `COPY SKILL.md` in the Dockerfile.
+!SKILL.md
