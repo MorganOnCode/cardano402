@@ -1,0 +1,16 @@
+# cardano402 nightly backup
+#
+# Install:
+#   sudo cp /opt/cardano402/scripts/cardano402-backup.cron /etc/cron.d/cardano402-backup
+#   sudo chmod 644 /etc/cron.d/cardano402-backup
+#
+# Logs:
+#   /var/log/cardano402-backup.log (the script writes here directly)
+#   journalctl -t CRON (cron's own logs)
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+# Nightly at 03:00 UTC. Adjust if your VPS has a busier window then.
+0 3 * * * root /opt/cardano402/scripts/backup.sh >> /var/log/cardano402-backup.log 2>&1
