@@ -31,11 +31,15 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # Cap memory + CPU so a runaway request loop can't OOM-kill the host.
+    # 512m fits the steady-state RSS (~120-180m) with comfortable headroom.
+    mem_limit: 512m
+    cpus: 1.0
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
       interval: 30s
       timeout: 5s
-      start_period: 15s
+      start_period: 30s
       retries: 3
     logging:
       driver: "json-file"
@@ -55,6 +59,10 @@ services:
       --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    # Matches redis-server --maxmemory 256m with a small overhead for the
+    # process itself; prevents a memory leak from blasting the host.
+    mem_limit: 320m
+    cpus: 0.5
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s

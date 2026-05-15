@@ -42,6 +42,9 @@ COPY --from=build /app/dist ./dist
 # Copy landing page (served at / by @fastify/static)
 COPY landing/ ./landing/
 
+# Copy agent-discovery surface (served at /SKILL.md by the agent-discovery plugin)
+COPY SKILL.md ./SKILL.md
+
 # Copy config example (actual config mounted at runtime)
 COPY config/config.example.json ./config/config.example.json
 

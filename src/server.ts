@@ -21,6 +21,7 @@ import { createChainProvider, createRedisClient, disconnectRedis } from './chain
 import type { Config } from './config/index.js';
 import { errorHandlerPlugin } from './plugins/error-handler.js';
 import { requestLoggerPlugin } from './plugins/request-logger.js';
+import { agentDiscoveryRoutesPlugin } from './routes/agent-discovery.js';
 import { demoRoutesPlugin } from './routes/demo.js';
 import { downloadRoutesPlugin } from './routes/download.js';
 import { healthRoutesPlugin } from './routes/health.js';
@@ -94,10 +95,7 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
             'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
             'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
             'img-src': ["'self'", 'data:'],
-            'connect-src': [
-              "'self'",
-              'https://cloudflareinsights.com',
-            ],
+            'connect-src': ["'self'", 'https://cloudflareinsights.com'],
           },
         },
   });
@@ -203,8 +201,7 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   const catalog = new ServiceCatalog();
   catalog.setServer({
     name: 'cardano402',
-    description:
-      'Open-source x402 payment facilitator and resource server SDK for Cardano.',
+    description: 'Open-source x402 payment facilitator and resource server SDK for Cardano.',
     contact: 'https://github.com/MorganOnCode/cardano402',
     url: undefined,
   });
@@ -220,6 +217,7 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   await server.register(downloadRoutesPlugin);
   await server.register(demoRoutesPlugin);
   await server.register(wellKnownRoutesPlugin);
+  await server.register(agentDiscoveryRoutesPlugin);
 
   // Landing page — serve landing/index.html at / (and static assets)
   // Must be registered after API routes so /docs etc. take precedence
