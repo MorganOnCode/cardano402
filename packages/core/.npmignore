@@ -1,0 +1,8 @@
+src/
+test/
+*.config.ts
+tsconfig*.json
+coverage/
+node_modules/
+*.tsbuildinfo
+.turbo/
