@@ -7,7 +7,8 @@ RUN corepack enable
 WORKDIR /app
 
 # Copy package files first (layer caching)
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/ packages/
 
 # Install all dependencies (including dev for build)
 RUN pnpm install --frozen-lockfile
@@ -35,7 +36,8 @@ RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/ packages/
 
 # Install production dependencies only (--ignore-scripts: husky prepare not needed in prod)
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
