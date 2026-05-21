@@ -25,6 +25,10 @@ export const PAYMENT_RESPONSE_HEADER_NAMES = [
 
 // --- Codec ---
 
+const PROTO_POLLUTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const stripProtoPollutionReviver = (key: string, value: unknown): unknown =>
+  PROTO_POLLUTION_KEYS.has(key) ? undefined : value;
+
 export function encodePaymentHeader(payload: PaymentPayload): string {
   const parsed = PaymentPayloadSchema.safeParse(payload);
   if (!parsed.success) {
@@ -51,7 +55,7 @@ export function decodePaymentHeader(headerValue: string): PaymentPayload {
   }
   let parsedJson: unknown;
   try {
-    parsedJson = JSON.parse(json);
+    parsedJson = JSON.parse(json, stripProtoPollutionReviver);
   } catch (err) {
     throw new Cardano402DecodeError(
       `Invalid JSON in payment header: ${(err as Error).message}`,

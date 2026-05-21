@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import fc from 'fast-check';
 
 import {
   AssetTransferMethodSchema,
@@ -82,6 +83,54 @@ describe('CardanoAddressSchema', () => {
   it('accepts non-empty string, rejects empty', () => {
     expect(CardanoAddressSchema.safeParse('addr_test1abc').success).toBe(true);
     expect(CardanoAddressSchema.safeParse('').success).toBe(false);
+  });
+
+  it('rejects CRLF, NUL, TAB, DEL and other control characters', () => {
+    expect(CardanoAddressSchema.safeParse('addr_test1abc\r\n').success).toBe(false);
+    expect(CardanoAddressSchema.safeParse('addr_test1abc\n').success).toBe(false);
+    expect(CardanoAddressSchema.safeParse('addr_test1abc\x00').success).toBe(false);
+    expect(CardanoAddressSchema.safeParse('addr_test1abc\t').success).toBe(false);
+    expect(CardanoAddressSchema.safeParse('addr_test1abc\x7f').success).toBe(false);
+    expect(CardanoAddressSchema.safeParse('addr_test1abc\x1f').success).toBe(false);
+  });
+
+  it('rejects strings containing spaces', () => {
+    expect(CardanoAddressSchema.safeParse('addr test1abc').success).toBe(false);
+    expect(CardanoAddressSchema.safeParse(' addr_test1abc').success).toBe(false);
+    expect(CardanoAddressSchema.safeParse('addr_test1abc ').success).toBe(false);
+  });
+
+  it('rejects strings longer than 200 chars; accepts exactly 200', () => {
+    expect(CardanoAddressSchema.safeParse('a'.repeat(201)).success).toBe(false);
+    expect(CardanoAddressSchema.safeParse('a'.repeat(200)).success).toBe(true);
+  });
+
+  it('accepts realistic Cardano addresses', () => {
+    // 103-char mainnet base address (bech32, lowercase a-z + 0-9).
+    expect(
+      CardanoAddressSchema.safeParse(
+        'addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj0vs2qd4a6v2yvd5pgvm6xqg'
+      ).success
+    ).toBe(true);
+    // 108-char preview test address.
+    expect(
+      CardanoAddressSchema.safeParse(
+        'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj0vs2qd4a6v2yvd5pgvm6xqg'
+      ).success
+    ).toBe(true);
+    // Short synthetic addresses used across the test suite still pass.
+    expect(CardanoAddressSchema.safeParse('addr_test1xxx').success).toBe(true);
+  });
+
+  it('property-based: Zod result agrees with /^[\\x21-\\x7e]{1,200}$/', () => {
+    fc.assert(
+      fc.property(fc.string({ minLength: 1, maxLength: 200 }), (s: string) => {
+        const zodOk = CardanoAddressSchema.safeParse(s).success;
+        const regexOk = /^[\x21-\x7e]{1,200}$/.test(s);
+        expect(zodOk).toBe(regexOk);
+      }),
+      { numRuns: 500 }
+    );
   });
 });
 

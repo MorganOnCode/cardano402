@@ -37,6 +37,12 @@ export interface FacilitatorClientOptions {
    * Both shapes are accepted by cardano402's facilitator endpoints.
    */
   sendRawHeader?: boolean;
+  /**
+   * When true, suppresses the cleartext-baseUrl warning. Cardano payment
+   * payloads contain signed transactions; transmitting them over http://
+   * to a non-loopback host leaks them to the network. Default: false.
+   */
+  allowInsecure?: boolean;
 }
 
 export class FacilitatorClient {
@@ -50,6 +56,27 @@ export class FacilitatorClient {
     this.timeout = options.timeout ?? 30_000;
     this.headers = options.headers ?? {};
     this.sendRawHeader = options.sendRawHeader ?? false;
+
+    if (!(options.allowInsecure ?? false)) {
+      try {
+        const parsed = new URL(this.baseUrl);
+        const isLoopback =
+          parsed.hostname === 'localhost' ||
+          parsed.hostname === '127.0.0.1' ||
+          parsed.hostname === '[::1]' ||
+          parsed.hostname === '::1';
+        if (parsed.protocol !== 'https:' && !isLoopback) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[cardano402] FacilitatorClient: baseUrl '${this.baseUrl}' is not HTTPS. ` +
+              `Payment payloads will traverse the network in cleartext. ` +
+              `Pass { allowInsecure: true } to suppress this warning.`
+          );
+        }
+      } catch {
+        // Invalid URL — defer the failure to the first fetch() call.
+      }
+    }
   }
 
   async supported(): Promise<SupportedResponse> {
@@ -112,56 +139,79 @@ export class FacilitatorClient {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const isAbort = (err: unknown): boolean =>
+      controller.signal.aborted ||
+      (err instanceof Error && err.name === 'AbortError');
 
-    let response: Response;
     try {
-      response = await fetch(url, { ...init, signal: controller.signal });
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === 'AbortError') {
+      let response: Response;
+      try {
+        response = await fetch(url, { ...init, signal: controller.signal });
+      } catch (err) {
+        if (isAbort(err)) {
+          throw new Cardano402NetworkError(
+            `Facilitator request to ${path} timed out after ${this.timeout}ms (no response headers)`,
+            { cause: err }
+          );
+        }
         throw new Cardano402NetworkError(
-          `Facilitator request to ${path} timed out after ${this.timeout}ms`,
+          `Facilitator request to ${path} failed: ${(err as Error).message}`,
           { cause: err }
         );
       }
-      throw new Cardano402NetworkError(
-        `Facilitator request to ${path} failed: ${(err as Error).message}`,
-        { cause: err }
-      );
-    }
-    clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      let body: unknown;
-      try {
-        body = await response.json();
-      } catch {
+      if (!response.ok) {
+        let body: unknown;
         try {
-          body = await response.text();
-        } catch {
-          body = undefined;
+          body = await response.json();
+        } catch (err) {
+          if (isAbort(err)) {
+            throw new Cardano402NetworkError(
+              `Facilitator request to ${path} timed out after ${this.timeout}ms (while reading error body)`,
+              { cause: err }
+            );
+          }
+          try {
+            body = await response.text();
+          } catch (err2) {
+            if (isAbort(err2)) {
+              throw new Cardano402NetworkError(
+                `Facilitator request to ${path} timed out after ${this.timeout}ms (while reading error body)`,
+                { cause: err2 }
+              );
+            }
+            body = undefined;
+          }
         }
+        throw new Cardano402HttpError(response.status, response.statusText, body);
       }
-      throw new Cardano402HttpError(response.status, response.statusText, body);
-    }
 
-    let json: unknown;
-    try {
-      json = await response.json();
-    } catch (err) {
-      throw new Cardano402NetworkError(
-        `Facilitator response from ${path} was not valid JSON: ${(err as Error).message}`,
-        { cause: err }
-      );
-    }
+      let json: unknown;
+      try {
+        json = await response.json();
+      } catch (err) {
+        if (isAbort(err)) {
+          throw new Cardano402NetworkError(
+            `Facilitator request to ${path} timed out after ${this.timeout}ms (while reading response body)`,
+            { cause: err }
+          );
+        }
+        throw new Cardano402NetworkError(
+          `Facilitator response from ${path} was not valid JSON: ${(err as Error).message}`,
+          { cause: err }
+        );
+      }
 
-    const parsed = schema.safeParse(json);
-    if (!parsed.success) {
-      throw new Cardano402ValidationError(
-        `Facilitator response from ${path} did not match expected schema`,
-        parsed.error.issues
-      );
+      const parsed = schema.safeParse(json);
+      if (!parsed.success) {
+        throw new Cardano402ValidationError(
+          `Facilitator response from ${path} did not match expected schema`,
+          parsed.error.issues
+        );
+      }
+      return parsed.data;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    return parsed.data;
   }
 }

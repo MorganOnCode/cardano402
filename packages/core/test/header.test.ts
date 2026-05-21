@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import fc from 'fast-check';
 
 import {
   Cardano402DecodeError,
@@ -82,6 +83,147 @@ describe('decodePaymentHeader errors', () => {
   it('throws Cardano402ValidationError on base64 of shape-mismatch JSON', () => {
     const emptyObjB64 = Buffer.from('{}', 'utf-8').toString('base64');
     expect(() => decodePaymentHeader(emptyObjB64)).toThrow(Cardano402ValidationError);
+  });
+});
+
+describe('decodePaymentHeader prototype pollution defense', () => {
+  it('strips __proto__ from decoded payload at every nesting level', () => {
+    // Hand-craft the JSON because object-literal __proto__ would mutate
+    // the source object's prototype, not produce an own key in JSON.
+    const json =
+      '{"x402Version":2,' +
+      '"__proto__":{"polluted":"top"},' +
+      '"accepted":{"scheme":"exact","network":"cardano:preview","asset":"lovelace","amount":"2000000","payTo":"addr_test1abc","maxTimeoutSeconds":300,' +
+      '"__proto__":{"polluted":"accepted"}},' +
+      '"payload":{"transaction":"tx-bytes",' +
+      '"__proto__":{"polluted":"payload"}}}';
+    const b64 = Buffer.from(json, 'utf-8').toString('base64');
+    const decoded = decodePaymentHeader(b64);
+
+    expect(decoded.x402Version).toBe(2);
+    expect(decoded.payload.transaction).toBe('tx-bytes');
+
+    // The decoded object's prototype chain must be untouched — exactly
+    // Object.prototype, no injected layer carrying the attacker's keys.
+    // Without the reviver, Zod's passthrough copy uses [[Set]] which
+    // routes the JSON.parse-produced own __proto__ key through the
+    // prototype mutator, replacing the output's prototype with the
+    // attacker-controlled object. `decoded.polluted` would then resolve
+    // to 'top' via prototype lookup.
+    expect(Object.getPrototypeOf(decoded)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(decoded.accepted)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(decoded.payload)).toBe(Object.prototype);
+
+    expect((decoded as unknown as { polluted?: string }).polluted).toBeUndefined();
+    expect(
+      (decoded.accepted as unknown as { polluted?: string }).polluted
+    ).toBeUndefined();
+    expect(
+      (decoded.payload as unknown as { polluted?: string }).polluted
+    ).toBeUndefined();
+
+    // Defensive: confirm no global prototype pollution leaked.
+    expect(({} as unknown as { polluted?: string }).polluted).toBeUndefined();
+  });
+
+  it('strips constructor and prototype keys from decoded payload', () => {
+    const json = JSON.stringify({
+      x402Version: 2,
+      accepted: sampleRequirements,
+      payload: { transaction: 'tx-bytes' },
+      constructor: { evil: 1 },
+      prototype: { evil: 2 },
+    });
+    const b64 = Buffer.from(json, 'utf-8').toString('base64');
+    const decoded = decodePaymentHeader(b64);
+    expect((decoded as unknown as { constructor?: unknown }).constructor).toBe(Object);
+    expect((decoded as unknown as { prototype?: unknown }).prototype).toBeUndefined();
+    // Spot-check that the schema-validated portion is intact.
+    expect(decoded.payload.transaction).toBe('tx-bytes');
+  });
+
+  it('property-based: any decoded output has no inherited polluted key', () => {
+    fc.assert(
+      fc.property(fc.json({ maxDepth: 4 }), (j: string) => {
+        const b64 = Buffer.from(j, 'utf-8').toString('base64');
+        try {
+          const decoded = decodePaymentHeader(b64);
+          // If decoding succeeded the schema accepted it; verify no
+          // attacker-controlled key 'polluted' leaked into Object.prototype.
+          expect(({} as unknown as { polluted?: unknown }).polluted).toBeUndefined();
+          // And the decoded object itself has no own __proto__ key.
+          expect(Object.prototype.hasOwnProperty.call(decoded, '__proto__')).toBe(false);
+        } catch (err) {
+          // Decode failures are acceptable — we only care about pollution.
+          expect(
+            err instanceof Cardano402DecodeError ||
+              err instanceof Cardano402ValidationError
+          ).toBe(true);
+        }
+      }),
+      { numRuns: 200 }
+    );
+  });
+});
+
+describe('encode/decode round-trip (property-based)', () => {
+  const arbAddress = fc.stringMatching(/^[\x21-\x7e]{1,80}$/);
+  const arbAmount = fc
+    .bigInt({ min: 1n, max: 45_000_000_000_000_000n })
+    .map((n) => n.toString());
+  const arbNetwork = fc.constantFrom('cardano:preview', 'cardano:preprod', 'cardano:mainnet');
+  const arbUtxoRef = fc
+    .tuple(
+      fc.stringMatching(/^[0-9a-f]{64}$/),
+      fc.integer({ min: 0, max: 1024 })
+    )
+    .map(([h, i]) => `${h}#${i}`);
+
+  const arbRequirements = fc.record({
+    scheme: fc.constant('exact' as const),
+    network: arbNetwork,
+    asset: fc.constant('lovelace'),
+    amount: arbAmount,
+    payTo: arbAddress,
+    maxTimeoutSeconds: fc.integer({ min: 1, max: 86_400 }),
+  });
+
+  const arbPayload = fc.record({
+    x402Version: fc.constant(2 as const),
+    accepted: arbRequirements,
+    payload: fc.record({
+      transaction: fc.string({ minLength: 1, maxLength: 64 }),
+      nonce: arbUtxoRef,
+      payer: arbAddress,
+    }),
+  });
+
+  it('decode(encode(p)) deep-equals p for arbitrary valid PaymentPayloads', () => {
+    fc.assert(
+      fc.property(arbPayload, (p: PaymentPayload) => {
+        const encoded = encodePaymentHeader(p);
+        const decoded = decodePaymentHeader(encoded);
+        // Compare structurally; both sides should be identical.
+        expect(decoded).toEqual(p);
+      }),
+      { numRuns: 100 }
+    );
+  });
+
+  it('round-trips Unicode in resource fields byte-identically', () => {
+    const p: PaymentPayload = {
+      x402Version: 2,
+      resource: {
+        url: 'https://example.com/日本語',
+        description: '日本語 ✓ 𝕏 emoji 🎉',
+        mimeType: 'application/json',
+      },
+      accepted: sampleRequirements,
+      payload: { transaction: 'tx-bytes' },
+    };
+    const decoded = decodePaymentHeader(encodePaymentHeader(p));
+    expect(decoded.resource?.url).toBe(p.resource!.url);
+    expect(decoded.resource?.description).toBe(p.resource!.description);
   });
 });
 

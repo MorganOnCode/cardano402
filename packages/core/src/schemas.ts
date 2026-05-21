@@ -19,7 +19,14 @@ export const LovelaceAmountSchema = z
   .min(1);
 export type LovelaceAmount = z.infer<typeof LovelaceAmountSchema>;
 
-export const CardanoAddressSchema = z.string().min(1);
+export const CardanoAddressSchema = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(
+    /^[\x21-\x7e]+$/,
+    'Cardano address must contain only printable ASCII (no whitespace, no control chars)'
+  );
 export type CardanoAddress = z.infer<typeof CardanoAddressSchema>;
 
 export const UtxoRefSchema = z
