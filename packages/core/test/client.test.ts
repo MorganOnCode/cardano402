@@ -227,6 +227,129 @@ describe('FacilitatorClient error mapping', () => {
     expect((caught as Error).message.toLowerCase()).toContain('timed out');
     fetchSpy.mockRestore();
   });
+
+  it('aborts when response body is slow past timeout', async () => {
+    const client = new FacilitatorClient({ baseUrl: 'https://f.example.com', timeout: 50 });
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(async (_url, init) => {
+        const signal = (init as RequestInit | undefined)?.signal;
+        // Hand-construct a Response whose .json() never resolves
+        // unless/until the abort signal fires. Mirrors a hostile
+        // facilitator that returns headers immediately but stalls the
+        // body indefinitely.
+        const stalledResponse = new Response(null, {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+        Object.defineProperty(stalledResponse, 'json', {
+          value: () =>
+            new Promise<unknown>((_resolve, reject) => {
+              if (signal?.aborted) {
+                const err = new Error('The operation was aborted');
+                err.name = 'AbortError';
+                reject(err);
+                return;
+              }
+              signal?.addEventListener('abort', () => {
+                const err = new Error('The operation was aborted');
+                err.name = 'AbortError';
+                reject(err);
+              });
+            }),
+        });
+        return stalledResponse;
+      });
+
+    let caught: unknown;
+    try {
+      await client.supported();
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Cardano402NetworkError);
+    expect((caught as Error).message.toLowerCase()).toContain('timed out');
+    expect((caught as Error).message.toLowerCase()).toContain('response body');
+    fetchSpy.mockRestore();
+  });
+
+  it('aborts when error body is slow past timeout', async () => {
+    const client = new FacilitatorClient({ baseUrl: 'https://f.example.com', timeout: 50 });
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(async (_url, init) => {
+        const signal = (init as RequestInit | undefined)?.signal;
+        const stalledResponse = new Response(null, {
+          status: 500,
+          statusText: 'Internal Server Error',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const stallingReader = (): Promise<unknown> =>
+          new Promise<unknown>((_resolve, reject) => {
+            if (signal?.aborted) {
+              const err = new Error('The operation was aborted');
+              err.name = 'AbortError';
+              reject(err);
+              return;
+            }
+            signal?.addEventListener('abort', () => {
+              const err = new Error('The operation was aborted');
+              err.name = 'AbortError';
+              reject(err);
+            });
+          });
+        Object.defineProperty(stalledResponse, 'json', { value: stallingReader });
+        Object.defineProperty(stalledResponse, 'text', { value: stallingReader });
+        return stalledResponse;
+      });
+
+    let caught: unknown;
+    try {
+      await client.supported();
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Cardano402NetworkError);
+    expect((caught as Error).message.toLowerCase()).toContain('timed out');
+    expect((caught as Error).message.toLowerCase()).toContain('error body');
+    fetchSpy.mockRestore();
+  });
+
+});
+
+describe('FacilitatorClient HTTPS enforcement', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('warns on http:// non-loopback baseUrl', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    new FacilitatorClient({ baseUrl: 'http://example.com' });
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const msg = String(warnSpy.mock.calls[0][0]);
+    expect(msg).toContain('not HTTPS');
+    expect(msg).toContain('cleartext');
+  });
+
+  it('does not warn on https:// baseUrl', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    new FacilitatorClient({ baseUrl: 'https://example.com' });
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not warn on http://localhost / 127.0.0.1 / [::1]', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
+    new FacilitatorClient({ baseUrl: 'http://127.0.0.1:3000' });
+    new FacilitatorClient({ baseUrl: 'http://[::1]:3000' });
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('suppresses warning when allowInsecure: true', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    new FacilitatorClient({ baseUrl: 'http://example.com', allowInsecure: true });
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('FacilitatorClient custom headers', () => {
