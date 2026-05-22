@@ -1,30 +1,71 @@
 // @cardano402/mcp-server — MCP server that exposes paid HTTP endpoints as
 // MCP tools, paying via the x402 Cardano scheme.
 //
-// Scaffold only. Final shape (planned):
+// Usage (stdio, the common Claude Desktop / Cursor config):
 //
-//   import { startCardano402Mcp } from "@cardano402/mcp-server";
 //   await startCardano402Mcp({
-//     catalogUrl: "https://api.example.com/.well-known/x402.json",
-//     signer: { type: "lucid", seedPhrase: process.env.SEED_PHRASE! },
-//     transport: "stdio", // or "http"
+//     catalogUrl: 'https://api.example.com/.well-known/x402.json',
+//     transport: 'stdio',
+//     network: 'Preview',
+//     blockfrostKey: process.env.BLOCKFROST_KEY!,
+//     signer: { type: 'seed', seedPhrase: process.env.SEED_PHRASE! },
+//     httpPort: 3333,
+//     requestTimeoutMs: 60_000,
+//     allowInsecure: false,
 //   });
 //
-// On invocation of any priced tool:
-//   1. Make the HTTP call.
-//   2. Read the 402 response, decode Payment-Required.
-//   3. Build and sign a Cardano tx via the configured signer.
-//   4. Retry with PAYMENT-SIGNATURE.
-//   5. Return the resource (and the PAYMENT-RESPONSE metadata) to the agent.
-//
-// Transports:
-//   - stdio: for desktop MCP clients (Claude Desktop, Cursor)
-//   - http+streaming: for remote MCP clients per the x402 roadmap
+// Or via the CLI: `cardano402-mcp --catalog <url> [--transport stdio|http] [--port N]`.
 
-export const STATUS = 'scaffold' as const;
+export { startCardano402Mcp } from './server.js';
+export type {
+  StartCardano402McpOptions,
+  StartResult,
+} from './server.js';
 
-export function startCardano402Mcp(): never {
-  throw new Error(
-    '@cardano402/mcp-server is scaffolding only. Implementation tracking: cardano402-upgrade-plan.md Track D2.'
-  );
-}
+export {
+  loadConfig,
+  parseArgs,
+  helpText,
+  lucidNetworkFromCaip2,
+  McpServerConfigSchema,
+  SignerConfigSchema,
+  TransportSchema,
+  LucidNetworkSchema,
+} from './config.js';
+export type {
+  McpServerConfig,
+  SignerConfig,
+  Transport,
+  LucidNetwork,
+  RawArgs,
+  LoadConfigInput,
+} from './config.js';
+
+export {
+  fetchCatalog,
+  toolNameFor,
+  resolveBaseUrl,
+  CatalogEndpointSchema,
+  CatalogServerInfoSchema,
+  WellKnownX402Schema,
+} from './catalog.js';
+export type {
+  CatalogEndpoint,
+  CatalogServerInfo,
+  WellKnownX402,
+  FetchCatalogOptions,
+} from './catalog.js';
+
+export { createLucidSeedSigner } from './signer.js';
+export type {
+  CardanoSigner,
+  SignPaymentArgs,
+  SignedPayment,
+  LucidSeedSignerOptions,
+} from './signer.js';
+
+export { payAndFetch } from './payment.js';
+export type { PayAndFetchOptions, PayAndFetchResult } from './payment.js';
+
+export { registerTools } from './tools.js';
+export type { RegisterToolsOptions } from './tools.js';
