@@ -1,6 +1,6 @@
 {
   "name": "@cardano402/core",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Schemas, types, header codec, and FacilitatorClient for x402 payments on Cardano. Zero-runtime-dep core (except zod) for clients, resource servers, and MCP tooling.",
   "type": "module",
   "main": "./dist/index.cjs",

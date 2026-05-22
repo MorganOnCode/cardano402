@@ -1,4 +1,4 @@
-# Spec truth for `@cardano402/core@0.1.0`
+# Spec truth for `@cardano402/core@0.2.0`
 
 This document records the canonical values and shapes that `@cardano402/core` ships, and notes every place where the package deliberately differs from the in-repo `src/` schemas in `cardano402/src/verify/types.ts`, `cardano402/src/settle/types.ts`, and `cardano402/src/sdk/types.ts`. These are intentional v0.1.0 choices, not bugs.
 
@@ -10,7 +10,7 @@ This document records the canonical values and shapes that `@cardano402/core` sh
 | Network format | CAIP-2 colon form: `cardano:preview`, `cardano:preprod`, `cardano:mainnet`. The regex `/^[a-z0-9]+:[a-z0-9]+$/` rejects `cardano-mainnet` and other hyphen forms. |
 | Scheme | `'exact'` only |
 | Amounts | Base-10 lovelace **string** (BigInt-safe over JSON); never a number |
-| Address format | Bech32 Cardano address. `CardanoAddressSchema` enforces non-empty only in v0.1.0; tighter bech32 validation lands in v0.2.0. |
+| Address format | Bech32 Cardano address. `CardanoAddressSchema` enforces printable ASCII (`^[\x21-\x7e]+$`) with 200-char ceiling as of v0.1.1; tighter bech32 charset validation tracked for v0.3.0. |
 | UTXO reference (nonce) | `txHash#index` with 64 lowercase hex chars + decimal index |
 | Request header (canonical) | `Payment-Signature` |
 | Request header (alias) | `X-PAYMENT` (base x402 interop) |
@@ -18,18 +18,20 @@ This document records the canonical values and shapes that `@cardano402/core` sh
 | Response header (alias) | `PAYMENT-RESPONSE` (literal Cardano spec wording) |
 | Header body | base64-encoded JSON of `PaymentPayloadSchema` |
 | Settlement status enum | `'confirmed' \| 'mempool' \| 'failed'` (widened) |
-| Nonce location (v0.1.0) | `PaymentPayload.payload.nonce`. Spec wants it on `PaymentRequirements`; promotion deferred to v0.2.0. |
-| `extensions.status` requiredness | optional on success in v0.1.0; v0.2.0 will promote to required |
+| Nonce location (v0.2.0) | `PaymentPayload.payload.nonce`. Spec wants it on `PaymentRequirements`; promotion now tracked for v0.3.0 (was tentatively v0.2.0 but pushed back to land alongside the consolidation PR). |
+| `extensions.status` requiredness | optional on success in v0.2.0; v0.3.0 will promote to required |
 
 ## Schemas exported
 
 Composed: `PaymentRequirementsSchema`, `PaymentPayloadSchema`, `VerifyResponseSchema`, `SettleResponseSchema`, `StatusResponseSchema`, `SupportedResponseSchema`, `SupportedKindSchema`, `CardanoPayloadSchema`.
 
+402 envelope (client side, new in v0.2.0): `PaymentAcceptSchema`, `ResourceInfoSchema`, `PaymentRequiredResponseSchema`, `PaymentSignaturePayloadSchema`.
+
 Request envelopes: `VerifyRequestSchema`, `SettleRequestSchema`, `StatusRequestSchema`.
 
 Primitives: `NetworkSchema`, `UtxoRefSchema`, `CardanoAddressSchema`, `LovelaceAmountSchema`, `SchemeSchema`, `X402VersionSchema`, `AssetTransferMethodSchema`, `SettlementStatusSchema`, `VerifyErrorReasonSchema`.
 
-**Not in v0.1.0:** `PaymentRequiredResponseSchema` (the 402 envelope wrapping `accepts: PaymentRequirements[]`), `PaymentAcceptSchema`, `ResourceInfoSchema`, `PaymentSignaturePayloadSchema`, `PaymentResponseHeaderSchema`. These live in `src/sdk/types.ts` today and will be consolidated and re-exported from this package in v0.2.0 once the resource-server side is migrated.
+**Still deferred:** `PaymentResponseHeaderSchema` (the emit-side response-header validator) remains in `src/sdk/types.ts`. It is intentionally narrow (`extensions.status` only accepts `['confirmed','mempool']`) and is paired with the facilitator's emission code path; promoting it would change resource-server validation behavior. Track for a later release once the consolidation PR (`/home/morganic/.claude/plans/consolidation-followup.md`) lands.
 
 ## Known divergences from `cardano402/src/`
 
@@ -39,8 +41,9 @@ Primitives: `NetworkSchema`, `UtxoRefSchema`, `CardanoAddressSchema`, `LovelaceA
 | Nonce location | `PaymentPayload.payload.nonce` (mirrors `src/`) | Same | Spec wants the nonce on `PaymentRequirements`; v0.2.0 promotes it after `src/` is consolidated. |
 | `extensions.status` requiredness | optional on success | optional | v0.2.0 will require it on `success: true` settle responses. |
 | `NetworkSchema` named export | yes (`z.string().regex(...)`) | regex inlined in `PaymentRequirementsSchema` (`src/verify/types.ts:61`) | Core publishes the named primitive so MCP and adapter consumers can validate one field. |
-| `PaymentRequirementsSchema` vs `PaymentRequiredResponseSchema` | Only `PaymentRequirementsSchema` ships (single accept) | Both live — `PaymentRequirements` in `src/verify/types.ts`, `PaymentRequiredResponseSchema` in `src/sdk/types.ts` | Envelope ships in v0.2.0. `PaymentRequiredResponseSchema` is the 402 envelope wrapping `accepts: PaymentRequirements[]`; not the same object as `PaymentRequirements`. |
-| `CardanoAddressSchema` strictness | `z.string().min(1)` | Same | v0.2.0 will add bech32 validation if achievable without a heavy dep. |
+| `PaymentRequirementsSchema` vs `PaymentRequiredResponseSchema` | Both ship (v0.2.0). `PaymentRequirementsSchema` is one accept option; `PaymentRequiredResponseSchema` is the 402 envelope wrapping `accepts: PaymentAcceptSchema[]`. | Both live — `PaymentRequirements` in `src/verify/types.ts`, `PaymentRequiredResponseSchema` in `src/sdk/types.ts` | Core publishes both as of v0.2.0; `src/` continues to define them locally until the consolidation PR lands. |
+| `PaymentAcceptSchema` field strictness (v0.2.0) | `network: z.string()`, `amount: z.string()`, `payTo: z.string()` — loose, matching `src/sdk/types.ts` | Same | Promoted as-is in v0.2.0 to avoid breaking existing 402 emissions. v0.3.0 will tighten to `NetworkSchema` / `LovelaceAmountSchema` / `CardanoAddressSchema` alongside the nonce promotion. |
+| `CardanoAddressSchema` strictness | Printable ASCII `^[\x21-\x7e]+$`, 200-char max (since v0.1.1) | `z.string().min(1)` | Core tightened in 0.1.1 hardening (audit A5); `src/` adopts in the consolidation PR. v0.3.0 may add bech32 charset validation. |
 | `X-PAYMENT` alias request header constant | exported | absent | Provided for base-x402 interop; cardano402's facilitator itself only accepts `Payment-Signature` on requests. |
 | `Cardano402*` error classes | exported (`Cardano402Error`, `Cardano402DecodeError`, `Cardano402ValidationError`, `Cardano402HttpError`, `Cardano402NetworkError`) | `FacilitatorClient` in `src/sdk/facilitator-client.ts` throws plain `Error` | Core ships the typed hierarchy; `src/` adopts in follow-up. |
 

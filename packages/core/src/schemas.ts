@@ -128,6 +128,48 @@ export const SupportedResponseSchema = z.object({
 });
 export type SupportedResponse = z.infer<typeof SupportedResponseSchema>;
 
+// --- 402 envelope (client side; promoted from src/sdk/types.ts in v0.2.0) ---
+//
+// These four schemas describe what an x402 *client* (e.g. @cardano402/mcp-server)
+// receives and parses when a resource server returns `402 Payment Required`.
+// The fields stay loose (`z.string()` rather than NetworkSchema / LovelaceAmount /
+// CardanoAddress) to avoid breaking existing facilitator emissions; v0.3.0 will
+// tighten them alongside the nonce promotion.
+
+export const PaymentAcceptSchema = z.object({
+  scheme: z.string().default('exact'),
+  network: z.string(),
+  amount: z.string(),
+  payTo: z.string(),
+  maxTimeoutSeconds: z.number().int().positive().default(300),
+  asset: z.string().default('lovelace'),
+  extra: z.record(z.string(), z.unknown()).nullable().default(null),
+});
+export type PaymentAccept = z.infer<typeof PaymentAcceptSchema>;
+
+export const ResourceInfoSchema = z.object({
+  description: z.string(),
+  mimeType: z.string().default('application/json'),
+  url: z.string(),
+});
+export type ResourceInfo = z.infer<typeof ResourceInfoSchema>;
+
+export const PaymentRequiredResponseSchema = z.object({
+  x402Version: X402VersionSchema,
+  error: z.string().nullable().default(null),
+  resource: ResourceInfoSchema,
+  accepts: z.array(PaymentAcceptSchema),
+});
+export type PaymentRequiredResponse = z.infer<typeof PaymentRequiredResponseSchema>;
+
+export const PaymentSignaturePayloadSchema = z.object({
+  x402Version: X402VersionSchema,
+  accepted: PaymentAcceptSchema,
+  payload: CardanoPayloadSchema,
+  resource: ResourceInfoSchema,
+});
+export type PaymentSignaturePayload = z.infer<typeof PaymentSignaturePayloadSchema>;
+
 // --- Request envelopes (used by FacilitatorClient; also exported) ---
 
 export const VerifyRequestSchema = z.object({

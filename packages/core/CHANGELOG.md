@@ -2,6 +2,58 @@
 
 All notable changes to `@cardano402/core` are documented here.
 
+## 0.2.0 — 402 envelope (client-side schemas)
+
+Minor release promoting the four 402-envelope schemas from
+`cardano402/src/sdk/types.ts` into this package. Unblocks the
+`@cardano402/mcp-server` package and any third-party x402 client that
+needs to parse a `402 Payment Required` response without depending on
+the facilitator codebase. No breaking changes for `0.1.x` consumers.
+
+### Added
+
+- **`PaymentAcceptSchema`** — one accept option in a 402 envelope.
+  Fields: `scheme` (default `'exact'`), `network`, `amount`, `payTo`,
+  `maxTimeoutSeconds` (default `300`), `asset` (default `'lovelace'`),
+  `extra` (default `null`). Promoted as-is — `network` / `amount` /
+  `payTo` stay loose `z.string()` to match existing facilitator
+  emissions. v0.3.0 will tighten to `NetworkSchema` /
+  `LovelaceAmountSchema` / `CardanoAddressSchema`.
+- **`ResourceInfoSchema`** — resource metadata in a 402 envelope.
+  Fields: `description`, `mimeType` (default `'application/json'`),
+  `url`.
+- **`PaymentRequiredResponseSchema`** — the full 402 envelope.
+  `{ x402Version: 2, error, resource, accepts: PaymentAccept[] }`.
+- **`PaymentSignaturePayloadSchema`** — SDK request wrapper combining
+  `accepted`, `payload`, and `resource`. Useful for tools that POST a
+  signed payload back to a resource server.
+
+All four schemas + inferred types (`PaymentAccept`, `ResourceInfo`,
+`PaymentRequiredResponse`, `PaymentSignaturePayload`) are exported
+from the package root.
+
+### Fixed
+
+- **Stale `VERSION` constant.** `src/index.ts` exported
+  `VERSION = '0.1.0'` even after the `0.1.1` publish (a documentation
+  bug — npm `0.1.1` consumers saw the wrong constant). Now reads
+  `'0.2.0'` and will be kept in sync with `package.json` going
+  forward.
+
+### Tests
+
+- 8 new tests in `test/schemas.test.ts` covering defaults, missing
+  required fields, `x402Version: 2` literal enforcement, JSON
+  round-trips, and a property-based round-trip for
+  `PaymentRequiredResponseSchema`. Total tests: 68 (was 60).
+
+### Migration
+
+`0.1.x` consumers can upgrade with no code changes. New schemas are
+additive. Resource-server code in `cardano402/src/` continues to use
+its locally-defined copies; the consolidation PR (planned separately)
+will swap those imports.
+
 ## 0.1.1 — security hardening
 
 Patch release closing four audit findings raised against `0.1.0`. No
