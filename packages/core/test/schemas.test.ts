@@ -6,8 +6,12 @@ import {
   CardanoAddressSchema,
   LovelaceAmountSchema,
   NetworkSchema,
+  PaymentAcceptSchema,
   PaymentPayloadSchema,
+  PaymentRequiredResponseSchema,
   PaymentRequirementsSchema,
+  PaymentSignaturePayloadSchema,
+  ResourceInfoSchema,
   SchemeSchema,
   SettleResponseSchema,
   SettlementStatusSchema,
@@ -278,5 +282,136 @@ describe('SupportedResponseSchema', () => {
       signers: { 'cardano:preview': ['addr_test1xxx'] },
     });
     expect(parsed.success).toBe(true);
+  });
+});
+
+// --- 402 envelope (client-side schemas; new in v0.2.0) ---
+
+const sampleAccept = {
+  network: 'cardano:preview',
+  amount: '1000000',
+  payTo: 'addr_test1abc',
+};
+
+const sampleResource = {
+  description: 'weather forecast',
+  url: 'https://api.example.com/weather',
+};
+
+describe('PaymentAcceptSchema', () => {
+  it('applies defaults for scheme / maxTimeoutSeconds / asset / extra', () => {
+    const parsed = PaymentAcceptSchema.parse(sampleAccept);
+    expect(parsed.scheme).toBe('exact');
+    expect(parsed.maxTimeoutSeconds).toBe(300);
+    expect(parsed.asset).toBe('lovelace');
+    expect(parsed.extra).toBeNull();
+  });
+
+  it('rejects missing required fields (network / amount / payTo)', () => {
+    const { network: _net, ...withoutNetwork } = sampleAccept;
+    const { amount: _amt, ...withoutAmount } = sampleAccept;
+    const { payTo: _pay, ...withoutPayTo } = sampleAccept;
+    expect(PaymentAcceptSchema.safeParse(withoutNetwork).success).toBe(false);
+    expect(PaymentAcceptSchema.safeParse(withoutAmount).success).toBe(false);
+    expect(PaymentAcceptSchema.safeParse(withoutPayTo).success).toBe(false);
+  });
+});
+
+describe('ResourceInfoSchema', () => {
+  it('defaults mimeType to application/json', () => {
+    const parsed = ResourceInfoSchema.parse(sampleResource);
+    expect(parsed.mimeType).toBe('application/json');
+  });
+
+  it('rejects missing description or url', () => {
+    expect(ResourceInfoSchema.safeParse({ url: 'https://x' }).success).toBe(false);
+    expect(ResourceInfoSchema.safeParse({ description: 'd' }).success).toBe(false);
+  });
+});
+
+describe('PaymentRequiredResponseSchema', () => {
+  const baseEnvelope = {
+    x402Version: 2 as const,
+    error: null,
+    resource: sampleResource,
+    accepts: [sampleAccept],
+  };
+
+  it('parses a minimal valid envelope', () => {
+    expect(PaymentRequiredResponseSchema.safeParse(baseEnvelope).success).toBe(true);
+  });
+
+  it('rejects x402Version other than 2', () => {
+    expect(
+      PaymentRequiredResponseSchema.safeParse({ ...baseEnvelope, x402Version: 1 }).success
+    ).toBe(false);
+  });
+
+  it('round-trips through JSON.stringify -> JSON.parse', () => {
+    const parsed = PaymentRequiredResponseSchema.parse(baseEnvelope);
+    const json = JSON.stringify(parsed);
+    const restored = PaymentRequiredResponseSchema.parse(JSON.parse(json));
+    expect(restored).toEqual(parsed);
+  });
+
+  it('property-based: any well-formed envelope round-trips encode/decode', () => {
+    const acceptArb = fc.record({
+      network: fc.constantFrom('cardano:preview', 'cardano:preprod', 'cardano:mainnet'),
+      amount: fc
+        .bigInt({ min: 1n, max: 45_000_000_000_000_000n })
+        .map((n: bigint) => n.toString()),
+      payTo: fc
+        .string({ minLength: 10, maxLength: 100 })
+        .filter((s: string) => /^[\x21-\x7e]+$/.test(s) && s.length > 0)
+        .map((s: string) => `addr_test1${s.slice(0, 90)}`),
+      maxTimeoutSeconds: fc.integer({ min: 1, max: 3600 }),
+      asset: fc.constantFrom('lovelace'),
+      extra: fc.constant(null),
+      scheme: fc.constant('exact'),
+    });
+    fc.assert(
+      fc.property(
+        fc.record({
+          x402Version: fc.constant(2 as const),
+          error: fc.oneof(fc.constant(null), fc.string({ minLength: 1, maxLength: 50 })),
+          resource: fc.record({
+            description: fc.string({ minLength: 1, maxLength: 100 }),
+            mimeType: fc.constantFrom('application/json', 'text/plain'),
+            url: fc.webUrl(),
+          }),
+          accepts: fc.array(acceptArb, { minLength: 1, maxLength: 4 }),
+        }),
+        (env) => {
+          const parsed = PaymentRequiredResponseSchema.parse(env);
+          const restored = PaymentRequiredResponseSchema.parse(
+            JSON.parse(JSON.stringify(parsed))
+          );
+          expect(restored).toEqual(parsed);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+describe('PaymentSignaturePayloadSchema', () => {
+  const basePayload = {
+    x402Version: 2 as const,
+    accepted: sampleAccept,
+    payload: { transaction: 'tx-bytes-hex' },
+    resource: sampleResource,
+  };
+
+  it('parses a minimal valid payload', () => {
+    expect(PaymentSignaturePayloadSchema.safeParse(basePayload).success).toBe(true);
+  });
+
+  it('rejects missing accepted / payload / resource', () => {
+    const { accepted: _a, ...withoutAccepted } = basePayload;
+    const { payload: _p, ...withoutPayload } = basePayload;
+    const { resource: _r, ...withoutResource } = basePayload;
+    expect(PaymentSignaturePayloadSchema.safeParse(withoutAccepted).success).toBe(false);
+    expect(PaymentSignaturePayloadSchema.safeParse(withoutPayload).success).toBe(false);
+    expect(PaymentSignaturePayloadSchema.safeParse(withoutResource).success).toBe(false);
   });
 });
