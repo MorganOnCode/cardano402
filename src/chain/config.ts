@@ -97,6 +97,20 @@ export const ChainConfigSchema = z
          * Spec: https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md
          */
         confirmationMode: z.enum(['confirmed_only', 'allow_mempool']).default('confirmed_only'),
+        /**
+         * Minimum on-chain confirmations before a settled tx is reported
+         * `confirmed`. Cardano Ouroboros Praos has probabilistic finality;
+         * a single-block sighting CAN be rolled back at depth 1. Default 6
+         * gives ~2 minutes of finality at the typical 20s slot, which is
+         * the commonly-cited "near-final" threshold for Cardano.
+         *
+         * Operators that prioritize latency over rollback resistance can
+         * lower this (e.g. to 1 for testnet smoke); operators handling
+         * high-value flows should leave it at default or raise it.
+         *
+         * Set to 1 to preserve pre-PR-8 behavior (first sighting = confirmed).
+         */
+        minConfirmations: z.number().int().min(1).max(60).default(6),
       })
       .default(() => ({
         graceBufferSeconds: 30,
@@ -105,6 +119,7 @@ export const ChainConfigSchema = z
         feeMaxLovelace: 5000000,
         requireNonce: true,
         confirmationMode: 'confirmed_only' as const,
+        minConfirmations: 6,
       })),
   })
   .superRefine((data, ctx) => {

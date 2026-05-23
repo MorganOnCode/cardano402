@@ -22,8 +22,24 @@ import { verifyPayment } from '../verify/verify-payment.js';
 /** Interval between confirmation polls (milliseconds). */
 const POLL_INTERVAL_MS = 5_000;
 
-/** Maximum time to wait for on-chain confirmation (milliseconds). */
-const POLL_TIMEOUT_MS = 120_000;
+/**
+ * Base poll budget (milliseconds) — covers the typical first-block sighting.
+ * The effective deadline is `max(POLL_TIMEOUT_MS_BASE, minConfirmations * MS_PER_BLOCK_BUDGET)`
+ * so depth-gated polling has enough time to accumulate confirmations.
+ */
+const POLL_TIMEOUT_MS_BASE = 120_000;
+
+/**
+ * Per-confirmation budget (milliseconds). 30s is a generous bound on
+ * Cardano's typical ~20s slot time so a momentarily-slow chain tip doesn't
+ * cause spurious timeouts.
+ */
+const MS_PER_CONFIRMATION_BUDGET = 30_000;
+
+/** Compute the effective poll timeout for the requested confirmation depth. */
+function pollTimeoutMs(minConfirmations: number): number {
+  return Math.max(POLL_TIMEOUT_MS_BASE, minConfirmations * MS_PER_CONFIRMATION_BUDGET);
+}
 
 /** Dedup record TTL in Redis (seconds). 24 hours. */
 const DEDUP_TTL_SECONDS = 86_400;
@@ -54,33 +70,58 @@ export function computeDedupKey(txHash: string): string {
 }
 
 /**
- * Poll Blockfrost for transaction confirmation.
+ * Compute on-chain confirmation count: a tx in block N at chain tip
+ * (latest=N) has 1 confirmation, not 0 — standard depth convention.
+ * Returns 0 when the tx hasn't appeared yet or the latest height is below
+ * the tx's block (transient chain-tip lag).
+ */
+function confirmationDepth(txBlockHeight: number, latestBlockHeight: number): number {
+  if (latestBlockHeight < txBlockHeight) return 0;
+  return latestBlockHeight - txBlockHeight + 1;
+}
+
+/**
+ * Poll Blockfrost for transaction confirmation at the requested depth.
  *
- * Checks `blockfrost.getTransaction(txHash)` in a loop with async sleep
- * intervals. Returns when the transaction appears in a block or the
- * timeout is reached.
+ * Cardano Ouroboros Praos has probabilistic finality — a single-block
+ * sighting CAN be rolled back at depth 1. This loop only returns
+ * `confirmed: true` once the tx is at least `minConfirmations` deep.
  *
  * @param txHash - Transaction hash to poll for
- * @param blockfrost - BlockfrostClient with getTransaction method
+ * @param blockfrost - BlockfrostClient with getTransaction + getLatestBlockHeight
+ * @param minConfirmations - Required confirmation depth (>= 1)
  * @param timeoutMs - Maximum time to poll (milliseconds)
  * @param intervalMs - Time between polls (milliseconds)
  * @param logger - Fastify logger for debug output
- * @returns `{ confirmed: true, blockHeight }` or `{ confirmed: false }`
+ * @returns `{ confirmed: true, blockHeight, confirmations }` once depth is reached,
+ *          else `{ confirmed: false }` on timeout
  */
 export async function pollConfirmation(
   txHash: string,
   blockfrost: BlockfrostClient,
+  minConfirmations: number,
   timeoutMs: number,
   intervalMs: number,
   logger: FastifyBaseLogger
-): Promise<{ confirmed: boolean; blockHeight?: number }> {
+): Promise<{ confirmed: boolean; blockHeight?: number; confirmations?: number }> {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
     const txInfo = await blockfrost.getTransaction(txHash);
     if (txInfo !== null) {
-      logger.info({ txHash, blockHeight: txInfo.block_height }, 'Transaction confirmed on-chain');
-      return { confirmed: true, blockHeight: txInfo.block_height };
+      const latestHeight = await blockfrost.getLatestBlockHeight();
+      const depth = confirmationDepth(txInfo.block_height, latestHeight);
+      if (depth >= minConfirmations) {
+        logger.info(
+          { txHash, blockHeight: txInfo.block_height, confirmations: depth },
+          'Transaction confirmed on-chain'
+        );
+        return { confirmed: true, blockHeight: txInfo.block_height, confirmations: depth };
+      }
+      logger.debug(
+        { txHash, blockHeight: txInfo.block_height, confirmations: depth, minConfirmations },
+        'Transaction seen but below confirmation depth; continuing to poll'
+      );
     }
 
     // Check if we'll exceed deadline after sleeping
@@ -107,6 +148,14 @@ export interface SettlePaymentOptions {
    * Default false (per x402 Cardano spec recommendation).
    */
   allowMempool?: boolean;
+
+  /**
+   * Required on-chain confirmation depth before reporting `confirmed`.
+   * Default 1 keeps the pre-PR-8 behavior (first sighting = confirmed) for
+   * callers that don't pass it; the route handler always passes the value
+   * from `chain.verification.minConfirmations` (default 6).
+   */
+  minConfirmations?: number;
 }
 
 /**
@@ -139,6 +188,7 @@ export async function settlePayment(
   options: SettlePaymentOptions = {}
 ): Promise<SettleResult> {
   const allowMempool = options.allowMempool ?? false;
+  const minConfirmations = options.minConfirmations ?? 1;
   const payer = ctx.payerAddress;
 
   // ---- 1. Re-verify ----
@@ -191,7 +241,15 @@ export async function settlePayment(
 
   if (didClaim === null) {
     // Key already exists -- handle existing record
-    return handleExistingRecord(dedupKey, blockfrost, redis, network, payer, logger);
+    return handleExistingRecord(
+      dedupKey,
+      blockfrost,
+      redis,
+      network,
+      payer,
+      minConfirmations,
+      logger
+    );
   }
 
   // ---- 3. Submit to Blockfrost ----
@@ -246,7 +304,8 @@ export async function settlePayment(
   const pollResult = await pollConfirmation(
     txHash,
     blockfrost,
-    POLL_TIMEOUT_MS,
+    minConfirmations,
+    pollTimeoutMs(minConfirmations),
     POLL_INTERVAL_MS,
     logger
   );
@@ -305,6 +364,8 @@ export async function settlePayment(
 /**
  * Handle an existing dedup record found during SET NX.
  * Checks the current status of the record and returns the appropriate result.
+ * Re-runs the confirmation-depth gate so a tx that hadn't reached
+ * `minConfirmations` on the first attempt isn't returned as `confirmed` here.
  */
 async function handleExistingRecord(
   dedupKey: string,
@@ -312,6 +373,7 @@ async function handleExistingRecord(
   redis: RedisLike,
   network: string,
   payer: string | undefined,
+  minConfirmations: number,
   logger: FastifyBaseLogger
 ): Promise<SettleResult> {
   const raw = await redis.get(dedupKey);
@@ -342,26 +404,36 @@ async function handleExistingRecord(
 
     case 'submitted':
     case 'timeout': {
-      // Check if it's confirmed now
+      // Check if it's deeply enough confirmed now
       const txInfo = await blockfrost.getTransaction(record.txHash);
       if (txInfo !== null) {
-        // Update record to confirmed
-        const confirmedRecord: SettlementRecord = {
-          ...record,
-          status: 'confirmed',
-          confirmedAt: Date.now(),
-        };
-        await redis.set(dedupKey, JSON.stringify(confirmedRecord), 'EX', DEDUP_TTL_SECONDS);
-        logger.info({ txHash: record.txHash }, 'Duplicate submission: now confirmed on-chain');
-        return {
-          success: true,
-          transaction: record.txHash,
-          network,
-          payer,
-          extensions: { status: 'confirmed' },
-        };
+        const latestHeight = await blockfrost.getLatestBlockHeight();
+        const depth = confirmationDepth(txInfo.block_height, latestHeight);
+        if (depth >= minConfirmations) {
+          const confirmedRecord: SettlementRecord = {
+            ...record,
+            status: 'confirmed',
+            confirmedAt: Date.now(),
+          };
+          await redis.set(dedupKey, JSON.stringify(confirmedRecord), 'EX', DEDUP_TTL_SECONDS);
+          logger.info(
+            { txHash: record.txHash, confirmations: depth },
+            'Duplicate submission: now confirmed on-chain'
+          );
+          return {
+            success: true,
+            transaction: record.txHash,
+            network,
+            payer,
+            extensions: { status: 'confirmed' },
+          };
+        }
+        logger.debug(
+          { txHash: record.txHash, confirmations: depth, minConfirmations },
+          'Duplicate submission: seen but still below confirmation depth'
+        );
       }
-      // Still not confirmed
+      // Either still not seen, or seen but below minConfirmations
       return {
         success: false,
         transaction: record.txHash,

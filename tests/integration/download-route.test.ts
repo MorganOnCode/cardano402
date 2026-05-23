@@ -62,6 +62,7 @@ const testConfig: Config = {
       feeMaxLovelace: 5000000,
       requireNonce: false,
       confirmationMode: 'confirmed_only' as const,
+      minConfirmations: 1,
     },
   },
   storage: {

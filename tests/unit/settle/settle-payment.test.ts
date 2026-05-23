@@ -44,10 +44,14 @@ function createMockLogger(): FastifyBaseLogger {
 function createMockBlockfrost(): {
   submitTransaction: ReturnType<typeof vi.fn>;
   getTransaction: ReturnType<typeof vi.fn>;
+  getLatestBlockHeight: ReturnType<typeof vi.fn>;
 } {
   return {
     submitTransaction: vi.fn(),
     getTransaction: vi.fn(),
+    // Default to a far-future height so depth >= minConfirmations is satisfied
+    // for any reasonable test setup. Override in depth-gating tests below.
+    getLatestBlockHeight: vi.fn().mockResolvedValue(1_000_000_000),
   };
 }
 
@@ -561,5 +565,126 @@ describe('settlePayment', () => {
       network: NETWORK,
     });
     expect(blockfrost.submitTransaction).not.toHaveBeenCalled();
+  });
+
+  // ---- Confirmation depth gate (C3) ----
+
+  // Test 13: minConfirmations=6, tx in chain tip (depth=1) does NOT confirm
+  it('refuses to confirm a tx that has not reached minConfirmations depth', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue('OK');
+    blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
+
+    // Tx is in block 12345; chain tip is also 12345 → depth = 1, below 6.
+    blockfrost.getTransaction.mockResolvedValue(makeTxInfo({ block_height: 12345 }));
+    blockfrost.getLatestBlockHeight.mockResolvedValue(12345);
+
+    const settlePromise = settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger,
+      { minConfirmations: 6 }
+    );
+
+    // Run the poll loop to exhaustion (180s effective deadline for min=6).
+    await vi.advanceTimersByTimeAsync(200_000);
+    const result = await settlePromise;
+
+    expect(result).toMatchObject({
+      success: false,
+      errorReason: 'confirmation_timeout',
+    });
+  });
+
+  // Test 14: minConfirmations=6, tx is 6 blocks deep ⇒ confirmed.
+  // depth = latest - block + 1; latest=12350, block=12345 ⇒ depth=6.
+  it('confirms a tx that is exactly minConfirmations blocks deep', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue('OK');
+    blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
+    blockfrost.getTransaction.mockResolvedValue(makeTxInfo({ block_height: 12345 }));
+    blockfrost.getLatestBlockHeight.mockResolvedValue(12350);
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger,
+      { minConfirmations: 6 }
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      transaction: TX_HASH,
+      extensions: { status: 'confirmed' },
+    });
+    expect(blockfrost.getLatestBlockHeight).toHaveBeenCalled();
+  });
+
+  // Test 15: depth convention — tx in latest block has 1 confirmation.
+  it('treats a tx in the latest block as 1 confirmation (not 0)', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue('OK');
+    blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
+    blockfrost.getTransaction.mockResolvedValue(makeTxInfo({ block_height: 9_000_000 }));
+    blockfrost.getLatestBlockHeight.mockResolvedValue(9_000_000);
+
+    // With minConfirmations=1 the latest-block sighting should confirm.
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger,
+      { minConfirmations: 1 }
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      extensions: { status: 'confirmed' },
+    });
+  });
+
+  // Test 16: handleExistingRecord also depth-gates duplicate submissions.
+  it('refuses to mark a dedup-hit as confirmed when depth < minConfirmations', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue(null); // SET NX fails (key exists)
+    const submittedRecord: SettlementRecord = {
+      txHash: TX_HASH,
+      status: 'submitted',
+      submittedAt: Date.now() - 60_000,
+    };
+    redis.get.mockResolvedValue(JSON.stringify(submittedRecord));
+    // Tx is in chain tip → depth=1, below the 6 we're asking for.
+    blockfrost.getTransaction.mockResolvedValue(makeTxInfo({ block_height: 12345 }));
+    blockfrost.getLatestBlockHeight.mockResolvedValue(12345);
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger,
+      { minConfirmations: 6 }
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      errorReason: 'confirmation_timeout',
+      transaction: TX_HASH,
+    });
+    // The record should NOT be flipped to 'confirmed' on a shallow sighting.
+    const confirmedWrite = redis.set.mock.calls.find(
+      ([, value]) =>
+        typeof value === 'string' && (JSON.parse(value) as SettlementRecord).status === 'confirmed'
+    );
+    expect(confirmedWrite).toBeUndefined();
   });
 });

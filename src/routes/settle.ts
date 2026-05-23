@@ -111,15 +111,13 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         paymentRequirements.extra as Record<string, unknown> | undefined
       );
       if (method !== 'default') {
-        const reason =
-          method === 'unknown' ? 'method_not_supported' : 'method_not_implemented';
+        const reason = method === 'unknown' ? 'method_not_supported' : 'method_not_implemented';
         return reply.status(200).send({
           success: false,
           transaction: '',
           network,
           errorReason: reason,
-          errorMessage:
-            'Only assetTransferMethod="default" is settled by this facilitator.',
+          errorMessage: 'Only assetTransferMethod="default" is settled by this facilitator.',
         });
       }
 
@@ -132,7 +130,10 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
           fastify.redis,
           network,
           fastify.log,
-          { allowMempool: verificationConfig.confirmationMode === 'allow_mempool' }
+          {
+            allowMempool: verificationConfig.confirmationMode === 'allow_mempool',
+            minConfirmations: verificationConfig.minConfirmations,
+          }
         );
 
         // 6. Return result as HTTP 200

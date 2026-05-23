@@ -68,6 +68,31 @@ and `PAYMENT-RESPONSE` (compat). Payload schema includes
 defaults to `confirmed_only` mode; emit-on-mempool requires explicit
 operator opt-in (`chain.verification.confirmationMode = "allow_mempool"`).
 
+### Confirmation depth (`minConfirmations`)
+
+Cardano's Ouroboros Praos has *probabilistic* finality. A transaction
+sighted in a single block CAN be rolled back if a competing fork wins —
+the probability halves with each additional block confirmation. cardano402
+exposes this as an operator-tunable knob:
+
+`chain.verification.minConfirmations` (default: **6**) gates the
+`status: confirmed` emission. Settlement does not flip the dedup record
+to `confirmed` until the tx is at least N blocks deep, where N is this
+config. The convention is: a tx in the latest block counts as 1
+confirmation, so default-6 means "5 blocks have been built on top".
+
+Operator tradeoffs:
+
+| Setting | Approx. wall time | Risk profile                                                    |
+|---------|-------------------|-----------------------------------------------------------------|
+| 1       | ~20s              | First-sighting; equivalent to pre-PR-8 behavior. Use for tests. |
+| 6       | ~2 min            | Default. Commonly-cited "near-final" for Cardano.               |
+| 15      | ~5 min            | Conservative; appropriate for high-value flows.                 |
+
+The polling deadline scales with `minConfirmations`
+(`max(120s, minConfirmations × 30s)`) so depth-gated polling has enough
+headroom to accumulate confirmations during a momentarily-slow chain.
+
 ### `assetTransferMethod` coverage
 
 | Method     | Schema | Verifier                          | Settlement        |
