@@ -136,7 +136,7 @@ describe('settlePayment', () => {
 
   // Test 1: Happy path
   it('returns success when verify passes, submit succeeds, and poll confirms', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue('OK'); // SET NX succeeds (key didn't exist)
     blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
     blockfrost.getTransaction.mockResolvedValue(makeTxInfo());
@@ -185,7 +185,7 @@ describe('settlePayment', () => {
 
   // Test 3: Dedup hit - already confirmed
   it('returns success without resubmission when dedup record is confirmed', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue(null); // SET NX fails (key exists)
     const confirmedRecord: SettlementRecord = {
       txHash: TX_HASH,
@@ -214,7 +214,7 @@ describe('settlePayment', () => {
 
   // Test 4: Dedup hit - still pending, now confirmed on-chain
   it('returns success when dedup record is submitted and tx is now confirmed', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue(null); // SET NX fails
     const submittedRecord: SettlementRecord = {
       txHash: TX_HASH,
@@ -245,7 +245,7 @@ describe('settlePayment', () => {
 
   // Test 5: Dedup hit - still pending, not confirmed on-chain
   it('returns timeout when dedup record is submitted and tx is still unconfirmed', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue(null); // SET NX fails
     const submittedRecord: SettlementRecord = {
       txHash: TX_HASH,
@@ -274,7 +274,7 @@ describe('settlePayment', () => {
 
   // Test 6: Submit 400 error (invalid transaction)
   it('returns invalid_transaction when Blockfrost returns 400', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue('OK');
     blockfrost.submitTransaction.mockRejectedValue(makeBlockfrostServerError(400));
 
@@ -295,7 +295,7 @@ describe('settlePayment', () => {
 
   // Test 7: Submit other error (non-400)
   it('returns submission_rejected when submit throws non-400 error', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue('OK');
     blockfrost.submitTransaction.mockRejectedValue(new Error('Network failure'));
 
@@ -316,7 +316,7 @@ describe('settlePayment', () => {
 
   // Test 8: Poll timeout
   it('returns confirmation_timeout when poll exhausts timeout', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue('OK');
     blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
     blockfrost.getTransaction.mockResolvedValue(null); // never confirms
@@ -349,7 +349,7 @@ describe('settlePayment', () => {
 
   // Test 9: Poll confirms on second attempt
   it('returns success when poll confirms on second attempt', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue('OK');
     blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
     blockfrost.getTransaction
@@ -380,7 +380,7 @@ describe('settlePayment', () => {
 
   // Test 10: Dedup hit - failed record
   it('returns failure with stored reason when dedup record is failed', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue(null); // SET NX fails
     const failedRecord: SettlementRecord = {
       txHash: TX_HASH,
@@ -406,9 +406,9 @@ describe('settlePayment', () => {
     expect(blockfrost.submitTransaction).not.toHaveBeenCalled();
   });
 
-  // Test 11: Redis SET NX uses correct key format
-  it('uses sha256-based dedup key with settle: prefix', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+  // Test 11: Redis SET NX uses tx-hash-keyed dedup
+  it('keys the dedup record on the verified tx hash, not the raw CBOR bytes', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue('OK');
     blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
     blockfrost.getTransaction.mockResolvedValue(makeTxInfo());
@@ -422,16 +422,121 @@ describe('settlePayment', () => {
       logger
     );
 
-    // First redis.set call should be the NX dedup claim
+    // First redis.set call should be the NX dedup claim, keyed on tx hash
     const firstSetCall = redis.set.mock.calls[0];
-    expect(firstSetCall[0]).toMatch(/^settle:[0-9a-f]{64}$/); // settle:<sha256hex>
+    expect(firstSetCall[0]).toBe(`settle:${TX_HASH}`);
     expect(firstSetCall).toContain('NX'); // SET NX
     expect(firstSetCall).toContain('EX'); // With TTL
   });
 
+  // Test 11b: Witness-mutation invariant. Same tx body (= same txHash) ⇒ same
+  // dedup key regardless of which CBOR encoding the caller submits. This is
+  // the C2 contract: witness reordering MUST NOT bypass dedup.
+  it('produces the same dedup key for any CBOR encoding of the same tx body', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue('OK');
+    blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
+    blockfrost.getTransaction.mockResolvedValue(makeTxInfo());
+
+    // Two distinct CBOR byte sequences (e.g. raw bytes vs. witness-reordered
+    // bytes) that decode to the same on-chain transaction.
+    const cborVariantA = new Uint8Array([0xa1, 0xa2, 0xa3, 0xa4]);
+    const cborVariantB = new Uint8Array([0xb1, 0xb2, 0xb3, 0xb4, 0xb5]);
+
+    await settlePayment(
+      ctx,
+      cborVariantA,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+    const keyForA = redis.set.mock.calls[0][0];
+
+    redis.set.mockClear();
+    redis.set.mockResolvedValue('OK');
+
+    await settlePayment(
+      ctx,
+      cborVariantB,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+    const keyForB = redis.set.mock.calls[0][0];
+
+    expect(keyForA).toBe(keyForB);
+    expect(keyForA).toBe(`settle:${TX_HASH}`);
+  });
+
+  // Test 11c: Different tx bodies (= different txHash) ⇒ different dedup keys.
+  it('produces distinct dedup keys for distinct tx hashes', async () => {
+    const txHashA = 'a'.repeat(64);
+    const txHashB = 'b'.repeat(64);
+
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: txHashA } });
+    redis.set.mockResolvedValue('OK');
+    blockfrost.submitTransaction.mockResolvedValue(txHashA);
+    blockfrost.getTransaction.mockResolvedValue(makeTxInfo({ hash: txHashA }));
+
+    await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+    const keyForA = redis.set.mock.calls[0][0];
+
+    redis.set.mockClear();
+    redis.set.mockResolvedValue('OK');
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: txHashB } });
+    blockfrost.submitTransaction.mockResolvedValue(txHashB);
+    blockfrost.getTransaction.mockResolvedValue(makeTxInfo({ hash: txHashB }));
+
+    await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+    const keyForB = redis.set.mock.calls[0][0];
+
+    expect(keyForA).not.toBe(keyForB);
+    expect(keyForA).toBe(`settle:${txHashA}`);
+    expect(keyForB).toBe(`settle:${txHashB}`);
+  });
+
+  // Test 11d: When verifyPayment returns isValid but no txHash, settle must
+  // refuse rather than fall back to a degenerate dedup key.
+  it('returns internal_error when verifyPayment is missing extensions.txHash', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true }); // no extensions
+    redis.set.mockResolvedValue('OK');
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      errorReason: 'internal_error',
+    });
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(blockfrost.submitTransaction).not.toHaveBeenCalled();
+  });
+
   // Test 12: Dedup hit - timeout record, now confirmed
   it('returns success when dedup record is timeout but tx is now confirmed', async () => {
-    mockVerifyPayment.mockResolvedValue({ isValid: true });
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
     redis.set.mockResolvedValue(null); // SET NX fails
     const timeoutRecord: SettlementRecord = {
       txHash: TX_HASH,
