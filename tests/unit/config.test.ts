@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { loadConfig } from '@/config/index.js';
+import { loadConfig } from '../../src/config/index.js';
 
 const TEST_CONFIG_DIR = join(process.cwd(), 'tests', 'fixtures');
 const TEST_CONFIG_PATH = join(TEST_CONFIG_DIR, 'test-config.json');

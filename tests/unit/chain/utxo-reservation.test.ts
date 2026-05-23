@@ -2,7 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type Redis from 'ioredis';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { UtxoReservation, createUtxoReservation } from '@/chain/utxo-reservation.js';
+import { UtxoReservation, createUtxoReservation } from '../../../src/chain/utxo-reservation.js';
 
 // ---------------------------------------------------------------------------
 // Mock Redis

@@ -1,9 +1,9 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import type { FacilitatorClient } from '@/sdk/facilitator-client.js';
-import { createPaymentGate } from '@/sdk/payment-gate.js';
-import type { PaymentGateOptions } from '@/sdk/payment-gate.js';
+import type { FacilitatorClient } from '../../../src/sdk/facilitator-client.js';
+import { createPaymentGate } from '../../../src/sdk/payment-gate.js';
+import type { PaymentGateOptions } from '../../../src/sdk/payment-gate.js';
 
 // Handler type without Fastify's `this` context binding (not needed in unit tests)
 type HandlerFn = (request: FastifyRequest, reply: FastifyReply, done: () => void) => Promise<void>;

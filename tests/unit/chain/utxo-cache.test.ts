@@ -2,8 +2,12 @@ import type { FastifyBaseLogger } from 'fastify';
 import type Redis from 'ioredis';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import type { CachedUtxo } from '@/chain/types.js';
-import { UtxoCache, serializeWithBigInt, deserializeWithBigInt } from '@/chain/utxo-cache.js';
+import type { CachedUtxo } from '../../../src/chain/types.js';
+import {
+  UtxoCache,
+  serializeWithBigInt,
+  deserializeWithBigInt,
+} from '../../../src/chain/utxo-cache.js';
 
 // ---------------------------------------------------------------------------
 // Mock Redis

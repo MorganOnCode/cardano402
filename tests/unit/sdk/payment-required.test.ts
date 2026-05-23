@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildPaymentRequired } from '@/sdk/payment-required.js';
-import type { PaymentRequiredResponse } from '@/sdk/types.js';
+import { buildPaymentRequired } from '../../../src/sdk/payment-required.js';
+import type { PaymentRequiredResponse } from '../../../src/sdk/types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

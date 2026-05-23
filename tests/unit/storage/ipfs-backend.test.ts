@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { IpfsBackend } from '@/storage/ipfs-backend.js';
+import { IpfsBackend } from '../../../src/storage/ipfs-backend.js';
 
 describe('IpfsBackend', () => {
   let backend: IpfsBackend;

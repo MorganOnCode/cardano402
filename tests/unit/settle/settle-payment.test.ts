@@ -7,9 +7,9 @@ import { BlockfrostServerError } from '@blockfrost/blockfrost-js';
 import type { FastifyBaseLogger } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { BlockfrostClient } from '@/chain/blockfrost-client.js';
-import type { SettlementRecord, SettleResult, TxInfo } from '@/settle/types.js';
-import type { VerifyContext, VerifyResponse } from '@/verify/types.js';
+import type { BlockfrostClient } from '../../../src/chain/blockfrost-client.js';
+import type { SettlementRecord, SettleResult, TxInfo } from '../../../src/settle/types.js';
+import type { VerifyContext, VerifyResponse } from '../../../src/verify/types.js';
 
 // ---------------------------------------------------------------------------
 // Mock verifyPayment

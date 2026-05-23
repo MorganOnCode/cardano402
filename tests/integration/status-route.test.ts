@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 
-import type { Config } from '@/config/index.js';
+import type { Config } from '../../src/config/index.js';
 
 // Mock Lucid Evolution packages to prevent native module loading (libsodium)
 vi.mock('@lucid-evolution/lucid', () => ({
@@ -113,7 +113,7 @@ describe('POST /status Route', () => {
   };
 
   beforeAll(async () => {
-    const { createServer } = await import('@/server.js');
+    const { createServer } = await import('../../src/server.js');
     server = await createServer({ config: testConfig });
     await server.listen({ port: 0 });
   });

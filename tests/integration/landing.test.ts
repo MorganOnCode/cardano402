@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
-import type { Config } from '@/config/index.js';
-import { createServer } from '@/server.js';
+import type { Config } from '../../src/config/index.js';
+import { createServer } from '../../src/server.js';
 
 vi.mock('@lucid-evolution/lucid', () => ({
   Lucid: vi.fn().mockResolvedValue({

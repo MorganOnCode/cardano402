@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
-import { FacilitatorClient } from '@/sdk/facilitator-client.js';
+import { FacilitatorClient } from '../../../src/sdk/facilitator-client.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
