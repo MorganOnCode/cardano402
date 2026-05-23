@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { ChainProvider } from '@/chain/provider.js';
+import { ChainProvider } from '../../../src/chain/provider.js';
 
 // Mock Lucid Evolution modules to prevent native module loading (libsodium)
 vi.mock('@lucid-evolution/lucid', () => ({
@@ -13,7 +13,7 @@ vi.mock('@lucid-evolution/provider', () => ({
 }));
 
 // Mock lucid-provider to avoid transitive Lucid Evolution imports
-vi.mock('@/chain/lucid-provider.js', () => ({
+vi.mock('../../../src/chain/lucid-provider.js', () => ({
   createLucidInstance: vi.fn(),
 }));
 
@@ -86,8 +86,8 @@ const defaultConfig = {
     maxTimeoutSeconds: 300,
     feeMinLovelace: 150000,
     feeMaxLovelace: 5000000,
-        requireNonce: false,
-        confirmationMode: 'confirmed_only' as const,
+    requireNonce: false,
+    confirmationMode: 'confirmed_only' as const,
   },
 };
 

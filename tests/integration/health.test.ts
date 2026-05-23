@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
-import type { Config } from '@/config/index.js';
-import { createServer } from '@/server.js';
+import type { Config } from '../../src/config/index.js';
+import { createServer } from '../../src/server.js';
 
 // Mock Lucid Evolution packages to prevent native module loading (libsodium)
 // The Lucid() function must return a proper mock object with selectWallet

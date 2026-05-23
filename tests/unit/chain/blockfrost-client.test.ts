@@ -2,7 +2,11 @@ import { BlockfrostServerError } from '@blockfrost/blockfrost-js';
 import type { FastifyBaseLogger } from 'fastify';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { BlockfrostClient, createBlockfrostClient, withRetry } from '@/chain/blockfrost-client.js';
+import {
+  BlockfrostClient,
+  createBlockfrostClient,
+  withRetry,
+} from '../../../src/chain/blockfrost-client.js';
 
 // ---- shared mock state ----
 

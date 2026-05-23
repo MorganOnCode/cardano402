@@ -11,10 +11,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
     "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*", "tests/**/*", "examples/**/*", "vitest.config.ts"],

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { FsBackend } from '@/storage/fs-backend.js';
+import { FsBackend } from '../../../src/storage/fs-backend.js';
 
 describe('FsBackend', () => {
   let testDir: string;
