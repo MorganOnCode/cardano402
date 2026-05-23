@@ -1,0 +1,26 @@
+{
+  "name": "cardano402",
+  "version": "0.0.2",
+  "description": "Reserved. Install @cardano402/core for the SDK or @cardano402/mcp-server for the MCP agent. See https://cardano402.com",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "node index.js"
+  },
+  "keywords": [
+    "x402",
+    "cardano",
+    "agentic-payments",
+    "mcp"
+  ],
+  "author": "Morgan",
+  "license": "MIT",
+  "homepage": "https://cardano402.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MorganOnCode/cardano402.git",
+    "directory": "scripts/placeholder-package"
+  },
+  "bugs": {
+    "url": "https://github.com/MorganOnCode/cardano402/issues"
+  }
+}
