@@ -687,4 +687,126 @@ describe('settlePayment', () => {
     );
     expect(confirmedWrite).toBeUndefined();
   });
+
+  // ---- Submit-window race (C6) ----
+
+  // Test 17: SET NX writes a record with the verified txHash already
+  // populated, NOT an empty string. This is the structural C6 fix —
+  // a concurrent racing request can immediately poll for confirmation.
+  it('initial dedup record carries the verified txHash from the start', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue('OK');
+    blockfrost.submitTransaction.mockResolvedValue(TX_HASH);
+    blockfrost.getTransaction.mockResolvedValue(makeTxInfo());
+
+    await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+
+    // First SET call is the NX claim; the JSON value MUST already contain
+    // the real txHash — never `txHash: ''`.
+    const firstSetCall = redis.set.mock.calls[0];
+    const initialRecord = JSON.parse(firstSetCall[1] as string) as SettlementRecord;
+    expect(initialRecord.txHash).toBe(TX_HASH);
+    expect(initialRecord.status).toBe('submitted');
+  });
+
+  // Test 18: Audit-C6 race — second request arrives while the first is
+  // mid-submit. With the pre-fix code path the second request would see a
+  // record with `txHash: ''`, call `getTransaction('')`, get 404, and emit
+  // `confirmation_timeout` with an empty transaction string. Post-fix, the
+  // record already has the real txHash, so the second request immediately
+  // queries Blockfrost for it and gets a useful answer.
+  it('concurrent racing request finds a real txHash, not empty', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    // SET NX fails because the first request already claimed the key.
+    redis.set.mockResolvedValue(null);
+    // The first request wrote a real-txHash record just before submitting.
+    const inFlightRecord: SettlementRecord = {
+      txHash: TX_HASH,
+      status: 'submitted',
+      submittedAt: Date.now(),
+    };
+    redis.get.mockResolvedValue(JSON.stringify(inFlightRecord));
+    // Original submit hasn't reached the chain yet from the racer's POV.
+    blockfrost.getTransaction.mockResolvedValue(null);
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+
+    // We should query Blockfrost for the REAL txHash, not an empty string.
+    expect(blockfrost.getTransaction).toHaveBeenCalledWith(TX_HASH);
+    expect(blockfrost.getTransaction).not.toHaveBeenCalledWith('');
+    // Transaction in the response surfaces the real hash for the client.
+    expect(result.transaction).toBe(TX_HASH);
+    expect(result.errorReason).toBe('confirmation_timeout');
+  });
+
+  // Test 19: If a legacy pre-fix record (empty txHash) is still in Redis
+  // during the 24h transition window after this PR deploys, surface it as
+  // a transient internal_error rather than confusing the client with
+  // `confirmation_timeout` against an empty txHash.
+  it('returns a transient error when a legacy empty-txHash record is found', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue(null);
+    const legacyRecord: SettlementRecord = {
+      txHash: '', // pre-fix shape
+      status: 'submitted',
+      submittedAt: Date.now(),
+    };
+    redis.get.mockResolvedValue(JSON.stringify(legacyRecord));
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.errorReason).toBe('internal_error');
+    expect(result.transaction).toBe('');
+    // Must NOT query Blockfrost for an empty string.
+    expect(blockfrost.getTransaction).not.toHaveBeenCalledWith('');
+  });
+
+  // Test 20: Defense — if Blockfrost returns a different txHash than what
+  // we computed locally via CML, fail loud. The dedup invariants from PR
+  // #67 rest on local-hash == chain-hash equality.
+  it('aborts with internal_error when Blockfrost returns a different txHash', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue('OK');
+    const wrongTxHash = 'f'.repeat(64);
+    blockfrost.submitTransaction.mockResolvedValue(wrongTxHash);
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.errorReason).toBe('internal_error');
+    // The response surfaces Blockfrost's reported hash so the operator can
+    // grep for it in the chain explorer alongside our local hash in logs.
+    expect(result.transaction).toBe(wrongTxHash);
+    // We should NOT have advanced to the polling stage.
+    expect(blockfrost.getTransaction).not.toHaveBeenCalled();
+  });
 });
