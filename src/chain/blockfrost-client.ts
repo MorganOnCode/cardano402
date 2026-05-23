@@ -178,6 +178,19 @@ export class BlockfrostClient {
     return withRetry(() => this.api.blocksLatest(), 'getLatestBlock', this.log);
   }
 
+  /**
+   * Fetch the height of the latest block. Convenience accessor used by
+   * settlement confirmation-depth gating (Ouroboros Praos has probabilistic
+   * finality; a single-block sighting can be rolled back at depth 1).
+   */
+  async getLatestBlockHeight(): Promise<number> {
+    const block = (await this.getLatestBlock()) as { height?: number | null };
+    if (typeof block.height !== 'number') {
+      throw new Error('Blockfrost blocksLatest returned no height');
+    }
+    return block.height;
+  }
+
   /** Fetch current epoch protocol parameters. */
   async getEpochParameters(): Promise<unknown> {
     return withRetry(() => this.api.epochsLatestParameters(), 'getEpochParameters', this.log);
