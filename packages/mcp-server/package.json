@@ -1,6 +1,6 @@
 {
   "name": "@cardano402/mcp-server",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0",
   "description": "MCP server that exposes paid HTTP endpoints as MCP tools, paying via the x402 Cardano scheme.",
   "type": "module",
   "main": "./dist/index.js",
@@ -18,6 +18,7 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
