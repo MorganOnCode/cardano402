@@ -6,7 +6,8 @@
       "unrs-resolver"
     ],
     "overrides": {
-      "libsodium-wrappers-sumo": "0.8.2"
+      "libsodium-wrappers-sumo": "0.8.2",
+      "fast-uri": "^3.1.2"
     }
   },
   "name": "cardano402",
