@@ -163,9 +163,12 @@ export interface SettlePaymentOptions {
  *
  * Full flow:
  * 1. Re-verify the transaction via verifyPayment() (defense-in-depth)
- * 2. Derive tx-hash dedup key from verifyPayment's result and claim via Redis SET NX
+ * 2. Derive tx-hash dedup key from verifyPayment's result; claim via Redis
+ *    SET NX with the txHash already populated in the initial record (so a
+ *    concurrent racing request can poll Blockfrost directly instead of
+ *    being stuck on an empty txHash — audit C6)
  * 3. If dedup hit: check existing record status and return appropriately
- * 4. Submit raw CBOR to Blockfrost
+ * 4. Submit raw CBOR to Blockfrost; assert returned hash matches local
  * 5. Poll for on-chain confirmation
  * 6. Return typed SettleResult (V2 aligned), including `extensions.status`
  *
@@ -225,8 +228,13 @@ export async function settlePayment(
     };
   }
   const dedupKey = computeDedupKey(verifiedTxHash);
+  // Pre-populate txHash with the body hash we just computed via CML.
+  // Blockfrost submits return the same body hash, so a concurrent racing
+  // request that hits handleExistingRecord can immediately poll for
+  // confirmation instead of seeing an empty txHash and falling through to
+  // a 24h-stuck `confirmation_timeout` with `transaction: ''` (audit C6).
   const initialRecord: SettlementRecord = {
-    txHash: '',
+    txHash: verifiedTxHash,
     status: 'submitted',
     submittedAt: Date.now(),
   };
@@ -256,6 +264,24 @@ export async function settlePayment(
   let txHash: string;
   try {
     txHash = await blockfrost.submitTransaction(cborBytes);
+    // Sanity: the body hash Blockfrost reports MUST match the one we
+    // computed locally via CML. A mismatch means CML and the chain
+    // disagree on canonical hashing — fail loud, the dedup invariants
+    // and PR #67's witness-mutation guard both rest on this equality.
+    if (txHash !== verifiedTxHash) {
+      logger.error(
+        { verifiedTxHash, blockfrostTxHash: txHash },
+        'Settlement aborted: Blockfrost returned a different tx hash than the local CML body hash'
+      );
+      return {
+        success: false,
+        transaction: txHash,
+        network,
+        payer,
+        errorReason: 'internal_error',
+        errorMessage: 'Local and chain tx-hash disagree (CML/Blockfrost mismatch)',
+      };
+    }
   } catch (error) {
     if (error instanceof BlockfrostServerError && error.status_code === 400) {
       // Update dedup record to failed
@@ -293,11 +319,10 @@ export async function settlePayment(
     };
   }
 
-  // ---- 4. Update dedup record with txHash ----
-  const submittedRecord: SettlementRecord = {
-    ...initialRecord,
-    txHash,
-  };
+  // ---- 4. Re-affirm the dedup record (txHash already populated pre-submit) ----
+  // We extend the TTL by re-writing the record, so the 24h dedup window
+  // starts from "submit confirmed", not from "Redis claim acquired".
+  const submittedRecord: SettlementRecord = initialRecord;
   await redis.set(dedupKey, JSON.stringify(submittedRecord), 'EX', DEDUP_TTL_SECONDS);
 
   // ---- 5. Poll for confirmation ----
@@ -390,6 +415,32 @@ async function handleExistingRecord(
   }
 
   const record = JSON.parse(raw) as SettlementRecord;
+
+  // Safety net for the audit-C6 transition: records written by the pre-fix
+  // code path could land here with an empty txHash. Without this branch a
+  // duplicate retry would query Blockfrost for '' (404), return
+  // confirmation_timeout, and the record would sit empty-txHash for the
+  // remaining 24h TTL. Surface it as a transient internal_error so the
+  // client can retry — by then the original submitter has either written
+  // the real txHash or the failed status. This branch becomes dead code
+  // 24h after deployment of this PR.
+  if (
+    (record.status === 'submitted' || record.status === 'timeout') &&
+    (!record.txHash || record.txHash.length === 0)
+  ) {
+    logger.warn(
+      { dedupKey, submittedAt: record.submittedAt },
+      'Duplicate submission found a legacy empty-txHash record; returning transient error'
+    );
+    return {
+      success: false,
+      transaction: '',
+      network,
+      payer,
+      errorReason: 'internal_error',
+      errorMessage: 'Settlement is in flight; please retry shortly',
+    };
+  }
 
   switch (record.status) {
     case 'confirmed':
