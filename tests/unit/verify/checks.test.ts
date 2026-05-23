@@ -341,6 +341,172 @@ describe('checkRecipient', () => {
     expect(result.passed).toBe(false);
     expect(result.reason).toBe('cbor_required');
   });
+
+  // ---- H1: multi-output payTo aggregation / selection ----
+
+  it('sums lovelace across ALL outputs to payTo for the ADA branch', () => {
+    // Two outputs to the recipient; total = 5_000_000 lovelace.
+    const ctx = makeCtx({
+      payTo:
+        'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+      requiredAmount: 5_000_000n,
+      asset: 'lovelace',
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        outputs: [
+          {
+            addressHex: '00' + 'cc'.repeat(28) + 'bb'.repeat(28),
+            addressBech32:
+              'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+            lovelace: 2_000_000n,
+            assets: {},
+            networkId: 0,
+          },
+          {
+            // Decoy: change-output back to a third party
+            addressHex: '00' + 'aa'.repeat(28) + 'bb'.repeat(28),
+            addressBech32: 'addr_test1qz...',
+            lovelace: 50_000_000n,
+            assets: {},
+            networkId: 0,
+          },
+          {
+            // Second output to payTo — only counted if we aggregate
+            addressHex: '00' + 'cc'.repeat(28) + 'bb'.repeat(28),
+            addressBech32:
+              'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+            lovelace: 3_000_000n,
+            assets: {},
+            networkId: 0,
+          },
+        ],
+      },
+    });
+    const result = checkRecipient(ctx);
+    expect(result.passed).toBe(true);
+    // _matchingOutputIndex points at the FIRST matching output for downstream
+    // checks (min-utxo etc.); _matchingOutputAmount is the SUM across matches.
+    expect(ctx._matchingOutputIndex).toBe(0);
+    expect(ctx._matchingOutputAmount).toBe(5_000_000n);
+  });
+
+  it('neutralizes the spam-token output attack on the ADA branch', () => {
+    // Audit H1 attack scenario: first output to payTo carries `requiredAmount`
+    // lovelace + a spam NFT. Pre-fix the verifier credited only that single
+    // output; recipient ended up with the dust amount and the unwanted token.
+    // Post-fix the verifier sums across outputs.
+    const ctx = makeCtx({
+      payTo:
+        'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+      requiredAmount: 5_000_000n,
+      asset: 'lovelace',
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        outputs: [
+          {
+            // Spam-decoy output: looks like it meets the threshold solo,
+            // but carries an unwanted NFT.
+            addressHex: '00' + 'cc'.repeat(28) + 'bb'.repeat(28),
+            addressBech32:
+              'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+            lovelace: 5_000_000n,
+            assets: { ['ff'.repeat(28) + '4e4654']: 1n }, // 1 unit of a junk NFT
+            networkId: 0,
+          },
+          {
+            // Real intended payment routed elsewhere
+            addressHex: '00' + 'aa'.repeat(28) + 'bb'.repeat(28),
+            addressBech32: 'addr_test1qz...',
+            lovelace: 10_000_000n,
+            assets: {},
+            networkId: 0,
+          },
+        ],
+      },
+    });
+    const result = checkRecipient(ctx);
+    // Passes recipient (there IS an output to payTo), but downstream
+    // checkMinUtxo will be checked against the matched (spam) output. The
+    // amount check uses the sum (only 5_000_000 in this attack — still
+    // exactly the threshold), so this single-output attack alone doesn't
+    // sneak through; it's the multi-payTo-output split case that does.
+    expect(result.passed).toBe(true);
+    expect(ctx._matchingOutputAmount).toBe(5_000_000n);
+  });
+
+  it('enumerates outputs to payTo for the TOKEN branch, picking one with enough asset', () => {
+    const MOCK_UNIT = 'cc'.repeat(28) + 'ddee';
+    const ctx = makeCtx({
+      payTo:
+        'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+      requiredAmount: 5_000_000n,
+      asset: 'cc'.repeat(28) + '.ddee',
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        outputs: [
+          {
+            // First output to payTo carries 0 tokens (the spam-decoy case
+            // from the audit) — pre-fix this would lock onto index 0 and
+            // checkAmount would fail.
+            addressHex: '00' + 'cc'.repeat(28) + 'bb'.repeat(28),
+            addressBech32:
+              'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+            lovelace: 1_500_000n,
+            assets: {},
+            networkId: 0,
+          },
+          {
+            // Second output to payTo has the real token payment
+            addressHex: '00' + 'cc'.repeat(28) + 'bb'.repeat(28),
+            addressBech32:
+              'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+            lovelace: 2_000_000n,
+            assets: { [MOCK_UNIT]: 6_000_000n },
+            networkId: 0,
+          },
+        ],
+      },
+    });
+    const result = checkRecipient(ctx);
+    expect(result.passed).toBe(true);
+    expect(ctx._matchingOutputIndex).toBe(1);
+  });
+
+  it('falls back to first matching output (TOKEN) when no output to payTo has enough asset', () => {
+    const MOCK_UNIT = 'cc'.repeat(28) + 'ddee';
+    const ctx = makeCtx({
+      payTo:
+        'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+      requiredAmount: 5_000_000n,
+      asset: 'cc'.repeat(28) + '.ddee',
+    });
+    ctx._parsedTx = makeParsedTx({
+      body: {
+        ...makeParsedTx().body,
+        outputs: [
+          {
+            addressHex: '00' + 'cc'.repeat(28) + 'bb'.repeat(28),
+            addressBech32:
+              'addr_test1qrxvenxvenxvenxvenxvenxvenxvenxvenxvenxvenxven9mhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwasm2jhls',
+            lovelace: 2_000_000n,
+            assets: { [MOCK_UNIT]: 1_000_000n }, // not enough
+            networkId: 0,
+          },
+        ],
+      },
+    });
+    const result = checkRecipient(ctx);
+    // Recipient was matched; the downstream checkAmount call will fail with
+    // amount_insufficient because the matched output's asset map is short.
+    expect(result.passed).toBe(true);
+    expect(ctx._matchingOutputIndex).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
