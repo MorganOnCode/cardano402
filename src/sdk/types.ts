@@ -1,103 +1,48 @@
 // SDK-specific types and Zod schemas for x402 V2 wire format.
 //
-// These types define the structures that flow between client, resource server,
-// and facilitator -- specifically the Payment-Required header (402 response),
-// the Payment-Signature header (client payment), and the /supported response.
+// The wire-format schemas (incl. 402-envelope schemas added in
+// @cardano402/core@0.2.0) are now re-exported from core under their
+// existing local names so importers (`from '../sdk/types.js'`) keep
+// working unchanged.
+//
+// `PaymentExtensionsStatusSchema` + `PaymentResponseHeaderSchema` stay
+// local because they validate the emit side (this facilitator's
+// X-Payment-Response output), which intentionally never includes
+// 'failed' status. Core's wider SettlementStatusSchema is used inbound.
 
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
-// /supported response (PROT-03)
+// Wire-format schemas + types re-exported from @cardano402/core.
+//
+// Local name aliases preserve every import path used elsewhere in src/
+// and tests/:
+//   SupportedKindSchema      -> SupportedPaymentKindSchema (1 importer)
+//   UtxoRefSchema            -> NonceSchema                (~10 importers)
+//   CardanoPayloadSchema     -> CardanoPaymentPayloadSchema
 // ---------------------------------------------------------------------------
 
-export const SupportedPaymentKindSchema = z.object({
-  // Spec pins x402 protocol to v2; older clients should be rejected loudly.
-  x402Version: z.literal(2),
-  scheme: z.string(),
-  network: z.string(),
-  extra: z.record(z.string(), z.unknown()).optional(),
-});
+export {
+  SupportedKindSchema as SupportedPaymentKindSchema,
+  SupportedResponseSchema,
+  UtxoRefSchema as NonceSchema,
+  CardanoPayloadSchema as CardanoPaymentPayloadSchema,
+  PaymentAcceptSchema,
+  ResourceInfoSchema,
+  PaymentRequiredResponseSchema,
+  PaymentSignaturePayloadSchema,
+} from '@cardano402/core';
 
-export const SupportedResponseSchema = z.object({
-  kinds: z.array(SupportedPaymentKindSchema),
-  extensions: z.array(z.unknown()),
-  signers: z.record(z.string(), z.array(z.string())),
-});
-
-export type SupportedPaymentKind = z.infer<typeof SupportedPaymentKindSchema>;
-export type SupportedResponse = z.infer<typeof SupportedResponseSchema>;
-
-// ---------------------------------------------------------------------------
-// Payment-Required header (402 response, resource server -> client)
-// ---------------------------------------------------------------------------
-
-/** A single accepted payment option in the 402 response */
-export const PaymentAcceptSchema = z.object({
-  scheme: z.string().default('exact'),
-  network: z.string(),
-  amount: z.string(),
-  payTo: z.string(),
-  maxTimeoutSeconds: z.number().int().positive().default(300),
-  asset: z.string().default('lovelace'),
-  extra: z.record(z.string(), z.unknown()).nullable().default(null),
-});
-
-export const ResourceInfoSchema = z.object({
-  description: z.string(),
-  mimeType: z.string().default('application/json'),
-  url: z.string(),
-});
-
-export const PaymentRequiredResponseSchema = z.object({
-  x402Version: z.literal(2),
-  error: z.string().nullable().default(null),
-  resource: ResourceInfoSchema,
-  accepts: z.array(PaymentAcceptSchema),
-});
-
-export type PaymentAccept = z.infer<typeof PaymentAcceptSchema>;
-export type ResourceInfo = z.infer<typeof ResourceInfoSchema>;
-export type PaymentRequiredResponse = z.infer<typeof PaymentRequiredResponseSchema>;
-
-// ---------------------------------------------------------------------------
-// Payment-Signature header (client -> resource server)
-// ---------------------------------------------------------------------------
-
-/**
- * Nonce for the Cardano `exact` scheme: a UTXO reference of the form
- * `txHash#index`. Per the x402 Cardano spec, this UTXO MUST be included as
- * an input in the signed transaction and MUST be unspent in the current
- * UTXO set when verified.
- *
- * Spec: https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md
- */
-export const NonceSchema = z
-  .string()
-  .regex(/^[0-9a-f]{64}#\d+$/, 'nonce must be of the form txHash#index (lowercase hex hash)')
-  .describe(
-    'UTXO reference (txHash#index) that MUST be consumed as a tx input and MUST be unspent'
-  );
-
-export const CardanoPaymentPayloadSchema = z.object({
-  transaction: z.string().min(1),
-  /**
-   * REQUIRED per spec: a `txHash#index` UTXO reference that must be one of
-   * the transaction's inputs and must be currently unspent. Replay protection.
-   * Made optional only to support staged migration; verifier rejects when
-   * absent if `requireNonce` is enabled in chain.verification config.
-   */
-  nonce: NonceSchema.optional(),
-  payer: z.string().optional(),
-});
-
-export const PaymentSignaturePayloadSchema = z.object({
-  x402Version: z.literal(2),
-  accepted: PaymentAcceptSchema,
-  payload: CardanoPaymentPayloadSchema,
-  resource: ResourceInfoSchema,
-});
-
-export type PaymentSignaturePayload = z.infer<typeof PaymentSignaturePayloadSchema>;
+export type {
+  SupportedKind as SupportedPaymentKind,
+  SupportedResponse,
+  UtxoRef as Nonce,
+  CardanoPayload as CardanoPaymentPayload,
+  PaymentAccept,
+  ResourceInfo,
+  PaymentRequiredResponse,
+  PaymentSignaturePayload,
+} from '@cardano402/core';
 
 // ---------------------------------------------------------------------------
 // X-Payment-Response / PAYMENT-RESPONSE header (resource server -> client).
@@ -106,11 +51,15 @@ export type PaymentSignaturePayload = z.infer<typeof PaymentSignaturePayloadSche
 // (matches base x402); PAYMENT-RESPONSE is emitted in parallel for
 // compatibility with the literal Cardano spec wording.
 //
-// `extensions.status` per the Cardano spec is one of:
+// `extensions.status` is INTENTIONALLY narrow on the emit side:
 //   - "confirmed" (recommended; tx is in a block)
 //   - "mempool"   (tx accepted by node but not yet in a block; spec says
 //                  this SHOULD NOT be used for resources with real value
 //                  due to Ouroboros Praos rollback risk)
+//
+// This facilitator never emits 'failed'. Core's SettlementStatusSchema
+// (which includes 'failed') is used inbound by SettleResponseSchema in
+// ../settle/types.ts for parse tolerance against external facilitators.
 // ---------------------------------------------------------------------------
 
 export const PaymentExtensionsStatusSchema = z.enum(['confirmed', 'mempool']);
@@ -130,5 +79,5 @@ export const PaymentResponseHeaderSchema = z.object({
     .optional(),
 });
 
-export type PaymentResponseHeader = z.infer<typeof PaymentResponseHeaderSchema>;
 export type PaymentExtensionsStatus = z.infer<typeof PaymentExtensionsStatusSchema>;
+export type PaymentResponseHeader = z.infer<typeof PaymentResponseHeaderSchema>;

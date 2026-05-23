@@ -1,34 +1,44 @@
 // Settlement domain types for x402 transaction submission and confirmation.
 //
-// Key design: The client builds and signs the full Cardano transaction;
-// the facilitator re-verifies, submits raw CBOR to Blockfrost, polls for
-// on-chain confirmation, and returns the result. No facilitator signing.
+// Request schemas + SettlementStatusSchema are re-exported from
+// @cardano402/core. SettleResponseSchema stays local with a wider
+// extensions.status enum (to accept core's 'failed' from external
+// facilitators) and slightly looser network/payer fields for
+// emission-tolerance.
 
+import { SettlementStatusSchema } from '@cardano402/core';
 import { z } from 'zod';
 
-import { PaymentPayloadSchema, PaymentRequirementsSchema } from '../verify/types.js';
+// ---------------------------------------------------------------------------
+// Wire-format request schemas + the settlement-status primitive
+// re-exported from @cardano402/core.
+// ---------------------------------------------------------------------------
+
+export {
+  SettleRequestSchema,
+  StatusRequestSchema,
+  StatusResponseSchema,
+  SettlementStatusSchema,
+} from '@cardano402/core';
+
+export type {
+  SettleRequest,
+  StatusRequest,
+  StatusResponse,
+  SettlementStatus,
+} from '@cardano402/core';
 
 // ---------------------------------------------------------------------------
-// x402 Settlement Wire Format Schemas (Zod)
+// SettleResponseSchema -- local
+//
+// Two intentional divergences from core's SettleResponseSchema:
+//   1. `extensions.status` widens to the full SettlementStatusSchema
+//      (confirmed | mempool | failed). The facilitator never emits 'failed',
+//      but the wider parse means we accept it from external facilitators.
+//   2. `network` and `payer` stay as loose strings rather than core's
+//      NetworkSchema / CardanoAddressSchema, matching what src/ emits today.
 // ---------------------------------------------------------------------------
 
-/**
- * SettleRequest -- POST /settle request body.
- * Same shape as /verify per V2 spec: paymentPayload + paymentRequirements.
- */
-export const SettleRequestSchema = z.object({
-  /** x402 protocol version */
-  x402Version: z.literal(2),
-  /** Full payment payload (same as /verify) */
-  paymentPayload: PaymentPayloadSchema,
-  /** Payment requirements (same as /verify) */
-  paymentRequirements: PaymentRequirementsSchema,
-});
-
-/**
- * SettleResponse -- POST /settle response.
- * Aligned with upstream x402 V2 spec and the x402 Cardano scheme doc.
- */
 export const SettleResponseSchema = z.object({
   /** Whether settlement succeeded */
   success: z.boolean(),
@@ -43,49 +53,19 @@ export const SettleResponseSchema = z.object({
   /** Human-readable error message (present on failure) */
   errorMessage: z.string().optional(),
   /**
-   * Protocol extensions. The Cardano scheme doc requires `extensions.status`
-   * with values `confirmed | mempool` on successful settlement (see
-   * x402-foundation/x402 spec, section "PAYMENT-RESPONSE Header Payload").
-   * `mempool` is permitted but strongly discouraged because Cardano has
-   * probabilistic finality (Ouroboros Praos rollbacks).
+   * Protocol extensions. Status now accepts the widened enum
+   * `confirmed | mempool | failed` for inbound parse tolerance.
+   * The facilitator's emit path never sets 'failed'.
    */
   extensions: z
     .object({
-      status: z.enum(['confirmed', 'mempool']).optional(),
+      status: SettlementStatusSchema.optional(),
     })
     .passthrough()
     .optional(),
 });
 
-/**
- * StatusRequest -- POST /status request body.
- * Accepts a tx hash (64-char hex) and payment requirements for context.
- */
-export const StatusRequestSchema = z.object({
-  /** Transaction hash (hex string, always 64 chars) */
-  transaction: z.string().length(64),
-  /** Payment requirements for context */
-  paymentRequirements: PaymentRequirementsSchema,
-});
-
-/**
- * StatusResponse -- POST /status response.
- */
-export const StatusResponseSchema = z.object({
-  /** Confirmation status */
-  status: z.enum(['confirmed', 'pending', 'not_found']),
-  /** Transaction hash (echo) */
-  transaction: z.string(),
-});
-
-// ---------------------------------------------------------------------------
-// Inferred TypeScript types from Zod schemas
-// ---------------------------------------------------------------------------
-
-export type SettleRequest = z.infer<typeof SettleRequestSchema>;
 export type SettleResponse = z.infer<typeof SettleResponseSchema>;
-export type StatusRequest = z.infer<typeof StatusRequestSchema>;
-export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // Internal Types (plain TypeScript -- no Zod)
@@ -110,12 +90,13 @@ export interface SettlementRecord {
 
 /**
  * Return type of the settlePayment() orchestrator.
- * Maps directly to the SettleResponse wire format (V2 aligned).
+ * Maps directly to the SettleResponse wire format.
  *
- * `extensions.status` follows the x402 Cardano spec:
+ * `extensions.status` follows the widened spec enum:
  *   - "confirmed" once the tx is in a block
  *   - "mempool"  if the operator has explicitly opted into mempool returns
  *                via chain.verification.confirmationMode = "allow_mempool"
+ *   - "failed"   never emitted by this facilitator; reserved for inbound parse
  */
 export interface SettleResult {
   /** Whether settlement succeeded */
@@ -132,7 +113,7 @@ export interface SettleResult {
   errorMessage?: string;
   /** Spec-required extensions container */
   extensions?: {
-    status?: 'confirmed' | 'mempool';
+    status?: 'confirmed' | 'mempool' | 'failed';
     [k: string]: unknown;
   };
 }
