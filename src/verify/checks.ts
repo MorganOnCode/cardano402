@@ -142,9 +142,25 @@ export function checkTokenSupported(ctx: VerifyContext): CheckResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Validate that a transaction output pays to the required recipient address.
+ * Validate that the transaction pays to the required recipient address.
+ *
  * Uses canonical hex comparison (not bech32) per research pitfall #2.
- * Sets ctx._matchingOutputIndex and ctx._matchingOutputAmount on success.
+ *
+ * Sets ctx._matchingOutputIndex and ctx._matchingOutputAmount for downstream
+ * checks. Strategy depends on the asset being paid:
+ *
+ * - **ADA (lovelace):** sums lovelace across ALL outputs to payTo. Spam-token
+ *   attacks (first matching output carries `requiredAmount` lovelace plus an
+ *   unwanted token; additional outputs route the real payment elsewhere) are
+ *   neutralized because the verifier credits the recipient with the sum, not
+ *   a single output's amount. _matchingOutputIndex points at the first
+ *   matching output (any output works for min-utxo since each output already
+ *   meets it independently per Cardano protocol).
+ *
+ * - **Token:** enumerates outputs to payTo and selects the first that holds
+ *   at least `requiredAmount` of the asset. This means a recipient with two
+ *   outputs — one with zero of the asset, one with enough — is accepted; the
+ *   pre-fix behavior would lock onto the zero-asset output and fail.
  */
 export function checkRecipient(ctx: VerifyContext): CheckResult {
   if (!ctx._parsedTx) {
@@ -156,22 +172,65 @@ export function checkRecipient(ctx: VerifyContext): CheckResult {
   const recipientHex = recipientAddr.to_hex();
   recipientAddr.free();
 
-  // Find the first output matching the recipient
   const outputs = ctx._parsedTx.body.outputs;
+  const asset = ctx.asset ?? LOVELACE_UNIT;
+
+  if (asset === LOVELACE_UNIT) {
+    // ADA path: sum lovelace across ALL outputs to payTo so spam-output
+    // splitting can't bypass the amount check.
+    let firstMatch = -1;
+    let summedLovelace = 0n;
+    for (let i = 0; i < outputs.length; i++) {
+      if (outputs[i].addressHex === recipientHex) {
+        if (firstMatch === -1) firstMatch = i;
+        summedLovelace += outputs[i].lovelace;
+      }
+    }
+    if (firstMatch === -1) {
+      return {
+        check: 'recipient',
+        passed: false,
+        reason: 'recipient_mismatch',
+        details: { expected: ctx.payTo },
+      };
+    }
+    ctx._matchingOutputIndex = firstMatch;
+    ctx._matchingOutputAmount = summedLovelace;
+    return { check: 'recipient', passed: true };
+  }
+
+  // Token path: pick the first output to payTo that holds enough of the
+  // required asset. checkAmount and checkMinUtxo then run against THAT
+  // output rather than the first-to-payTo one (which could carry 0 tokens
+  // as a spam-output decoy).
+  const unit = assetToUnit(asset);
+  let firstMatchTo = -1;
   for (let i = 0; i < outputs.length; i++) {
-    if (outputs[i].addressHex === recipientHex) {
+    if (outputs[i].addressHex !== recipientHex) continue;
+    if (firstMatchTo === -1) firstMatchTo = i;
+    const tokenAmount = outputs[i].assets[unit] ?? 0n;
+    if (tokenAmount >= ctx.requiredAmount) {
       ctx._matchingOutputIndex = i;
       ctx._matchingOutputAmount = outputs[i].lovelace;
       return { check: 'recipient', passed: true };
     }
   }
 
-  return {
-    check: 'recipient',
-    passed: false,
-    reason: 'recipient_mismatch',
-    details: { expected: ctx.payTo },
-  };
+  if (firstMatchTo === -1) {
+    return {
+      check: 'recipient',
+      passed: false,
+      reason: 'recipient_mismatch',
+      details: { expected: ctx.payTo },
+    };
+  }
+
+  // We did find outputs to payTo, but none had enough of the required asset.
+  // Surface this through checkAmount by pointing at the first matching output
+  // so its asset map is reported in the failure details.
+  ctx._matchingOutputIndex = firstMatchTo;
+  ctx._matchingOutputAmount = outputs[firstMatchTo].lovelace;
+  return { check: 'recipient', passed: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -179,13 +238,17 @@ export function checkRecipient(ctx: VerifyContext): CheckResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Validate that the matching output contains at least the required amount.
+ * Validate that the recipient receives at least the required amount.
  *
- * ADA path: uses ctx._matchingOutputAmount (set by checkRecipient) for
- * backward compatibility with existing test mocks.
+ * ADA path: reads ctx._matchingOutputAmount, which checkRecipient has
+ * populated with the SUM of lovelace across all outputs to payTo (so spam-
+ * output splitting can't sneak partial payments past the threshold).
  *
- * Token path: looks up the token quantity in the output's assets map using
- * the concatenated unit key derived from ctx.asset via assetToUnit().
+ * Token path: looks up the token quantity in the matched output's assets
+ * map. checkRecipient already selected an output that holds enough of the
+ * asset, so a pass here just re-confirms; a failure indicates the recipient
+ * received outputs to their address but none with the required token
+ * quantity.
  *
  * Overpayment allowed (>=) for both ADA and tokens.
  */
