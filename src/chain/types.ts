@@ -1,4 +1,4 @@
-// Chain domain types for Cardano UTXO tracking and reservation
+// Chain domain types for Cardano UTXO tracking
 
 /**
  * Supported Cardano networks (matches Lucid Evolution's expected strings).
@@ -43,20 +43,6 @@ export interface CachedUtxo {
   assets: Record<string, bigint>;
   /** Optional datum hash attached to the UTXO */
   datumHash?: string;
-}
-
-/**
- * UTXO reservation for preventing double-spend during concurrent transactions.
- */
-export interface Reservation {
-  /** Formatted as "txHash#outputIndex" */
-  utxoRef: string;
-  /** Unix timestamp (ms) when reservation was created */
-  reservedAt: number;
-  /** Unix timestamp (ms) when reservation expires */
-  expiresAt: number;
-  /** Request ID for debugging/tracing */
-  requestId: string;
 }
 
 /**

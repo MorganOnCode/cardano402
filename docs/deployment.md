@@ -47,8 +47,6 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 | `rateLimit.windowMs` | `60000` | Rate limit window in milliseconds |
 | `chain.blockfrost.tier` | `"free"` | Blockfrost plan tier |
 | `chain.cache.utxoTtlSeconds` | `60` | UTXO cache TTL |
-| `chain.reservation.ttlSeconds` | `120` | UTXO reservation TTL |
-| `chain.reservation.maxConcurrent` | `20` | Max concurrent UTXO reservations |
 | `chain.redis.port` | `6379` | Redis port |
 | `chain.redis.password` | *(none)* | Redis password (enable in production) |
 | `chain.redis.db` | `0` | Redis database index |

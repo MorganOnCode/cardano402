@@ -1,4 +1,4 @@
-// ChainProvider orchestrator combining cache, reservation, Blockfrost, and Lucid
+// ChainProvider orchestrator combining cache, Blockfrost, and Lucid
 
 import type { FastifyBaseLogger } from 'fastify';
 import type Redis from 'ioredis';
@@ -9,11 +9,8 @@ import type { ChainConfig } from './config.js';
 import { createLucidInstance } from './lucid-provider.js';
 import type { LucidInstance } from './lucid-provider.js';
 import type { CachedUtxo } from './types.js';
-import { utxoRefToString } from './types.js';
 import { createUtxoCache } from './utxo-cache.js';
 import type { UtxoCache } from './utxo-cache.js';
-import { createUtxoReservation } from './utxo-reservation.js';
-import type { UtxoReservation } from './utxo-reservation.js';
 
 // ---------------------------------------------------------------------------
 // Protocol parameter cache (in-memory, 5-minute TTL)
@@ -76,7 +73,6 @@ function mapBlockfrostUtxo(raw: BlockfrostUtxo): CachedUtxo {
 interface ChainProviderDeps {
   blockfrost: BlockfrostClient;
   cache: UtxoCache;
-  reservation: UtxoReservation;
   lucid: LucidInstance;
   config: ChainConfig;
   logger: FastifyBaseLogger;
@@ -87,7 +83,6 @@ interface ChainProviderDeps {
  *
  * Provides:
  * - Cache-first UTXO queries (cache -> Blockfrost on miss)
- * - UTXO reservation management (prevent double-spend)
  * - Current slot from latest block
  * - ADA balance calculation
  * - Minimum UTXO lovelace calculation from protocol parameters
@@ -96,7 +91,6 @@ interface ChainProviderDeps {
 export class ChainProvider {
   private readonly blockfrost: BlockfrostClient;
   private readonly cache: UtxoCache;
-  private readonly reservation: UtxoReservation;
   private readonly lucid: LucidInstance;
   private readonly config: ChainConfig;
   private readonly logger: FastifyBaseLogger;
@@ -105,7 +99,6 @@ export class ChainProvider {
   constructor(deps: ChainProviderDeps) {
     this.blockfrost = deps.blockfrost;
     this.cache = deps.cache;
-    this.reservation = deps.reservation;
     this.lucid = deps.lucid;
     this.config = deps.config;
     this.logger = deps.logger;
@@ -138,42 +131,6 @@ export class ChainProvider {
     await this.cache.set(address, utxos);
 
     return utxos;
-  }
-
-  /**
-   * Get available (unreserved) UTXOs for an address.
-   * Filters out UTXOs that are currently reserved by any request.
-   */
-  async getAvailableUtxos(address: string, _requestId: string): Promise<CachedUtxo[]> {
-    const utxos = await this.getUtxos(address);
-    return utxos.filter(
-      (utxo) =>
-        !this.reservation.isReserved(
-          utxoRefToString({ txHash: utxo.txHash, outputIndex: utxo.outputIndex })
-        )
-    );
-  }
-
-  /**
-   * Reserve a UTXO for exclusive use during transaction construction.
-   */
-  reserveUtxo(utxoRef: string, requestId: string): boolean {
-    return this.reservation.reserve(utxoRef, requestId);
-  }
-
-  /**
-   * Release a single UTXO reservation.
-   */
-  releaseUtxo(utxoRef: string): void {
-    this.reservation.release(utxoRef);
-  }
-
-  /**
-   * Release all reservations for a given request ID.
-   * Used when a transaction fails and all its UTXOs should be freed.
-   */
-  releaseAll(requestId: string): void {
-    this.reservation.releaseAll(requestId);
   }
 
   /**
@@ -246,16 +203,6 @@ export class ChainProvider {
     return calculated > 1_000_000n ? calculated : 1_000_000n;
   }
 
-  /**
-   * Get reservation status for monitoring/health checks.
-   */
-  getReservationStatus(): { active: number; max: number } {
-    return {
-      active: this.reservation.getActiveCount(),
-      max: this.config.reservation.maxConcurrent,
-    };
-  }
-
   // ---- Private helpers ----
 
   /**
@@ -307,7 +254,6 @@ export class ChainProvider {
  *
  * - Creates BlockfrostClient for chain queries
  * - Creates UtxoCache (two-layer: in-memory + Redis)
- * - Creates UtxoReservation and loads persisted state from Redis
  * - Initializes Lucid Evolution with Blockfrost provider
  * - Returns orchestrated ChainProvider instance
  *
@@ -322,10 +268,6 @@ export async function createChainProvider(
 ): Promise<ChainProvider> {
   const blockfrost = createBlockfrostClient(config, logger);
   const cache = createUtxoCache(redis, config, logger);
-  const reservation = createUtxoReservation(redis, config, logger);
-
-  // Recover persisted reservations from Redis
-  await reservation.loadFromRedis();
 
   // Initialize Lucid Evolution
   const lucid = await createLucidInstance(config, logger);
@@ -333,7 +275,6 @@ export async function createChainProvider(
   return new ChainProvider({
     blockfrost,
     cache,
-    reservation,
     lucid,
     config,
     logger,
