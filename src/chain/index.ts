@@ -1,7 +1,7 @@
 // Barrel exports for the chain module
 
 // Types
-export type { CardanoNetwork, BlockfrostTier, UtxoRef, CachedUtxo, Reservation } from './types.js';
+export type { CardanoNetwork, BlockfrostTier, UtxoRef, CachedUtxo } from './types.js';
 export { BLOCKFROST_URLS, utxoRefToString, stringToUtxoRef } from './types.js';
 
 // Errors
@@ -26,9 +26,6 @@ export { BlockfrostClient } from './blockfrost-client.js';
 
 // UTXO cache
 export { UtxoCache } from './utxo-cache.js';
-
-// UTXO reservation
-export { UtxoReservation } from './utxo-reservation.js';
 
 // Redis client
 export { createRedisClient, disconnectRedis } from './redis-client.js';

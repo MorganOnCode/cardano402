@@ -39,8 +39,6 @@ describe('Config Loading', () => {
     expect(config.chain.network).toBe('Preview');
     expect(config.chain.blockfrost.tier).toBe('free');
     expect(config.chain.cache.utxoTtlSeconds).toBe(60);
-    expect(config.chain.reservation.ttlSeconds).toBe(120);
-    expect(config.chain.reservation.maxConcurrent).toBe(20);
     expect(config.chain.redis.host).toBe('127.0.0.1');
     expect(config.chain.redis.port).toBe(6379);
   });

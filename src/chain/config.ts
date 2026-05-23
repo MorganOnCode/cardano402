@@ -45,15 +45,6 @@ export const ChainConfigSchema = z
       })
       .default(() => ({ utxoTtlSeconds: 60 })),
 
-    reservation: z
-      .object({
-        /** Reservation TTL in seconds (covers ~6 Cardano blocks) */
-        ttlSeconds: z.number().int().min(30).max(600).default(120),
-        /** Maximum concurrent UTXO reservations */
-        maxConcurrent: z.number().int().min(1).max(100).default(20),
-      })
-      .default(() => ({ ttlSeconds: 120, maxConcurrent: 20 })),
-
     redis: z
       .object({
         host: z.string().default('127.0.0.1'),

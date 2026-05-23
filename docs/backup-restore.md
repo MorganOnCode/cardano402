@@ -4,7 +4,7 @@ cardano402 stores three things on the VPS that aren't in git and aren't triviall
 
 1. **`config/config.json`** — mainnet facilitator seed phrase + Blockfrost project ID. **Most valuable target.**
 2. **`.env`** — `REDIS_PASSWORD` + `MAINNET` guardrail flag.
-3. **Redis AOF volume (`cardano402_redis_data`)** — payment dedup keys, UTXO reservations. Rebuildable from chain state but accelerates recovery.
+3. **Redis AOF volume (`cardano402_redis_data`)** — payment dedup keys and UTXO cache. Rebuildable from chain state but accelerates recovery.
 4. **`data/files/`** — uploaded payment-gated content (per-tenant; can grow over time).
 
 This runbook covers nightly encrypted backups, restore verification, and disaster recovery.

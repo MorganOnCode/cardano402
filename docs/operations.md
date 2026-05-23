@@ -107,7 +107,7 @@ The facilitator starts in this order:
 2. Initialize Sentry error tracking (if DSN configured)
 3. Connect to Redis
 4. Initialize Lucid Evolution (Blockfrost provider)
-5. Create chain provider (UTXO cache, reservation system)
+5. Create chain provider (UTXO cache, Blockfrost client, Lucid)
 6. Start HTTP server on configured host:port
 7. Register SIGINT/SIGTERM shutdown handlers
 
@@ -202,13 +202,12 @@ Key metrics: `connected_clients`, `used_memory`, `keyspace_hits/misses`.
 
 ### After crash / restart
 
-1. Redis persistence (AOF) preserves UTXO reservations
+1. Redis persistence (AOF) preserves dedup keys + UTXO cache
 2. On restart, the facilitator reconnects and resumes normal operation
 3. In-flight settlements may time out -- clients should retry via /status
 
 ### After Redis data loss
 
-1. UTXO reservations are lost (they have 120s TTL anyway)
-2. Dedup keys are lost (24h TTL) -- duplicate submissions temporarily possible
-3. UTXO cache rebuilds automatically from Blockfrost
-4. No manual intervention required
+1. Dedup keys are lost (24h TTL) -- duplicate submissions temporarily possible
+2. UTXO cache rebuilds automatically from Blockfrost
+3. No manual intervention required

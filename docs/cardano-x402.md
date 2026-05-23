@@ -86,7 +86,7 @@ The facilitator is a Fastify HTTP server with:
 
 - **Verification pipeline** -- 10 checks, collect-all-errors pattern
 - **Settlement engine** -- dedup via SHA-256 + Redis, Blockfrost submission, confirmation polling
-- **UTXO management** -- two-layer cache (in-memory + Redis), reservation system with TTL
+- **UTXO management** -- two-layer cache (in-memory + Redis)
 - **Payment gate middleware** -- SDK for resource servers to gate endpoints behind x402 payments
 
 For detailed architecture diagrams, see [Architecture](architecture.md).

@@ -52,18 +52,6 @@ function createMockCache() {
   } as any;
 }
 
-function createMockReservation() {
-  return {
-    reserve: vi.fn(),
-    release: vi.fn(),
-    releaseAll: vi.fn(),
-    isReserved: vi.fn(),
-    getActiveCount: vi.fn(),
-    getReservation: vi.fn(),
-    loadFromRedis: vi.fn(),
-  } as any;
-}
-
 function createMockLucid() {
   return {
     selectWallet: {
@@ -79,7 +67,6 @@ const defaultConfig = {
   blockfrost: { projectId: 'test-project-id', tier: 'free' as const },
   facilitator: { seedPhrase: 'test seed' },
   cache: { utxoTtlSeconds: 60 },
-  reservation: { ttlSeconds: 120, maxConcurrent: 20 },
   redis: { host: '127.0.0.1', port: 6379, db: 0 },
   verification: {
     graceBufferSeconds: 30,
@@ -142,21 +129,18 @@ describe('ChainProvider', () => {
   let provider: ChainProvider;
   let mockBlockfrost: ReturnType<typeof createMockBlockfrost>;
   let mockCache: ReturnType<typeof createMockCache>;
-  let mockReservation: ReturnType<typeof createMockReservation>;
   let mockLucid: ReturnType<typeof createMockLucid>;
   let mockLogger: ReturnType<typeof createMockLogger>;
 
   beforeEach(() => {
     mockBlockfrost = createMockBlockfrost();
     mockCache = createMockCache();
-    mockReservation = createMockReservation();
     mockLucid = createMockLucid();
     mockLogger = createMockLogger();
 
     provider = new ChainProvider({
       blockfrost: mockBlockfrost,
       cache: mockCache,
-      reservation: mockReservation,
       lucid: mockLucid,
       config: defaultConfig,
       logger: mockLogger,
@@ -191,21 +175,6 @@ describe('ChainProvider', () => {
     });
   });
 
-  describe('getAvailableUtxos()', () => {
-    it('should filter out reserved UTXOs', async () => {
-      mockCache.get.mockResolvedValue(sampleCachedUtxos);
-      // First UTXO is reserved, second is not
-      mockReservation.isReserved.mockReturnValueOnce(true).mockReturnValueOnce(false);
-
-      const result = await provider.getAvailableUtxos('addr_test1qz...', 'req-1');
-
-      expect(result).toHaveLength(1);
-      expect(result[0].txHash).toBe('def456');
-      expect(mockReservation.isReserved).toHaveBeenCalledWith('abc123#0');
-      expect(mockReservation.isReserved).toHaveBeenCalledWith('def456#1');
-    });
-  });
-
   describe('getBalance()', () => {
     it('should sum lovelace across UTXOs correctly with BigInt', async () => {
       mockCache.get.mockResolvedValue(sampleCachedUtxos);
@@ -214,33 +183,6 @@ describe('ChainProvider', () => {
 
       expect(balance).toBe(8_000_000n);
       expect(typeof balance).toBe('bigint');
-    });
-  });
-
-  describe('reserveUtxo()', () => {
-    it('should delegate to reservation system', () => {
-      mockReservation.reserve.mockReturnValue(true);
-
-      const result = provider.reserveUtxo('abc123#0', 'req-1');
-
-      expect(result).toBe(true);
-      expect(mockReservation.reserve).toHaveBeenCalledWith('abc123#0', 'req-1');
-    });
-  });
-
-  describe('releaseUtxo()', () => {
-    it('should delegate to reservation system', () => {
-      provider.releaseUtxo('abc123#0');
-
-      expect(mockReservation.release).toHaveBeenCalledWith('abc123#0');
-    });
-  });
-
-  describe('releaseAll()', () => {
-    it('should delegate to reservation system', () => {
-      provider.releaseAll('req-1');
-
-      expect(mockReservation.releaseAll).toHaveBeenCalledWith('req-1');
     });
   });
 
@@ -305,16 +247,6 @@ describe('ChainProvider', () => {
 
       // Should only call Blockfrost once due to caching
       expect(mockBlockfrost.getEpochParameters).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('getReservationStatus()', () => {
-    it('should return active count and max', () => {
-      mockReservation.getActiveCount.mockReturnValue(5);
-
-      const status = provider.getReservationStatus();
-
-      expect(status).toEqual({ active: 5, max: 20 });
     });
   });
 });

@@ -92,7 +92,6 @@ function createTestConfig(overrides?: Partial<Config>): Config {
       blockfrost: { projectId: TEST_PROJECT_ID, tier: 'free' },
       facilitator: { seedPhrase: TEST_SEED_PHRASE },
       cache: { utxoTtlSeconds: 60 },
-      reservation: { ttlSeconds: 120, maxConcurrent: 20 },
       redis: { host: '127.0.0.1', port: 6379, db: 0 },
       verification: {
         graceBufferSeconds: 30,

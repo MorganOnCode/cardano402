@@ -103,7 +103,7 @@ sequenceDiagram
 
 ## 3. Internal Architecture
 
-The Facilitator is a Fastify application organized into five layers: HTTP, Verification, Settlement, Chain, and Storage. External dependencies are Redis (caching, dedup, reservation) and Blockfrost (Cardano API).
+The Facilitator is a Fastify application organized into five layers: HTTP, Verification, Settlement, Chain, and Storage. External dependencies are Redis (caching + dedup) and Blockfrost (Cardano API).
 
 ```mermaid
 graph TD
@@ -130,7 +130,6 @@ graph TD
         Provider["ChainProvider"]
         BFClient["BlockfrostClient<br/>(Retry + Backoff)"]
         Cache["UTXO Cache<br/>(L1 Map + L2 Redis)"]
-        Reservation["UTXO Reservation<br/>(TTL 120s)"]
         Lucid["Lucid Evolution"]
     end
 
@@ -155,11 +154,9 @@ graph TD
     Routes --> Provider
     Provider --> BFClient
     Provider --> Cache
-    Provider --> Reservation
     Provider --> Lucid
     BFClient --> Blockfrost
     Cache --> Redis
-    Reservation --> Redis
     Dedup --> Redis
     Submit --> Blockfrost
     Poll --> Blockfrost
