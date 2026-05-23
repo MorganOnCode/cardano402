@@ -1,4 +1,4 @@
-export const VERSION = '0.2.0' as const;
+export { VERSION } from './generated-version.js';
 
 export * from './schemas.js';
 export * from './header.js';
