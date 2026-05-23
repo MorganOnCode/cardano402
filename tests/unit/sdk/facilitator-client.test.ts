@@ -155,14 +155,14 @@ describe('FacilitatorClient', () => {
       fetchSpy.mockResolvedValueOnce(mockFetchResponse({}, 500, 'Internal Server Error'));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
       await expect(client.verify(verifyRequest)).rejects.toThrow(
-        'Facilitator returned 500 Internal Server Error'
+        'Facilitator HTTP 500 Internal Server Error'
       );
     });
 
     it('should throw on invalid response body (Zod validation failure)', async () => {
       fetchSpy.mockResolvedValueOnce(mockFetchResponse({ unexpected: 'data' }));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
-      await expect(client.verify(verifyRequest)).rejects.toThrow('Invalid facilitator response');
+      await expect(client.verify(verifyRequest)).rejects.toThrow('did not match expected schema');
     });
   });
 
@@ -197,7 +197,7 @@ describe('FacilitatorClient', () => {
       fetchSpy.mockResolvedValueOnce(mockFetchResponse({}, 503, 'Service Unavailable'));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
       await expect(client.settle(settleRequest)).rejects.toThrow(
-        'Facilitator returned 503 Service Unavailable'
+        'Facilitator HTTP 503 Service Unavailable'
       );
     });
   });
@@ -267,7 +267,7 @@ describe('FacilitatorClient', () => {
     it('should throw on invalid response', async () => {
       fetchSpy.mockResolvedValueOnce(mockFetchResponse({ kinds: [], extensions: [] }));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
-      await expect(client.supported()).rejects.toThrow('Invalid facilitator response');
+      await expect(client.supported()).rejects.toThrow('did not match expected schema');
     });
   });
 

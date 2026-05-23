@@ -1,17 +1,15 @@
-// Verification domain types for x402 V2 transaction-based model
+// Verification domain types for x402 V2 transaction-based model.
 //
-// Key design: NO nonces, NO COSE/CIP-8, NO signData payloads.
-// The client builds and signs a full Cardano transaction; the facilitator
-// parses CBOR, verifies outputs (recipient + amount), then submits.
-// UTXO-based replay protection is inherent (each UTXO can only be spent once).
-
-import { z } from 'zod';
+// Wire-format schemas are re-exported from @cardano402/core so the
+// facilitator and any downstream consumer of the package speak the same
+// validated types. Cardano-specific constants + the orchestrator's
+// internal `VerifyContext` / `VerifyCheck` pipeline state stay local.
 
 import type { DeserializedTx } from './cbor.js';
 import type { CardanoNetwork } from '../chain/types.js';
 
 // ---------------------------------------------------------------------------
-// CAIP-2 Chain ID Constants
+// CAIP-2 Chain ID Constants (local — Cardano-specific maps, not in core)
 // ---------------------------------------------------------------------------
 
 /**
@@ -46,133 +44,45 @@ export const NETWORK_ID_EXPECTED: Record<string, number> = {
 };
 
 // ---------------------------------------------------------------------------
-// x402 V2 Wire Format Schemas (Zod)
+// Wire-format schemas + types re-exported from @cardano402/core.
+// NonceSchema is an alias for UtxoRefSchema to preserve existing import
+// paths (`import { NonceSchema } from '../verify/types.js'`).
 // ---------------------------------------------------------------------------
 
-/**
- * PaymentRequirements -- what the resource server requires for payment.
- * Sent in the 402 response to the client.
- */
-export const PaymentRequirementsSchema = z
-  .object({
-    /** Only supported payment scheme */
-    scheme: z.literal('exact'),
-    /** CAIP-2 chain ID, e.g. "cardano:preview" */
-    network: z.string().regex(/^[a-z0-9]+:[a-z0-9]+$/, 'Must be a valid CAIP-2 chain ID'),
-    /** Asset identifier ("lovelace" for ADA, "policyId.assetNameHex" for tokens) */
-    asset: z.string().default('lovelace'),
-    /** Payment amount in smallest unit as string (BigInt-safe for JSON) */
-    amount: z.string().min(1),
-    /** Bech32 Cardano address of the payment recipient */
-    payTo: z.string().min(1),
-    /** Maximum time in seconds the payment is valid */
-    maxTimeoutSeconds: z.number().int().positive(),
-    /** Extensible metadata per x402 V2 spec */
-    extra: z.record(z.string(), z.unknown()).optional(),
-  })
-  .passthrough();
+export {
+  X402VersionSchema,
+  SchemeSchema,
+  NetworkSchema,
+  LovelaceAmountSchema,
+  CardanoAddressSchema,
+  UtxoRefSchema,
+  UtxoRefSchema as NonceSchema,
+  VerifyErrorReasonSchema,
+  PaymentRequirementsSchema,
+  CardanoPayloadSchema,
+  PaymentPayloadSchema,
+  VerifyRequestSchema,
+  VerifyResponseSchema,
+} from '@cardano402/core';
 
-/**
- * Nonce for the Cardano `exact` scheme.
- *
- * Per the x402 Cardano spec: the nonce MUST be a UTXO reference of the form
- * `txHash#index`, MUST be one of the transaction's inputs, and MUST be unspent
- * in the current on-chain UTXO set at verification time.
- *
- * Format is enforced: 64 lowercase hex chars + '#' + decimal index.
- *
- * Spec: https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md#facilitator-verification-rules
- */
-export const NonceSchema = z
-  .string()
-  .regex(/^[0-9a-f]{64}#\d+$/, 'nonce must be of the form txHash#index (lowercase hex hash)')
-  .describe('UTXO reference consumed as input and unspent on-chain');
-
-/**
- * CardanoPayload -- what the client sends as the payment payload.
- * Transaction-based model: the client builds and signs the full tx.
- */
-export const CardanoPayloadSchema = z.object({
-  /** Base64-encoded signed CBOR transaction */
-  transaction: z.string().min(1),
-  /**
-   * Spec-required UTXO reference (`txHash#index`) used as a replay nonce.
-   * The facilitator verifies it is one of the tx inputs and that the UTXO
-   * is unspent. Optional in the schema for migration tolerance; rejected at
-   * runtime by checkNonce when chain.verification.requireNonce is true.
-   */
-  nonce: NonceSchema.optional(),
-  /** Bech32 address of the payer (declared by client, optional) */
-  payer: z.string().optional(),
-});
-
-/**
- * PaymentPayload -- full payment payload wrapper per x402 V2 spec.
- * Contains the accepted payment requirements and scheme-specific payload.
- */
-export const PaymentPayloadSchema = z
-  .object({
-    /** x402 protocol version */
-    x402Version: z.literal(2),
-    /** Resource being accessed (optional per spec) */
-    resource: z
-      .object({
-        url: z.string(),
-        description: z.string().optional(),
-        mimeType: z.string().optional(),
-      })
-      .optional(),
-    /** The PaymentRequirements the client chose to fulfill */
-    accepted: PaymentRequirementsSchema,
-    /** Cardano-specific payload */
-    payload: CardanoPayloadSchema,
-    /** Protocol extensions data */
-    extensions: z.record(z.string(), z.unknown()).optional(),
-  })
-  .passthrough();
-
-/**
- * VerifyRequest -- POST /verify request body.
- */
-export const VerifyRequestSchema = z.object({
-  x402Version: z.literal(2),
-  paymentPayload: PaymentPayloadSchema,
-  paymentRequirements: PaymentRequirementsSchema,
-});
-
-/**
- * VerifyResponse -- the response shape from /verify.
- * Used for documentation and test assertions; not validated at runtime.
- *
- * NOTE: Response uses `extensions` (not `extra`) per x402 V2 spec distinction:
- * - PaymentRequirements uses `extra`
- * - VerifyResponse uses `extensions`
- */
-export const VerifyResponseSchema = z.object({
-  /** Whether the payment is valid */
-  isValid: z.boolean(),
-  /** Bech32 address of the payer (resolved from transaction) */
-  payer: z.string().optional(),
-  /** Snake_case reason code when isValid is false */
-  invalidReason: z.string().optional(),
-  /** Human-readable description when isValid is false */
-  invalidMessage: z.string().optional(),
-  /** Extensible metadata in the response */
-  extensions: z.record(z.string(), z.unknown()).optional(),
-});
+export type {
+  X402Version,
+  Scheme,
+  Network,
+  LovelaceAmount,
+  CardanoAddress,
+  UtxoRef,
+  UtxoRef as Nonce,
+  VerifyErrorReason,
+  PaymentRequirements,
+  CardanoPayload,
+  PaymentPayload,
+  VerifyRequest,
+  VerifyResponse,
+} from '@cardano402/core';
 
 // ---------------------------------------------------------------------------
-// Inferred TypeScript types from Zod schemas
-// ---------------------------------------------------------------------------
-
-export type PaymentRequirements = z.infer<typeof PaymentRequirementsSchema>;
-export type CardanoPayload = z.infer<typeof CardanoPayloadSchema>;
-export type PaymentPayload = z.infer<typeof PaymentPayloadSchema>;
-export type VerifyRequest = z.infer<typeof VerifyRequestSchema>;
-export type VerifyResponse = z.infer<typeof VerifyResponseSchema>;
-
-// ---------------------------------------------------------------------------
-// Internal Types (plain TypeScript -- no Zod)
+// Internal types (plain TypeScript — no Zod, stays local to the facilitator)
 // ---------------------------------------------------------------------------
 
 /**
