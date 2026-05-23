@@ -111,8 +111,35 @@ cased method, underscore, sanitised path. For example, a catalog entry
 See the cardano402 root [`SECURITY.md`](../../SECURITY.md) for the
 disclosure channel.
 
+## Smoke testing
+
+`scripts/smoke.mjs` (not shipped in the npm tarball) exercises the full
+preview-testnet path end-to-end without requiring an external resource
+server. It boots a tiny inline HTTP server with one priced endpoint
+(pay-to-self, 2 ADA), spawns `dist/cli.js` as a stdio subprocess,
+drives `initialize` → `tools/list` → `tools/call`, submits the signed
+tx via Blockfrost, and asserts the resulting `X-Payment-Response` is
+real.
+
+Run from the package root:
+
+```bash
+SEED_PHRASE="word1 ... word24" \
+BLOCKFROST_KEY="previewXXXXXXXXXXXXXXXXXXXXXXXX" \
+  node scripts/smoke.mjs
+```
+
+The wallet needs ~3 preview ADA (faucet:
+https://docs.cardano.org/cardano-testnets/tools/faucet/). Net cost per
+run is the tx fee (~0.2 ADA).
+
+On success the script prints a `preview.cardanoscan.io` URL for the
+transaction. Use this whenever cutting a release that changes the
+payment loop or signer.
+
 ## Status
 
-`0.1.0-alpha.0`. The wire-format pieces are stable and shared with
-`@cardano402/core`; the public surface of this package (CLI flags,
-`startCardano402Mcp` signature) may still shift before `0.1.0`.
+`0.1.0`. End-to-end verified against Cardano Preview testnet on
+2026-05-23 (tx `2845a731c935348ba2ba620b50640c7e3553da717773c1f8456decd49fe2dab7`).
+See `CHANGELOG.md` for the proof and `scripts/smoke.mjs` for the
+repeatable harness.
