@@ -7,8 +7,6 @@
 // 4. Poll for on-chain confirmation
 // 5. Return typed SettleResult (V2 aligned)
 
-import { createHash } from 'node:crypto';
-
 import { BlockfrostServerError } from '@blockfrost/blockfrost-js';
 import type { FastifyBaseLogger } from 'fastify';
 
@@ -45,10 +43,14 @@ export interface RedisLike {
 
 /**
  * Compute a dedup key for idempotency checking.
- * Returns `settle:<sha256hex>` from the raw CBOR bytes.
+ * Returns `settle:<txHash>` keyed on the Cardano transaction body hash.
+ *
+ * Witnesses are not part of the on-chain tx hash, so any witness-mutation
+ * variant of the same transaction body deterministically collides on this
+ * key. Keying on raw CBOR bytes would let a witness reorder bypass dedup.
  */
-export function computeDedupKey(cborBytes: Uint8Array): string {
-  return `settle:${createHash('sha256').update(cborBytes).digest('hex')}`;
+export function computeDedupKey(txHash: string): string {
+  return `settle:${txHash}`;
 }
 
 /**
@@ -112,7 +114,7 @@ export interface SettlePaymentOptions {
  *
  * Full flow:
  * 1. Re-verify the transaction via verifyPayment() (defense-in-depth)
- * 2. Compute SHA-256 dedup key and claim via Redis SET NX
+ * 2. Derive tx-hash dedup key from verifyPayment's result and claim via Redis SET NX
  * 3. If dedup hit: check existing record status and return appropriately
  * 4. Submit raw CBOR to Blockfrost
  * 5. Poll for on-chain confirmation
@@ -154,7 +156,25 @@ export async function settlePayment(
   }
 
   // ---- 2. Idempotency / dedup check ----
-  const dedupKey = computeDedupKey(cborBytes);
+  // Key on the body-only tx hash, NOT the raw CBOR bytes: witness reordering
+  // mutates CBOR but never the on-chain tx hash, so raw-bytes keying would
+  // let trivially-mutated CBOR variants bypass dedup.
+  const verifiedTxHash = verifyResult.extensions?.txHash;
+  if (typeof verifiedTxHash !== 'string' || verifiedTxHash.length === 0) {
+    logger.error(
+      { extensions: verifyResult.extensions },
+      'Settlement aborted: verifyPayment returned isValid but no txHash'
+    );
+    return {
+      success: false,
+      transaction: '',
+      network,
+      payer,
+      errorReason: 'internal_error',
+      errorMessage: 'Verification result is missing transaction hash',
+    };
+  }
+  const dedupKey = computeDedupKey(verifiedTxHash);
   const initialRecord: SettlementRecord = {
     txHash: '',
     status: 'submitted',
