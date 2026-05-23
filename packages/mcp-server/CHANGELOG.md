@@ -2,6 +2,33 @@
 
 All notable changes to `@cardano402/mcp-server` are documented here.
 
+## 0.1.1 — publish-correctness fix
+
+Hotfix release. `0.1.0` shipped via bare `npm publish` (chosen for
+WebAuthn 2FA compat) which does not rewrite pnpm's `workspace:`
+protocol — the published manifest had
+`"@cardano402/core": "workspace:^"`, an unsupported npm range, so
+`npm install @cardano402/mcp-server@0.1.0` failed with
+`EUNSUPPORTEDPROTOCOL`. `0.1.0` is deprecated; use `0.1.1`.
+
+### Fixed
+
+- **Workspace protocol rewritten to resolved version** — release is now
+  built with `pnpm pack` (which rewrites `workspace:^` to the resolved
+  `^0.2.0`) and uploaded with `npm publish <tarball>` (which preserves
+  the rewrite and still drives the WebAuthn browser flow). Consumers
+  can now install normally.
+- **`bin` path normalized** to the npm-11-canonical form
+  (`dist/cli.js`, no `./` prefix); npm 11 was already stripping the
+  prefix server-side so the registry shape is unchanged.
+
+### Unchanged
+
+- Source, dependency set, public API, and CLI surface match `0.1.0`.
+  No runtime behavior change.
+- 37/37 unit tests still pass; preview-testnet smoke not re-run (same
+  built artifact).
+
 ## 0.1.0 — initial release
 
 First stable release. Verified end-to-end against Cardano Preview
