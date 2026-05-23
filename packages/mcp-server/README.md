@@ -111,6 +111,59 @@ cased method, underscore, sanitised path. For example, a catalog entry
 See the cardano402 root [`SECURITY.md`](../../SECURITY.md) for the
 disclosure channel.
 
+## Known issues / consumer-side overrides
+
+### `libsodium-wrappers-sumo` transitive resolution
+
+On a fresh `npm install` / `pnpm add` of this package, Lucid Evolution's
+deep transitive `@cardano-sdk/crypto` pulls in
+`libsodium-wrappers-sumo@0.7.x`. That version uses a broken ESM import
+(`import e from "./libsodium-sumo.mjs"` — the file isn't in the package),
+so the server crashes at signer-init time with:
+
+```
+ERR_MODULE_NOT_FOUND: Cannot find module
+  '.../libsodium-wrappers-sumo/dist/modules-sumo-esm/libsodium-sumo.mjs'
+```
+
+The fix landed upstream in `libsodium-wrappers-sumo@0.8.0` (changed to a
+bare specifier, `import e from "libsodium-sumo"`). Until
+`@cardano-sdk/crypto` bumps its range, consumers need to override the
+version themselves. Add one of the following to your project's
+`package.json`:
+
+**pnpm:**
+
+```json
+{
+  "pnpm": {
+    "overrides": {
+      "libsodium-wrappers-sumo": "^0.8.2",
+      "libsodium-sumo": "^0.8.2"
+    }
+  }
+}
+```
+
+**npm (>= 8.3):**
+
+```json
+{
+  "overrides": {
+    "libsodium-wrappers-sumo": "^0.8.2",
+    "libsodium-sumo": "^0.8.2"
+  }
+}
+```
+
+Then re-install. The package's own test suite (37 tests, mocked
+signer) is unaffected; this only bites at runtime when Lucid is
+actually initialized.
+
+Tracking upstream: [input-output-hk/cardano-js-sdk#1682](https://github.com/input-output-hk/cardano-js-sdk/issues/1682).
+This package will bump Lucid (and drop the override note) once the
+upstream fix lands.
+
 ## Smoke testing
 
 `scripts/smoke.mjs` (not shipped in the npm tarball) exercises the full

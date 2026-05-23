@@ -29,6 +29,34 @@ protocol — the published manifest had
 - 37/37 unit tests still pass; preview-testnet smoke not re-run (same
   built artifact).
 
+### Known issue (not blocking install, blocks runtime)
+
+`@cardano-sdk/crypto` (a transitive dep through Lucid Evolution) pins
+`libsodium-wrappers-sumo` to a `0.7.x` range. Versions `0.7.x` have a
+broken ESM import (`./libsodium-sumo.mjs` doesn't exist in the
+package), so the signer crashes on first init with
+`ERR_MODULE_NOT_FOUND`. The fix landed in
+`libsodium-wrappers-sumo@0.8.0` (bare specifier), and the cardano402
+workspace itself works around this with a `pnpm.overrides` block at
+the repo root — but the override doesn't propagate to npm consumers.
+
+Until `@cardano-sdk/crypto` bumps its range, consumers must add their
+own override:
+
+```json
+{
+  "pnpm": { "overrides": { "libsodium-wrappers-sumo": "^0.8.2",
+                           "libsodium-sumo": "^0.8.2" } }
+}
+```
+
+or the equivalent npm `overrides` block. Verified end-to-end with that
+override applied — preview-testnet tx
+`0ee97088bcd84c19756d89d334b71ca29d8e78532cf40242945fcb879ea6e678`
+submitted by `cardano402-mcp@0.1.1` (from npm, not the workspace).
+Full details in the README's "Known issues / consumer-side overrides"
+section.
+
 ## 0.1.0 — initial release
 
 First stable release. Verified end-to-end against Cardano Preview
