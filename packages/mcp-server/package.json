@@ -43,7 +43,9 @@
     "stripe-for-agents"
   ],
   "scripts": {
-    "build": "tsup",
+    "gen:version": "node scripts/gen-version.mjs",
+    "verify:version": "node scripts/gen-version.mjs && git diff --exit-code src/generated-version.ts",
+    "build": "pnpm gen:version && tsup",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

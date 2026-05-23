@@ -10,10 +10,9 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 
 import { fetchCatalog } from './catalog.js';
 import type { McpServerConfig } from './config.js';
+import { VERSION as SERVER_VERSION } from './generated-version.js';
 import { createLucidSeedSigner, type CardanoSigner } from './signer.js';
 import { registerTools } from './tools.js';
-
-const SERVER_VERSION = '0.1.1';
 
 export interface StartResult {
   /** Names of every tool registered against the MCP server. */
