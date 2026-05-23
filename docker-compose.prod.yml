@@ -19,7 +19,10 @@ services:
     container_name: cardano402
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # Bind to loopback only — cloudflared tunnels cardano402.com → localhost:3000
+      # from the same host, so 0.0.0.0 is a misconfig-from-exposure away if UFW
+      # ever flubs. Defense-in-depth (audit H7).
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./config/config.json:/app/config/config.json:ro
       - ./data:/app/data
@@ -53,12 +56,19 @@ services:
     image: redis:7-alpine
     container_name: cardano402-redis
     restart: unless-stopped
+    # noeviction is required for fund-safety: the settle/* dedup records
+    # (24h TTL) are what makes /settle idempotent against witness-mutation
+    # replay. allkeys-lru would let those keys be evicted under memory
+    # pressure, silently breaking dedup. Other Redis users on this instance
+    # all have short TTLs (utxo cache 60s, reservations 120s) so the
+    # natural-expiry bound on memory is ~minutes, not hours.
+    # If Redis fills up, writes will fail loudly with OOM rather than evict.
     command: >
       redis-server
       --appendonly yes
       --requirepass ${REDIS_PASSWORD}
       --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
     # Sits above redis-server --maxmemory 256m with comfortable overhead so
