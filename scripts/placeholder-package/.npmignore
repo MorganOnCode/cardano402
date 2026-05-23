@@ -1,0 +1,2 @@
+# Keep the published tarball minimal
+.npmignore
