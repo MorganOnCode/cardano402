@@ -17,7 +17,7 @@ import {
   checkScheme,
   checkTokenSupported,
   checkTtl,
-  checkWitness,
+  checkWitnessPresent,
   VERIFICATION_CHECKS,
 } from '../../../src/verify/checks.js';
 import type { VerifyContext } from '../../../src/verify/types.js';
@@ -865,14 +865,14 @@ describe('checkMinUtxo', () => {
 });
 
 // ---------------------------------------------------------------------------
-// checkWitness
+// checkWitnessPresent (presence pre-filter — NOT cryptographic verification)
 // ---------------------------------------------------------------------------
 
-describe('checkWitness', () => {
+describe('checkWitnessPresent', () => {
   it('passes when witnesses are present', () => {
     const ctx = makeCtx();
     ctx._parsedTx = makeParsedTx({ hasWitnesses: true });
-    const result = checkWitness(ctx);
+    const result = checkWitnessPresent(ctx);
     expect(result.check).toBe('witness');
     expect(result.passed).toBe(true);
   });
@@ -880,7 +880,7 @@ describe('checkWitness', () => {
   it('fails when witnesses are absent', () => {
     const ctx = makeCtx();
     ctx._parsedTx = makeParsedTx({ hasWitnesses: false });
-    const result = checkWitness(ctx);
+    const result = checkWitnessPresent(ctx);
     expect(result.check).toBe('witness');
     expect(result.passed).toBe(false);
     expect(result.reason).toBe('missing_witness');
@@ -888,9 +888,36 @@ describe('checkWitness', () => {
 
   it('returns cbor_required when _parsedTx is missing', () => {
     const ctx = makeCtx();
-    const result = checkWitness(ctx);
+    const result = checkWitnessPresent(ctx);
     expect(result.passed).toBe(false);
     expect(result.reason).toBe('cbor_required');
+  });
+
+  // ---- H3 contract lock-in ----
+
+  // The function is INTENTIONALLY a presence-only pre-filter. It does NOT
+  // verify that the witness bytes are a valid Ed25519 signature, that the
+  // vkey hash matches any input address, or that the witness count covers
+  // every required signer. Cardano nodes perform all of those when the tx
+  // is submitted; duplicating that here would be both wasteful and a place
+  // future bugs could let bad payments through "verified". This test exists
+  // to make a future "improve witness check" PR have to consciously decide
+  // whether to (a) implement real Ed25519 verification end-to-end, or
+  // (b) leave the contract alone.
+  it('passes when the witness slot is non-empty even if the inner bytes would not validate on-chain', () => {
+    // hasWitnesses just reflects "vkeywitnesses array exists and is non-empty"
+    // per src/verify/cbor.ts. The byte contents are not inspected.
+    const ctx = makeCtx();
+    ctx._parsedTx = makeParsedTx({
+      hasWitnesses: true,
+      // (other fields default to mock values — the point is that we don't
+      // need a *real* signature for this check to pass.)
+    });
+    const result = checkWitnessPresent(ctx);
+    expect(result.passed).toBe(true);
+    // Document the contract in the assertion message so a grep for it
+    // surfaces the design rationale:
+    // "presence-only — chain submission rejects bad signatures"
   });
 });
 
@@ -997,7 +1024,7 @@ describe('VERIFICATION_CHECKS', () => {
     expect(VERIFICATION_CHECKS[4]).toBe(checkRecipient);
     expect(VERIFICATION_CHECKS[5]).toBe(checkAmount);
     expect(VERIFICATION_CHECKS[6]).toBe(checkMinUtxo);
-    expect(VERIFICATION_CHECKS[7]).toBe(checkWitness);
+    expect(VERIFICATION_CHECKS[7]).toBe(checkWitnessPresent);
     expect(VERIFICATION_CHECKS[8]).toBe(checkTtl);
     expect(VERIFICATION_CHECKS[9]).toBe(checkFee);
     expect(VERIFICATION_CHECKS[10]).toBe(checkNonce);

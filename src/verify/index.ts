@@ -42,7 +42,7 @@ export {
   checkRecipient,
   checkAmount,
   checkMinUtxo,
-  checkWitness,
+  checkWitnessPresent,
   checkTtl,
   checkFee,
   VERIFICATION_CHECKS,

@@ -58,7 +58,16 @@ enforces:
 | 6   | TTL / expiry                               | `checkTtl`        | Implemented |
 
 Plus cardano402 extras (defensive, not required by spec): `checkCborValid`,
-`checkWitness`, `checkMinUtxo`, `checkFee`.
+`checkWitnessPresent`, `checkMinUtxo`, `checkFee`.
+
+`checkWitnessPresent` is a **presence pre-filter only** — it confirms the
+vkey witness slot is non-empty. Cryptographic signature validation (vkey ↔
+payment address, signature ↔ tx hash) happens on-chain when the Cardano
+node accepts the submitted tx. The facilitator does NOT duplicate that
+check; a tx with garbage witness bytes will pass the presence filter and
+then be rejected by the chain (returned to the caller as
+`invalid_transaction`). See `src/verify/checks.ts:checkWitnessPresent` for
+the contract.
 
 ### `PAYMENT-RESPONSE` header
 
