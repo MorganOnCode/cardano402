@@ -1,0 +1,72 @@
+# Dependency Review — PR-time check against vulnerable or license-
+# incompatible dependency additions.
+#
+# Runs only on pull_request events. Compares the PR's manifest changes
+# (package.json / pnpm-lock.yaml) against the base branch and blocks
+# the PR if a new dependency:
+#
+#   - Has a known vulnerability of severity >= the configured threshold
+#   - Carries a license that isn't on our allowlist
+#
+# Complements the existing CI security tooling:
+#   - pnpm audit (in ci.yml Security Audit job) is informational only.
+#   - Dependabot opens PRs for upstream bumps but doesn't gate
+#     human-authored PRs that add new deps.
+#   - OSV-Scanner (#79) catches known-vulnerable existing deps but
+#     focuses on the lockfile state, not the PR diff.
+#
+# Dependency Review fills the "PR introduces a new vulnerable or
+# unacceptably-licensed dep" gap.
+#
+# Reference: https://github.com/actions/dependency-review-action
+
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+  # Required so the action can post a summary comment on the PR.
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          # Block on any new vulnerability >= moderate. `high` would
+          # miss the moderate-severity transitives that bit us in PR
+          # #76's audit-cleanup. `low` is too noisy for a typical
+          # change.
+          fail-on-severity: moderate
+
+          # License allowlist. cardano402 ships under Apache-2.0 and
+          # the resource-server SDK consumers also need compatible
+          # licenses. This list mirrors what was in tree at PR time;
+          # if a new dep needs an unlisted license, the PR review
+          # decides explicitly rather than via silent merge.
+          allow-licenses: >
+            Apache-2.0,
+            MIT,
+            BSD-2-Clause,
+            BSD-3-Clause,
+            ISC,
+            CC0-1.0,
+            CC-BY-4.0,
+            0BSD,
+            Unlicense,
+            BlueOak-1.0.0,
+            Python-2.0,
+            MPL-2.0
+
+          # Show what changed on the PR for human eyes.
+          comment-summary-in-pr: on-failure
