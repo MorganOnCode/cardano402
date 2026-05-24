@@ -63,12 +63,23 @@ function isLoopbackOrigin(origin: string): boolean {
   }
 }
 
+// Length-cap defends against pathological inputs; no real Authorization
+// header will ever be this long.
+const MAX_AUTH_HEADER_LENGTH = 8192;
+
 function readBearer(req: IncomingMessage): string | null {
   const header = req.headers['authorization'];
   const value = Array.isArray(header) ? header[0] : header;
-  if (!value) return null;
-  const m = /^Bearer\s+(.+)$/i.exec(value);
-  return m ? m[1].trim() : null;
+  if (!value || value.length > MAX_AUTH_HEADER_LENGTH) return null;
+  // Parse without a backtracking regex (CodeQL js/polynomial-redos): a
+  // greedy `\s+(.+)$` on attacker-controlled input is a classic ReDoS shape.
+  if (value.length < 7) return null;
+  if (value.slice(0, 6).toLowerCase() !== 'bearer') return null;
+  const sep = value.charCodeAt(6);
+  // Require exactly one of SP / HT / CR / LF after "Bearer" — RFC 7235 SP.
+  if (sep !== 0x20 && sep !== 0x09 && sep !== 0x0d && sep !== 0x0a) return null;
+  const token = value.slice(7).trim();
+  return token.length > 0 ? token : null;
 }
 
 /**
