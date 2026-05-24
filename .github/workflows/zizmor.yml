@@ -1,0 +1,67 @@
+# zizmor — static analysis for GitHub Actions workflows.
+#
+# Catches the class of misconfiguration that CodeQL + OSV-Scanner +
+# gitleaks don't: insecure patterns in our OWN workflow files. Things
+# like unpinned third-party actions (an action hijacked at a floating
+# tag — the tj-actions/changed-files compromise pattern), secret bleed
+# through expression interpolation, the pull_request_target footgun,
+# excessive token permissions, etc.
+#
+# SARIF output appears under Security → Code scanning, alongside the
+# CodeQL and OSV-Scanner findings. Findings at >=low severity surface
+# in PR review.
+#
+# Reference: https://docs.zizmor.sh/
+
+name: zizmor
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    # Weekly catch-all in case zizmor publishes a new rule against a
+    # pattern in an already-merged workflow. Thursday 04:31 UTC, off-
+    # peak and out of main work hours.
+    - cron: '31 4 * * 4'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  zizmor:
+    name: zizmor (workflow static analysis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          # Full history so the GITHUB_TOKEN scope is recognised for
+          # online audits that resolve action @refs against upstream
+          # releases.
+          fetch-depth: 0
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@v0.5.6
+        with:
+          # `regular` persona is the default — focuses on findings most
+          # operators want surfaced. `pedantic` and `auditor` produce
+          # more noise; switch to those if doing a dedicated audit pass.
+          persona: regular
+          # Start at `high` for the initial roll-out. Our existing
+          # workflows already fail `unpinned-uses` (low) on every
+          # @v4 / @v3 tag — those are real but mechanical to fix and
+          # warrant their own focused SHA-pinning PR. Setting `high`
+          # surfaces the catastrophic patterns (template injection,
+          # secret bleed, hijack-at-floating-tag of a trusted action)
+          # without gating PRs on the existing technical debt.
+          #
+          # FOLLOW-UP: once the SHA-pinning PR lands, drop this to
+          # `medium` (or `low` if we also fix `dependabot-cooldown`).
+          # The findings are still surfaced in the workflow log + GH
+          # Security tab regardless of this gate.
+          min-severity: high
