@@ -1,0 +1,46 @@
+# Gitleaks — secret scanning on every push and PR.
+#
+# The repo already has a hardcoded grep for a few known secret prefixes
+# in the CI "Security Audit" step. Gitleaks complements that with the
+# pattern catalog the broader ecosystem maintains (AWS keys, GitHub
+# tokens, Stripe keys, Cardano seed phrases — anything with a known
+# shape). Catches the class of mistake that the C1 audit finding would
+# have shipped if not caught: a `chain.facilitator.seedPhrase` literal
+# accidentally committed in a refactor.
+#
+# Gitleaks is free for individual / single-account repos
+# (MorganOnCode). The `GITLEAKS_LICENSE` env var is only required for
+# org accounts.
+#
+# Reference: https://github.com/gitleaks/gitleaks-action
+
+name: Gitleaks
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan for secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so push events scan every new commit, not just
+          # the tip. Default fetch-depth: 1 would miss anything in
+          # commits between pushes.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # Pin gitleaks to a known version so a new release with
+          # different defaults doesn't change CI behavior overnight.
+          GITLEAKS_VERSION: 8.21.2
