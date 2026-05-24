@@ -4,16 +4,22 @@
 #
 # Complements the existing tooling rather than replacing it:
 #   - `pnpm audit` runs in CI but uses npm's GHSA feed and ignores some
-#     transitives.
+#     transitives. Informational, not PR-blocking.
 #   - Dependabot opens PRs for direct deps, doesn't scan against OSV
 #     in pull-request context.
 #   - CodeQL (.github/workflows/codeql.yml) covers semantic code flaws,
 #     not known-vulnerable dependency versions.
+#   - gitleaks (.github/workflows/gitleaks.yml) catches secrets, not
+#     vulnerable deps.
 #
-# OSV-Scanner fills the gap: per-PR check against the OSV database with
-# SARIF output that appears under Security → Code scanning, so any new
-# vulnerable transitive that lands in pnpm-lock.yaml fails review before
-# merge.
+# OSV-Scanner fills the per-PR-blocking-vuln-check gap. SARIF output
+# surfaces under Security → Code scanning, so any new vulnerable
+# transitive that lands in pnpm-lock.yaml fails review before merge.
+#
+# Follows the upstream canonical shape: top-level `permissions:` only
+# (per-job permissions can't be passed when calling a reusable
+# workflow), one job per trigger family, scan args following the
+# upstream example.
 #
 # Reference: https://github.com/google/osv-scanner-action
 
@@ -27,41 +33,30 @@ on:
   schedule:
     # Weekly catch-all in case the OSV database publishes a new advisory
     # against an already-merged dep version. Wednesday 04:23 UTC is off-
-    # peak and out of the main work hours.
+    # peak and out of main work hours.
     - cron: '23 4 * * 3'
 
 permissions:
+  # Required to upload SARIF to GitHub code scanning.
+  actions: read
   contents: read
   security-events: write
-  actions: read
 
 jobs:
   scan-pr:
-    name: Scan (pull request)
     if: ${{ github.event_name == 'pull_request' }}
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8
     with:
-      # Scan the whole repo. The action reads pnpm-lock.yaml directly,
-      # so workspace-wide transitives are covered.
       scan-args: |-
-        --recursive
-        --skip-git
+        --include-git-root
+        -r
         ./
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
 
   scan-branch:
-    name: Scan (push / scheduled)
     if: ${{ github.event_name != 'pull_request' }}
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
     with:
       scan-args: |-
-        --recursive
-        --skip-git
+        --include-git-root
+        -r
         ./
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
