@@ -44,3 +44,7 @@ jobs:
           # Pin gitleaks to a known version so a new release with
           # different defaults doesn't change CI behavior overnight.
           GITLEAKS_VERSION: 8.21.2
+          # Required by gitleaks-action v2 for PR scans (breaking change
+          # introduced in late 2024). Auto-provided by GitHub Actions; no
+          # secret to manage.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
