@@ -1,0 +1,69 @@
+# OpenSSF Scorecard — weekly supply-chain hygiene report.
+#
+# Runs the OpenSSF Scorecard checks against the repo and uploads
+# results to GitHub Security → Code scanning. Scorecard measures
+# practices the audit verdict explicitly called out: branch
+# protection, signed commits, token permissions, dependency-update
+# tools, fuzzing, SAST, etc. It doesn't run per-PR (it scores the
+# whole repo, not a diff), so push-to-master + weekly cron is the
+# correct trigger.
+#
+# Output also appears on the OpenSSF Scorecard public dashboard
+# (https://securityscorecards.dev/viewer/?uri=github.com/MorganOnCode/cardano402)
+# — useful for advertising supply-chain posture without operator
+# effort.
+#
+# Reference: https://github.com/ossf/scorecard-action
+
+name: Scorecard supply-chain security
+
+on:
+  push:
+    branches: [master]
+  schedule:
+    # Weekly. Friday 04:37 UTC; off-peak, out of business hours.
+    - cron: '37 4 * * 5'
+  workflow_dispatch:
+
+# Read-only by default — Scorecard needs `security-events: write` to
+# upload SARIF and `id-token: write` to mint the signed token that
+# proves to securityscorecards.dev that this run came from this repo.
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      security-events: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@99c09fe975337306107572b4fdf4db224cf8e2f2 # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publish results to https://securityscorecards.dev so
+          # consumers can see our score without running the tool
+          # themselves. Public-good visibility for an open-source
+          # project; flip to `false` to keep scores internal.
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@03e4368ac7daa2bd82b3e85262f3bf87ee112f57 # v3
+        with:
+          sarif_file: results.sarif
