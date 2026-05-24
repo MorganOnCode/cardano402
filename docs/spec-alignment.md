@@ -19,6 +19,30 @@ clear contract for future implementers of `script`.
 
 ## Section-by-section status
 
+### Trust model: what `/verify` attests
+
+Before the section-by-section breakdown, the load-bearing rule for
+anyone integrating against `/verify` or `/settle`:
+
+> `/verify` and `/settle` attest that *the supplied transaction
+> satisfies the supplied `paymentRequirements`* — nothing more. The
+> requirements are inputs to the verifier, not outputs from it. The
+> facilitator has no way to know what your endpoint should cost; it
+> only checks what you tell it to check.
+>
+> **`paymentRequirements` MUST be server-side configuration. Never
+> echo a client-submitted body to `/verify`.** A resource server that
+> forwards inbound `paymentRequirements` lets an attacker pay 1
+> lovelace to their own address and get a `isValid: true` response
+> — the attestation is *literally true* against the attacker's chosen
+> requirements.
+
+The cardano402 SDK's `createPaymentGate({ payTo, amount, ... })` bakes
+the right shape in (requirements come from gate constructor args, not
+from request bodies). If you build your own gate or call the
+facilitator directly, you own this invariant. Full discussion in
+[`docs/open-posture.md`](open-posture.md#what-verify-attests).
+
 ### `PaymentRequirementsResponse`
 
 | Field                | Status                                   |

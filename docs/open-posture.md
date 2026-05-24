@@ -60,3 +60,63 @@ facilitator backend has operators, and a server's hosting provider
 matters. What it is: a commitment that those choices are yours, not
 ours, and that nothing in the protocol forces you through a single
 gateway.
+
+## What `/verify` attests
+
+The open posture above has a direct consequence for how the facilitator
+is designed: `/verify` and `/settle` are **public endpoints**. Anyone
+can POST to them. That is the point — the facilitator is a commodity
+witness, not a gatekeeper.
+
+Concretely, `/verify` reads `paymentRequirements` (the `payTo`,
+`amount`, `asset`, `network`, `maxTimeoutSeconds`) from the request
+body and attests one thing:
+
+> *The supplied transaction satisfies the supplied requirements.*
+
+The facilitator has no way to know what your endpoint *should* cost.
+It cannot tell whether the requirements came from your server-side
+config or from the inbound client's body. It just checks: does the
+tx the caller handed me satisfy the requirements the caller handed me?
+
+### The trust failure to avoid
+
+If a resource server naïvely forwards a client-submitted
+`paymentRequirements` body to `/verify`, an attacker can supply their
+own requirements and a tx that satisfies them — e.g.
+`{payTo: "<attacker's address>", amount: "1"}` paired with a 1-lovelace
+self-transfer. The facilitator returns `isValid: true` because the
+attestation is *literally true* — the tx really does satisfy that
+(attacker-chosen) requirement. The resource server, treating the
+`isValid` as proof of payment to *itself*, serves the requested
+resource. The attacker gets paid content for 1 lovelace.
+
+This is not a facilitator bug. It is a misuse pattern enabled by the
+open posture. The fix is one rule:
+
+> **`paymentRequirements` MUST be server-side configuration. Never
+> echo client input.**
+
+The resource server holds the canonical price-list. Per-request, the
+resource server constructs `paymentRequirements` from its own state —
+typically by route, optionally with method/path-based pricing — and
+includes those fixed requirements in the `/verify` call. The inbound
+client supplies the **transaction** (`paymentPayload`); the resource
+server supplies the **requirements** (`paymentRequirements`). These
+two inputs come from different trust domains and must stay separated.
+
+The cardano402 SDK's `createPaymentGate({ payTo, amount, ... })`
+populates `paymentRequirements` from values you pass at construction
+time, so the correct pattern is built in. If you build your own gate
+or call the facilitator directly, you own this invariant.
+
+### Future hardening (optional)
+
+A future facilitator could accept an HMAC-signed `paymentRequirements`
+envelope, so a resource server can verify the requirements coming back
+to it are the ones it originally issued. That would defend against a
+more elaborate attack where the resource server's gate is correct but
+something between it and the facilitator (a proxy, a malicious
+extension) tampers with the requirements in flight. The current
+facilitator does not implement this; it is tracked as a possible
+addition to the x402 spec rather than a unilateral cardano402 extension.

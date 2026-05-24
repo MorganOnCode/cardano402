@@ -3,6 +3,13 @@
 // Validates the request body with Zod, assembles a VerifyContext from the
 // parsed request plus server state, calls settlePayment(), and returns the
 // result. Aligned with x402 V2 spec (same request shape as /verify).
+//
+// CALLER TRUST CONTRACT (audit H2):
+//   Same model as /verify -- `paymentRequirements` MUST be server-side
+//   config, NEVER echoed client input. Settlement only attests the
+//   tx satisfies the supplied requirements; it cannot tell whether
+//   those requirements came from the resource server's price-list or
+//   the attacker's request body. See README.md "Trust model".
 
 import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';
