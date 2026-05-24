@@ -25,24 +25,40 @@ BLOCKFROST_KEY="preview..." \
 
 Flags:
 
-| Flag                  | Default   | Notes                                                          |
-|-----------------------|-----------|----------------------------------------------------------------|
-| `--catalog <url>`     | required  | Or set `CARDANO402_CATALOG_URL`                                |
-| `--transport <name>`  | `stdio`   | `stdio` for local clients, `http` for Streamable HTTP          |
-| `--port <n>`          | `3333`    | Only used when `--transport http`                              |
-| `--network <name>`    | `Preview` | `Preview`, `Preprod`, or `Mainnet`                             |
-| `-h`, `--help`        |           | Print usage                                                    |
+| Flag                              | Default       | Notes                                                                                             |
+|-----------------------------------|---------------|---------------------------------------------------------------------------------------------------|
+| `--catalog <url>`                 | required      | Or set `CARDANO402_CATALOG_URL`                                                                   |
+| `--transport <name>`              | `stdio`       | `stdio` for local clients, `http` for Streamable HTTP                                             |
+| `--port <n>`                      | `3333`        | Only used when `--transport http`                                                                 |
+| `--listen-host <host>`            | `127.0.0.1`   | HTTP listen interface. Anything non-loopback **requires** `--http-bearer-token`                   |
+| `--network <name>`                | `Preview`     | `Preview`, `Preprod`, or `Mainnet`                                                                |
+| `--max-amount-per-call <lovelace>`| `5_000_000`   | Hard cap per signed transaction (5 ADA default)                                                   |
+| `--max-amount-per-day <lovelace>` | `50_000_000`  | Rolling 24h cap on signed amount (50 ADA default)                                                 |
+| `--pay-to-allowlist <a,b,c>`      | none          | Refuse to sign to addresses outside this comma-separated list                                     |
+| `--mainnet-confirmed-tools <a,b,c>` | none        | Required to register any tool whose catalog `network` is `cardano:mainnet`                        |
+| `--elicitation-threshold <lovelace>` | per-call cap | Amount above which an MCP `elicitation/create` confirmation is requested before signing       |
+| `--http-bearer-token <token>`     | none          | Require `Authorization: Bearer <token>` on every HTTP transport request                           |
+| `--http-origin-allowlist <a,b,c>` | loopback only | Additional `Origin` header values to accept                                                       |
+| `-h`, `--help`                    |               | Print usage                                                                                       |
 
 Environment:
 
-| Variable                       | Notes                                                                   |
-|--------------------------------|-------------------------------------------------------------------------|
-| `SEED_PHRASE`                  | 24-word seed phrase for the wallet that will fund payments (required)   |
-| `BLOCKFROST_KEY`               | Blockfrost project ID for the chosen network (required)                 |
-| `CARDANO402_CATALOG_URL`       | Alternative to `--catalog`                                              |
-| `CARDANO402_NETWORK`           | Alternative to `--network`                                              |
-| `CARDANO402_ALLOW_INSECURE`    | `true` to permit non-HTTPS catalog URLs (default off)                   |
-| `MAINNET`                      | `true` is required to opt into a `Mainnet` connection                   |
+| Variable                              | Notes                                                                   |
+|---------------------------------------|-------------------------------------------------------------------------|
+| `SEED_PHRASE`                         | 24-word seed phrase for the wallet that will fund payments (required)   |
+| `BLOCKFROST_KEY`                      | Blockfrost project ID for the chosen network (required)                 |
+| `CARDANO402_CATALOG_URL`              | Alternative to `--catalog`                                              |
+| `CARDANO402_NETWORK`                  | Alternative to `--network`                                              |
+| `CARDANO402_ALLOW_INSECURE`           | `true` to permit non-HTTPS catalog URLs + private-CIDR base URLs        |
+| `MAINNET`                             | `true` is required to opt into a `Mainnet` connection                   |
+| `CARDANO402_LISTEN_HOST`              | Alternative to `--listen-host`                                          |
+| `MCP_HTTP_BEARER_TOKEN`               | Alternative to `--http-bearer-token`                                    |
+| `MCP_HTTP_ORIGIN_ALLOWLIST`           | Alternative to `--http-origin-allowlist`                                |
+| `CARDANO402_MAX_AMOUNT_PER_CALL`      | Alternative to `--max-amount-per-call`                                  |
+| `CARDANO402_MAX_AMOUNT_PER_DAY`       | Alternative to `--max-amount-per-day`                                   |
+| `CARDANO402_PAY_TO_ALLOWLIST`         | Alternative to `--pay-to-allowlist`                                     |
+| `CARDANO402_MAINNET_CONFIRMED_TOOLS`  | Alternative to `--mainnet-confirmed-tools`                              |
+| `CARDANO402_ELICITATION_THRESHOLD`    | Alternative to `--elicitation-threshold`                                |
 
 ## Claude Desktop / Cursor config
 
@@ -97,6 +113,32 @@ cased method, underscore, sanitised path. For example, a catalog entry
 
 ## Security posture
 
+- **Per-call + per-day spending caps.** Refuses to sign a payment that
+  exceeds `--max-amount-per-call` (default 5 ADA) or that would push
+  the rolling 24-hour total over `--max-amount-per-day` (default 50
+  ADA). Optional `--pay-to-allowlist` rejects signings to addresses
+  outside the list. The gate runs *before* the signer touches a UTXO.
+- **MCP elicitation/confirmation for large payments.** When the
+  requested amount exceeds `--elicitation-threshold` (defaults to the
+  per-call cap), the server sends an MCP `elicitation/create` request
+  to the client and requires an explicit `yes` before signing.
+- **HTTP transport defaults to loopback.** `--transport http` binds
+  `127.0.0.1` by default. Anything else requires `--http-bearer-token`
+  (so a wallet RPC is never exposed on a LAN/WAN without auth). The
+  transport also checks the `Origin` header (loopback +
+  `--http-origin-allowlist` only) and the bearer token on every
+  request.
+- **Mainnet tools are opt-in per-tool.** Catalog endpoints whose
+  `network` is `cardano:mainnet` are dropped at register-time unless
+  the operator names the derived tool in `--mainnet-confirmed-tools`.
+  This is on top of the existing `MAINNET=true` env-var gate.
+- **SSRF guard.** `catalog.server.url` and the catalog URL itself are
+  rejected if they resolve to a private, loopback, link-local, CGNAT,
+  multicast, ULA, or IPv4-mapped IPv6 address (`169.254.169.254`,
+  `fc00::/7`, etc) — unless `CARDANO402_ALLOW_INSECURE=true`.
+- **Path validation.** Endpoint paths containing `..`, NUL bytes,
+  whitespace, CR/LF, or anything that looks like an absolute URL are
+  rejected at register-time.
 - The signing wallet's seed phrase is read from `SEED_PHRASE` and lives
   only in process memory. It is never logged.
 - By default the server refuses to fetch a non-HTTPS catalog URL or to
@@ -107,6 +149,11 @@ cased method, underscore, sanitised path. For example, a catalog entry
 - Before paying, the live `402` response is cross-checked against the
   catalog: a resource server that quotes a different `payTo` / `amount`
   / `network` at runtime than its catalog advertised is refused.
+- The resource-server response body is nested under
+  `__rawFromUntrustedResourceServer` in the tool's structured output so
+  attacker-supplied keys can't shadow `status`, `payment`, or
+  `contentType`. Catalog descriptions are stripped of control chars
+  and wrapped in an "untrusted catalog description" envelope.
 
 See the cardano402 root [`SECURITY.md`](../../SECURITY.md) for the
 disclosure channel.
@@ -114,6 +161,14 @@ disclosure channel.
 ## Known issues / consumer-side overrides
 
 ### `libsodium-wrappers-sumo` transitive resolution
+
+> **0.1.2 update:** the published package now ships an npm-format
+> `overrides` block pinning `libsodium-wrappers-sumo` and
+> `libsodium-sumo` to `0.8.2`. That covers consumers installing via
+> `npm` or `yarn` (both honor top-level `overrides` from the installed
+> package's manifest). **pnpm consumers still need their own
+> `pnpm.overrides` block** — pnpm only reads `overrides` from the
+> workspace root, not from transitives.
 
 On a fresh `npm install` / `pnpm add` of this package, Lucid Evolution's
 deep transitive `@cardano-sdk/crypto` pulls in
@@ -192,7 +247,8 @@ payment loop or signer.
 
 ## Status
 
-`0.1.0`. End-to-end verified against Cardano Preview testnet on
-2026-05-23 (tx `2845a731c935348ba2ba620b50640c7e3553da717773c1f8456decd49fe2dab7`).
-See `CHANGELOG.md` for the proof and `scripts/smoke.mjs` for the
-repeatable harness.
+`0.1.2`. Security release fixing C5 (no spending limits), H10
+(LAN-exposed HTTP transport), and H11 (SSRF via `catalog.server.url`).
+See `CHANGELOG.md` for full notes and the linked GHSA. `0.1.1` end-to-end
+proof tx (unchanged signer code path):
+`2845a731c935348ba2ba620b50640c7e3553da717773c1f8456decd49fe2dab7`.

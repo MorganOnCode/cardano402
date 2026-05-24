@@ -2,6 +2,115 @@
 
 All notable changes to `@cardano402/mcp-server` are documented here.
 
+## 0.1.2 — security: spending limits, loopback default, SSRF guard
+
+Security release. Closes three vulnerabilities in `0.1.1` (and earlier) that
+let an LLM (or LAN-resident attacker) drain the configured signing wallet.
+GHSA filed alongside this release. Upgrade is strongly recommended,
+especially for any consumer running with `--transport http` or on Mainnet.
+
+### Fixed (security)
+
+- **Spending limits (C5).** `payAndFetch` now refuses to sign if the
+  requested amount exceeds `maxAmountPerCall` (default `5_000_000`
+  lovelace = 5 ADA) or would push the rolling 24h total over
+  `maxAmountPerDay` (default `50_000_000` = 50 ADA). Optional
+  `payToAllowlist` rejects signings to addresses outside the list. The
+  gate runs *before* `signer.signPayment` so a refused call burns no
+  wallet UTXOs or daily budget. New CLI flags: `--max-amount-per-call`,
+  `--max-amount-per-day`, `--pay-to-allowlist`. Env equivalents:
+  `CARDANO402_MAX_AMOUNT_PER_CALL`, `CARDANO402_MAX_AMOUNT_PER_DAY`,
+  `CARDANO402_PAY_TO_ALLOWLIST`.
+- **MCP elicitation/confirmation hook for large payments.** When the
+  requested amount exceeds `--elicitation-threshold` (defaults to
+  `--max-amount-per-call`), the server now issues an MCP
+  `elicitation/create` request and requires an explicit user `yes`
+  before signing. Anything other than `accept` aborts the sign.
+- **HTTP transport defaults to loopback (H10).** `cardano402-mcp
+  --transport http` now binds `127.0.0.1` by default. Opting into a
+  non-loopback host (`--listen-host 0.0.0.0`) requires
+  `--http-bearer-token` (or `MCP_HTTP_BEARER_TOKEN`); otherwise startup
+  refuses. The transport also enforces:
+  - **`Origin` header allowlist.** Requests with a non-loopback `Origin`
+    that is not in `--http-origin-allowlist` are rejected with 403.
+  - **Bearer token check.** When `--http-bearer-token` is configured,
+    every request must echo it via `Authorization: Bearer <token>`;
+    otherwise 401 with a `WWW-Authenticate: Bearer` header.
+- **Mainnet tool registration is opt-in per tool.** Endpoints whose
+  catalog `network` is `cardano:mainnet` are dropped at register-time
+  unless the operator named the derived tool in
+  `--mainnet-confirmed-tools` (`CARDANO402_MAINNET_CONFIRMED_TOOLS`).
+  This is in addition to the existing `MAINNET=true` env-var gate.
+- **SSRF via `catalog.server.url` (H11).** `resolveBaseUrl` is now
+  validated through `assertPublicUrl` at register-time. Private,
+  loopback, link-local, CGNAT, multicast, ULA, and IPv4-mapped IPv6
+  variants of all of those are rejected unless `CARDANO402_ALLOW_INSECURE=true`.
+  The same check now also fires on the catalog URL itself in
+  `fetchCatalog`.
+- **Path validation (H11).** `endpoint.path` is rejected at register-time
+  if it contains `..`, NUL bytes, embedded whitespace / CR / LF, an
+  absolute URL, or a protocol-relative `//host/...` form.
+- **Single canonical `Payment-Signature` header on retry (M20).** The
+  retry no longer duplicates the header as `PAYMENT-SIGNATURE`. HTTP
+  headers are case-insensitive so spec-compliant gates are unaffected;
+  the change closes off downstream tools that picked the duplicate
+  and produced inconsistent telemetry.
+- **Resource-server body nested under `__rawFromUntrustedResourceServer`
+  (M14).** Attacker-supplied response keys can no longer shadow
+  `status`, `payment`, or `contentType` in the tool's structured
+  output.
+- **Tool descriptions sanitised + envelope-wrapped (M13).** Catalog
+  `description` strings are stripped of control chars, length-capped at
+  2000 chars, and rendered inside a clearly-labelled "untrusted catalog
+  description" envelope so prompt injection from a hostile catalog is
+  harder to disguise as authoritative instructions.
+- **`requestTimeoutMs` ceiling lowered to 120s (M21).** Previously
+  600s; that's longer than any reasonable x402 settlement window and
+  amplifies the cost of a stuck request.
+- **Bundled libsodium override hint (CHANGELOG carry-over).** The
+  package now ships an npm-format `overrides` block pinning
+  `libsodium-wrappers-sumo` and `libsodium-sumo` to `0.8.2`. This
+  works for `npm install @cardano402/mcp-server` and `yarn add` (which
+  honor top-level `overrides` from the installed package's manifest).
+  pnpm consumers still need their own `pnpm.overrides` block — see
+  `Known issue` below.
+
+### Added
+
+- New CLI flags + env vars:
+  `--listen-host` (`CARDANO402_LISTEN_HOST`),
+  `--http-bearer-token` (`MCP_HTTP_BEARER_TOKEN`),
+  `--http-origin-allowlist` (`MCP_HTTP_ORIGIN_ALLOWLIST`),
+  `--max-amount-per-call` / `--max-amount-per-day` / `--pay-to-allowlist`,
+  `--mainnet-confirmed-tools`,
+  `--elicitation-threshold` (`CARDANO402_ELICITATION_THRESHOLD`).
+- `SpendTracker` class (exported) for callers that want to enforce
+  spending limits in their own glue code without `cardano402-mcp`'s
+  full server loop.
+
+### Changed
+
+- `StartResult.httpPort` now reports the *actually bound* port (useful
+  when callers pass `httpPort: 0` to let the OS pick).
+- `StartResult` gained `httpHost: string` for observability.
+
+### Disclosure / migration notes
+
+- `0.1.1` will be `npm deprecate`d after this release with a pointer
+  to the GHSA.
+- `0.1.0` remains deprecated for the `EUNSUPPORTEDPROTOCOL` install
+  failure documented in the `0.1.1` notes.
+- Consumers who were running `0.1.1` on Mainnet with `--transport http`
+  on a non-loopback interface should rotate their hot wallet seed
+  before upgrading.
+
+### Tests
+
+89 unit tests (up from 37). 52 new test cases cover spend tracking,
+elicitation, SSRF / private-CIDR + IPv6-mapped variants, path
+traversal, HTTP transport loopback default, Origin rejection, bearer
+token rejection, mainnet tool gating.
+
 ## 0.1.1 — publish-correctness fix
 
 Hotfix release. `0.1.0` shipped via bare `npm publish` (chosen for
