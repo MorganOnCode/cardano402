@@ -355,14 +355,27 @@ export async function checkMinUtxo(ctx: VerifyContext): Promise<CheckResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Check 8: Witness presence
+// Check 8: Witness presence (NOT cryptographic verification)
 // ---------------------------------------------------------------------------
 
 /**
- * Validate that the transaction has at least one VKey witness (is signed).
- * Does NOT verify cryptographic signature validity -- that happens on-chain.
+ * Pre-filter that the transaction has at least one VKey witness present in
+ * the witness set. This is NOT a cryptographic signature check — it only
+ * confirms the witness slot is non-empty.
+ *
+ * Cryptographic signature validation (vkey ↔ payment address, signature ↔
+ * tx hash) is performed by Cardano nodes when the tx is submitted via
+ * Blockfrost. A tx that passes this presence check but carries garbage
+ * vkey/signature bytes will still be rejected by the chain — by design,
+ * this function does not duplicate that work.
+ *
+ * Renamed from `checkWitness` in PR audit-H3 to make the limited contract
+ * obvious to readers and to lock in that future "improve witness check"
+ * PRs MUST either (a) implement real Ed25519 verification via libsodium,
+ * or (b) leave this presence check alone — silently adding a buggy
+ * signer-identity check here would let an attacker forge "valid" payments.
  */
-export function checkWitness(ctx: VerifyContext): CheckResult {
+export function checkWitnessPresent(ctx: VerifyContext): CheckResult {
   if (!ctx._parsedTx) {
     return { check: 'witness', passed: false, reason: 'cbor_required' };
   }
@@ -579,7 +592,7 @@ export const VERIFICATION_CHECKS: VerifyCheck[] = [
   checkRecipient, // 5. Find matching output
   checkAmount, // 6. Check ADA or token amount
   checkMinUtxo, // 7. Check min UTXO ADA
-  checkWitness, // 8. Check signatures present
+  checkWitnessPresent, // 8. Pre-filter that witnesses exist; chain does the crypto
   checkTtl, // 9. Check TTL not expired
   checkFee, // 10. Check fee bounds
   checkNonce, // 11. Spec-mandated nonce (replay prevention)

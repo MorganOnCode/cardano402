@@ -37,9 +37,12 @@ That is it. Any x402 client or MCP-enabled agent can now pay for
   [x402 Cardano scheme](https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md)
   default method end-to-end with all six mandatory facilitator checks.
   See [`docs/spec-alignment.md`](docs/spec-alignment.md).
-- **Stricter than spec on safety.** 11 verification checks (CBOR
-  validity, witness, min UTXO, fee bounds in addition to the 6 spec
-  checks). On-chain confirmation polling. SHA-256 dedup.
+- **Stricter than spec on safety.** 10 facilitator-side checks (the 6
+  spec-mandated ones plus CBOR validity, min UTXO, fee bounds, and a
+  witness-presence pre-filter) — cryptographic signature validation
+  happens on-chain when the Cardano node accepts the submitted tx.
+  On-chain confirmation polling with operator-tunable depth gate. Body-
+  hash dedup so witness-reorder variants collide on the same key.
 - **Multi-token.** ADA plus a hardcoded registry of stablecoins (USDM,
   DJED, iUSD). Tokens added via code review only, not metadata
   spoofing.
