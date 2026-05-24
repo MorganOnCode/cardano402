@@ -35,7 +35,26 @@ Thanks for your interest in contributing. This guide covers development setup, c
 - **ESM-only** -- use `.js` extensions in imports
 - **Zod validation** on all external inputs
 - **Semicolons enabled** (Airbnb style)
-- Pre-commit hooks run lint + typecheck automatically
+- Pre-commit hooks run lint-staged, typecheck, and a `gitleaks protect --staged`
+  secret scan if `gitleaks` is on your PATH
+
+### Local gitleaks (recommended)
+
+The pre-commit hook runs `gitleaks protect --staged` to catch accidental
+secret commits before they leave your machine. CI runs the same check on
+push, so a missing local install is non-fatal — but installing it locally
+saves you from a force-push-with-history-rewrite if you ever slip.
+
+```bash
+# macOS
+brew install gitleaks
+
+# Linux (binary release)
+curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz -C /usr/local/bin gitleaks
+
+# Docker fallback (alias in your shell profile)
+alias gitleaks='docker run --rm -v $(pwd):/repo zricethezav/gitleaks:v8.21.2'
+```
 
 ## Testing
 

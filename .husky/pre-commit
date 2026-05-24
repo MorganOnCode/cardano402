@@ -1,2 +1,27 @@
 pnpm lint-staged
 pnpm typecheck
+
+# Local secret scan on staged files before they leave the working tree.
+# Mirrors the CI gitleaks workflow but catches mistakes BEFORE the push,
+# avoiding a force-push-with-history-rewrite when a secret slips in.
+#
+# Uses the repo's .gitleaks.toml (same allowlist as CI, so behavior
+# matches PR validation).
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --verbose --config .gitleaks.toml
+else
+  cat <<'EOF' >&2
+
+⚠ gitleaks is not installed. The pre-commit secret scan is being SKIPPED.
+  CI will still run the gitleaks workflow on push and block the PR if it
+  finds anything, but installing locally catches issues before then.
+
+  Install:
+    macOS:   brew install gitleaks
+    Linux:   https://github.com/gitleaks/gitleaks/releases
+    Docker:  alias gitleaks='docker run --rm -v $(pwd):/repo zricethezav/gitleaks:v8.21.2'
+
+  After installing, the hook will run automatically on future commits.
+
+EOF
+fi
