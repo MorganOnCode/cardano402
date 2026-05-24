@@ -3,6 +3,19 @@
 // Validates the request body with Zod, assembles a VerifyContext from the
 // parsed request plus server state, calls verifyPayment(), and returns the
 // result. All responses are HTTP 200 except truly unexpected server errors.
+//
+// CALLER TRUST CONTRACT (audit H2):
+//   The `paymentRequirements` field in the request body comes from the
+//   CALLER (typically a resource server). The facilitator does NOT and
+//   CANNOT distinguish caller-server-controlled requirements from
+//   echoed-client-input requirements. A resource server that naïvely
+//   forwards an inbound client body to this endpoint is vulnerable to
+//   the attacker substituting their own `payTo`/`amount` and getting
+//   `isValid: true` against a 1-lovelace self-transfer.
+//
+//   `paymentRequirements` MUST be server-side configuration.
+//   See README.md "Trust model" and docs/open-posture.md
+//   "What /verify attests" for the full discussion.
 
 import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';

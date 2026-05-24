@@ -91,6 +91,36 @@ Other methods receive `method_not_supported`.
 
 Full status: [`docs/spec-alignment.md`](docs/spec-alignment.md).
 
+## Trust model — what `/verify` and `/settle` attest
+
+The facilitator is a **witness**, not a policy engine. `/verify` and
+`/settle` attest to one specific thing:
+
+> *The supplied transaction satisfies the supplied `paymentRequirements`.*
+
+That's it. The requirements (`payTo`, `amount`, `asset`, `network`,
+`maxTimeoutSeconds`) are inputs to the verifier, not outputs from it.
+The facilitator does NOT know what your endpoint *should* cost — only
+that the tx in front of it matches the requirements your resource
+server told it to check.
+
+> ⚠ **`paymentRequirements` MUST be server-side configuration. Never
+> echo client input.** A resource server that forwards a client-
+> submitted `paymentRequirements` body to `/verify` can be tricked into
+> accepting `"I paid 1 lovelace to my own address"` as valid — the
+> facilitator will return `isValid: true` because the tx really does
+> satisfy that (attacker-chosen) requirement.
+
+The SDK's `createPaymentGate({ payTo, amount, ... })` populates
+`paymentRequirements` from values you pass at construction time, so the
+correct pattern is built in. Don't bypass it.
+
+If you build your own gate, the rule is: the resource server holds the
+canonical price-list. Per-request, the resource server constructs the
+`paymentRequirements` from its own state — never from the inbound
+client body. See [`docs/open-posture.md`](docs/open-posture.md#what-verify-attests)
+for the full discussion.
+
 ## Quick start (preview testnet)
 
 ### 1. Clone
