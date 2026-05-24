@@ -145,10 +145,11 @@ describe('payAndFetch', () => {
       status: 'confirmed',
     });
 
-    // Retry request must carry both header names with matching base64 payload.
+    // Retry request must carry exactly one canonical Payment-Signature
+    // header. Audit M20 — duplicate headers caused spec-misreads downstream.
     const retryHeaders = (calls[1].headers ?? {}) as Record<string, string>;
     expect(retryHeaders['Payment-Signature']).toBeDefined();
-    expect(retryHeaders['PAYMENT-SIGNATURE']).toBe(retryHeaders['Payment-Signature']);
+    expect(retryHeaders['PAYMENT-SIGNATURE']).toBeUndefined();
 
     const decoded = JSON.parse(
       Buffer.from(retryHeaders['Payment-Signature'], 'base64').toString('utf-8')

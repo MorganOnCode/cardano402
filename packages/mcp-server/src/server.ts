@@ -2,7 +2,7 @@
 // -> connect to the chosen transport.
 
 import { randomUUID } from 'node:crypto';
-import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
+import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer } from 'node:http';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -11,7 +11,9 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { fetchCatalog } from './catalog.js';
 import type { McpServerConfig } from './config.js';
 import { VERSION as SERVER_VERSION } from './generated-version.js';
+import type { ElicitConfirmation } from './payment.js';
 import { createLucidSeedSigner, type CardanoSigner } from './signer.js';
+import { SpendTracker } from './spend-tracker.js';
 import { registerTools } from './tools.js';
 
 export interface StartResult {
@@ -21,6 +23,8 @@ export interface StartResult {
   signerAddress: string;
   /** Resolved HTTP listen port (only meaningful when transport is `http`). */
   httpPort?: number;
+  /** Resolved HTTP listen host (only meaningful when transport is `http`). */
+  httpHost?: string;
   /** Tear down all open transports and HTTP listeners. */
   stop(): Promise<void>;
 }
@@ -32,6 +36,8 @@ export interface StartCardano402McpOptions extends McpServerConfig {
   fetchImpl?: typeof fetch;
   /** Optional structured logger — defaults to stderr so stdio stdout isn't polluted. */
   log?: (message: string, extra?: Record<string, unknown>) => void;
+  /** Override the elicitation callback (mainly for tests). */
+  elicitOverride?: ElicitConfirmation;
 }
 
 const defaultLog = (msg: string, extra?: Record<string, unknown>): void => {
@@ -40,6 +46,41 @@ const defaultLog = (msg: string, extra?: Record<string, unknown>): void => {
     `[cardano402-mcp] ${msg}${extra ? ` ${JSON.stringify(extra)}` : ''}\n`
   );
 };
+
+function isLoopbackHost(host: string): boolean {
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+  if (host.endsWith('.localhost')) return true;
+  if (/^127\./.test(host)) return true;
+  return false;
+}
+
+function isLoopbackOrigin(origin: string): boolean {
+  try {
+    const u = new URL(origin);
+    return isLoopbackHost(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+// Length-cap defends against pathological inputs; no real Authorization
+// header will ever be this long.
+const MAX_AUTH_HEADER_LENGTH = 8192;
+
+function readBearer(req: IncomingMessage): string | null {
+  const header = req.headers['authorization'];
+  const value = Array.isArray(header) ? header[0] : header;
+  if (!value || value.length > MAX_AUTH_HEADER_LENGTH) return null;
+  // Parse without a backtracking regex (CodeQL js/polynomial-redos): a
+  // greedy `\s+(.+)$` on attacker-controlled input is a classic ReDoS shape.
+  if (value.length < 7) return null;
+  if (value.slice(0, 6).toLowerCase() !== 'bearer') return null;
+  const sep = value.charCodeAt(6);
+  // Require exactly one of SP / HT / CR / LF after "Bearer" — RFC 7235 SP.
+  if (sep !== 0x20 && sep !== 0x09 && sep !== 0x0d && sep !== 0x0a) return null;
+  const token = value.slice(7).trim();
+  return token.length > 0 ? token : null;
+}
 
 /**
  * Boot a configured `@cardano402/mcp-server` instance.
@@ -56,6 +97,7 @@ export async function startCardano402Mcp(
   const catalog = await fetchCatalog(options.catalogUrl, {
     timeoutMs: options.requestTimeoutMs,
     fetchImpl: options.fetchImpl,
+    allowInsecure: options.allowInsecure,
   });
   log('catalog fetched', {
     endpoints: catalog.endpoints.length,
@@ -77,11 +119,60 @@ export async function startCardano402Mcp(
     version: SERVER_VERSION,
   });
 
+  const spendTracker = new SpendTracker({
+    maxAmountPerCall: options.maxAmountPerCall,
+    maxAmountPerDay: options.maxAmountPerDay,
+    payToAllowlist: options.payToAllowlist,
+  });
+
+  // Default elicitation threshold = per-call cap, so any signing that
+  // saturates the per-call limit requires a user accept. Operators can lower
+  // the threshold to require confirmation on smaller amounts.
+  const elicitationThreshold =
+    options.elicitationThresholdAmount ?? options.maxAmountPerCall;
+
+  const elicit: ElicitConfirmation =
+    options.elicitOverride ??
+    (async (args) => {
+      try {
+        const result = await server.server.elicitInput({
+          message:
+            `cardano402-mcp is about to sign a payment of ${args.amount.toString()} ` +
+            `${args.asset} on ${args.network} to ${args.payTo} for tool "${args.toolName}". ` +
+            `Type 'yes' to approve.`,
+          requestedSchema: {
+            type: 'object',
+            properties: {
+              approve: {
+                type: 'string',
+                description: 'Type "yes" to approve the signing; anything else declines.',
+              },
+            },
+            required: ['approve'],
+          },
+        });
+        if (result.action !== 'accept') return false;
+        const approve = (result.content as Record<string, unknown> | undefined)?.approve;
+        return typeof approve === 'string' && approve.trim().toLowerCase() === 'yes';
+      } catch (err) {
+        log('elicitation failed; treating as decline', { error: (err as Error).message });
+        return false;
+      }
+    });
+
+  const mainnetConfirmedTools = new Set(options.mainnetConfirmedTools);
+
   const toolNames = registerTools(server, {
     catalog,
     catalogUrl: options.catalogUrl,
     signer,
     requestTimeoutMs: options.requestTimeoutMs,
+    allowInsecure: options.allowInsecure,
+    spendTracker,
+    elicitationThreshold,
+    elicit,
+    mainnetConfirmedTools,
+    log,
   });
   log('tools registered', { count: toolNames.length, tools: toolNames });
 
@@ -100,11 +191,54 @@ export async function startCardano402Mcp(
   }
 
   // ---- HTTP (Streamable HTTP) ----
+  if (!isLoopbackHost(options.listenHost) && !options.httpBearerToken) {
+    log('refusing to start HTTP transport on a non-loopback host without a bearer token', {
+      listenHost: options.listenHost,
+    });
+    throw new Error(
+      `HTTP transport on '${options.listenHost}' requires --http-bearer-token / MCP_HTTP_BEARER_TOKEN; ` +
+        `set one or use --listen-host 127.0.0.1`
+    );
+  }
+  if (!isLoopbackHost(options.listenHost)) {
+    log('WARNING: HTTP transport is listening on a non-loopback host', {
+      listenHost: options.listenHost,
+      mitigations: ['bearer-token-required', 'origin-allowlist-enforced'],
+    });
+  }
+
+  const allowedOrigins = new Set(options.httpOriginAllowlist);
+
   const transports = new Map<string, StreamableHTTPServerTransport>();
 
   const httpServer: HttpServer = createHttpServer((req, res) => {
     void (async () => {
       try {
+        // ---- Origin check (loopback + allowlist) ----
+        const originHeader = req.headers['origin'];
+        const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+        if (origin !== undefined) {
+          const ok = isLoopbackOrigin(origin) || allowedOrigins.has(origin);
+          if (!ok) {
+            res.statusCode = 403;
+            res.setHeader('content-type', 'application/json');
+            res.end(JSON.stringify({ error: 'forbidden_origin' }));
+            return;
+          }
+        }
+
+        // ---- Bearer token (if configured) ----
+        if (options.httpBearerToken) {
+          const presented = readBearer(req);
+          if (presented !== options.httpBearerToken) {
+            res.statusCode = 401;
+            res.setHeader('content-type', 'application/json');
+            res.setHeader('www-authenticate', 'Bearer realm="cardano402-mcp"');
+            res.end(JSON.stringify({ error: 'unauthorized' }));
+            return;
+          }
+        }
+
         // Stateless mode is simpler but disables resumability and SSE
         // event replay. Keep stateful mode by default; one transport per
         // session id, generated server-side.
@@ -144,17 +278,26 @@ export async function startCardano402Mcp(
 
   await new Promise<void>((resolve, reject) => {
     httpServer.once('error', reject);
-    httpServer.listen(options.httpPort, () => {
+    httpServer.listen(options.httpPort, options.listenHost, () => {
       httpServer.off('error', reject);
       resolve();
     });
   });
-  log('listening', { transport: 'http', port: options.httpPort });
+  const address = httpServer.address();
+  const boundPort =
+    typeof address === 'object' && address !== null ? address.port : options.httpPort;
+  log('listening', {
+    transport: 'http',
+    host: options.listenHost,
+    port: boundPort,
+    bearer: options.httpBearerToken ? 'required' : 'not_set',
+  });
 
   return {
     toolNames,
     signerAddress,
-    httpPort: options.httpPort,
+    httpPort: boundPort,
+    httpHost: options.listenHost,
     async stop() {
       await new Promise<void>((resolve) => httpServer.close(() => resolve()));
       for (const t of transports.values()) {

@@ -18,15 +18,64 @@ export const SignerConfigSchema = z.object({
 });
 export type SignerConfig = z.infer<typeof SignerConfigSchema>;
 
+// Defaults chosen to be conservative — 5 ADA per call, 50 ADA per day. They
+// only matter on Mainnet (Preview/Preprod ADA is worthless) but they apply
+// uniformly so that local-test regressions in the cap logic show up before
+// they can hit Mainnet. Operators can raise either ceiling via CLI/env.
+const DEFAULT_MAX_PER_CALL_LOVELACE = 5_000_000n;
+const DEFAULT_MAX_PER_DAY_LOVELACE = 50_000_000n;
+
+// bigint-friendly zod helper: accept string | number | bigint, store as bigint.
+const BigintAmountSchema = z
+  .union([z.bigint(), z.string(), z.number()])
+  .transform((v, ctx) => {
+    try {
+      const n = typeof v === 'bigint' ? v : BigInt(v);
+      if (n < 0n) {
+        ctx.addIssue({ code: 'custom', message: 'amount must be non-negative' });
+        return z.NEVER;
+      }
+      return n;
+    } catch {
+      ctx.addIssue({ code: 'custom', message: `not a valid integer amount: ${String(v)}` });
+      return z.NEVER;
+    }
+  });
+
 export const McpServerConfigSchema = z.object({
   catalogUrl: z.string().url(),
   transport: TransportSchema.default('stdio'),
   httpPort: z.number().int().min(1).max(65535).default(3333),
+  /** Network interface for the HTTP transport. Defaults to loopback. */
+  listenHost: z.string().default('127.0.0.1'),
+  /** Optional bearer token required on every HTTP transport request. */
+  httpBearerToken: z.string().min(8).optional(),
+  /** Optional Origin allowlist for HTTP transport. Empty/undefined → loopback only. */
+  httpOriginAllowlist: z.array(z.string()).default([]),
   network: LucidNetworkSchema.default('Preview'),
   blockfrostKey: z.string().min(1),
   signer: SignerConfigSchema,
-  requestTimeoutMs: z.number().int().min(1000).max(600_000).default(60_000),
+  requestTimeoutMs: z.number().int().min(1000).max(120_000).default(60_000),
   allowInsecure: z.boolean().default(false),
+  /** Per-call hard cap on the lovelace amount the signer will sign. */
+  maxAmountPerCall: BigintAmountSchema.default(DEFAULT_MAX_PER_CALL_LOVELACE),
+  /** Rolling 24h cap on the lovelace amount the signer will sign. */
+  maxAmountPerDay: BigintAmountSchema.default(DEFAULT_MAX_PER_DAY_LOVELACE),
+  /** If set, refuse to sign to addresses outside this list. */
+  payToAllowlist: z.array(z.string().min(1)).optional(),
+  /**
+   * Amount in lovelace above which an MCP elicitation/create confirmation is
+   * requested before signing. Defaults to maxAmountPerCall so every signing
+   * that hits the per-call cap requires explicit confirmation, but the
+   * threshold can be lowered to require confirmation on smaller amounts too.
+   */
+  elicitationThresholdAmount: BigintAmountSchema.optional(),
+  /**
+   * Names of tools (matching the catalog-derived tool name, e.g. `post_api_x`)
+   * that may be registered even when their catalog network is cardano:mainnet.
+   * Any mainnet tool not in this list is dropped at registerTools time.
+   */
+  mainnetConfirmedTools: z.array(z.string().min(1)).default([]),
 });
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
 
@@ -50,7 +99,15 @@ export interface RawArgs {
   catalog?: string;
   transport?: string;
   port?: string;
+  listenHost?: string;
   network?: string;
+  maxAmountPerCall?: string;
+  maxAmountPerDay?: string;
+  payToAllowlist?: string;
+  mainnetConfirmedTools?: string;
+  httpBearerToken?: string;
+  httpOriginAllowlist?: string;
+  elicitationThreshold?: string;
   help?: boolean;
 }
 
@@ -60,39 +117,43 @@ export interface RawArgs {
  */
 export function parseArgs(argv: readonly string[]): RawArgs {
   const out: RawArgs = {};
+  const FLAG_KEYS: Record<string, keyof RawArgs> = {
+    '--catalog': 'catalog',
+    '--transport': 'transport',
+    '--port': 'port',
+    '--listen-host': 'listenHost',
+    '--network': 'network',
+    '--max-amount-per-call': 'maxAmountPerCall',
+    '--max-amount-per-day': 'maxAmountPerDay',
+    '--pay-to-allowlist': 'payToAllowlist',
+    '--mainnet-confirmed-tools': 'mainnetConfirmedTools',
+    '--http-bearer-token': 'httpBearerToken',
+    '--http-origin-allowlist': 'httpOriginAllowlist',
+    '--elicitation-threshold': 'elicitationThreshold',
+  };
+
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const next = argv[i + 1];
-    const consume = (key: keyof RawArgs): void => {
+    if (arg === '--help' || arg === '-h') {
+      out.help = true;
+      continue;
+    }
+    const direct = FLAG_KEYS[arg];
+    if (direct !== undefined) {
       if (next === undefined || next.startsWith('--')) {
         throw new Error(`Missing value for ${arg}`);
       }
-      (out as Record<string, string>)[key as string] = next;
+      (out as Record<string, string>)[direct as string] = next;
       i += 1;
-    };
-    switch (arg) {
-      case '--catalog':
-        consume('catalog');
-        break;
-      case '--transport':
-        consume('transport');
-        break;
-      case '--port':
-        consume('port');
-        break;
-      case '--network':
-        consume('network');
-        break;
-      case '--help':
-      case '-h':
-        out.help = true;
-        break;
-      default:
-        if (arg.startsWith('--catalog=')) out.catalog = arg.slice('--catalog='.length);
-        else if (arg.startsWith('--transport=')) out.transport = arg.slice('--transport='.length);
-        else if (arg.startsWith('--port=')) out.port = arg.slice('--port='.length);
-        else if (arg.startsWith('--network=')) out.network = arg.slice('--network='.length);
-        break;
+      continue;
+    }
+    const eqIdx = arg.indexOf('=');
+    if (eqIdx > 0) {
+      const key = arg.slice(0, eqIdx);
+      const val = arg.slice(eqIdx + 1);
+      const target = FLAG_KEYS[key];
+      if (target !== undefined) (out as Record<string, string>)[target as string] = val;
     }
   }
   return out;
@@ -108,6 +169,13 @@ const isLoopbackHost = (host: string): boolean =>
   host === '127.0.0.1' ||
   host === '[::1]' ||
   host === '::1';
+
+function parseCsv(value: string): string[] {
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
 
 /**
  * Resolve a fully-validated config from CLI args + environment.
@@ -176,14 +244,47 @@ export function loadConfig(input: LoadConfigInput = {}): McpServerConfig {
     throw new Error(`--port must be an integer, got '${args.port}'`);
   }
 
+  const listenHost = args.listenHost ?? env.CARDANO402_LISTEN_HOST;
+  const httpBearerToken = args.httpBearerToken ?? env.MCP_HTTP_BEARER_TOKEN;
+
+  const originAllowlistRaw =
+    args.httpOriginAllowlist ?? env.MCP_HTTP_ORIGIN_ALLOWLIST;
+  const httpOriginAllowlist = originAllowlistRaw ? parseCsv(originAllowlistRaw) : undefined;
+
+  const maxAmountPerCall =
+    args.maxAmountPerCall ?? env.CARDANO402_MAX_AMOUNT_PER_CALL;
+  const maxAmountPerDay =
+    args.maxAmountPerDay ?? env.CARDANO402_MAX_AMOUNT_PER_DAY;
+
+  const payToAllowlistRaw =
+    args.payToAllowlist ?? env.CARDANO402_PAY_TO_ALLOWLIST;
+  const payToAllowlist = payToAllowlistRaw ? parseCsv(payToAllowlistRaw) : undefined;
+
+  const mainnetConfirmedToolsRaw =
+    args.mainnetConfirmedTools ?? env.CARDANO402_MAINNET_CONFIRMED_TOOLS;
+  const mainnetConfirmedTools = mainnetConfirmedToolsRaw
+    ? parseCsv(mainnetConfirmedToolsRaw)
+    : undefined;
+
+  const elicitationThresholdAmount =
+    args.elicitationThreshold ?? env.CARDANO402_ELICITATION_THRESHOLD;
+
   return McpServerConfigSchema.parse({
     catalogUrl,
     transport: args.transport,
     httpPort,
+    listenHost,
+    httpBearerToken,
+    httpOriginAllowlist,
     network,
     blockfrostKey,
     signer: { type: 'seed', seedPhrase },
     allowInsecure,
+    maxAmountPerCall,
+    maxAmountPerDay,
+    payToAllowlist,
+    mainnetConfirmedTools,
+    elicitationThresholdAmount,
   });
 }
 
@@ -192,18 +293,40 @@ export function helpText(): string {
     'Usage: cardano402-mcp [options]',
     '',
     'Options:',
-    '  --catalog <url>       URL of /.well-known/x402.json (or set CARDANO402_CATALOG_URL)',
-    '  --transport <name>    "stdio" (default) or "http"',
-    '  --port <n>            HTTP transport port (default 3333)',
-    '  --network <name>      Preview | Preprod | Mainnet (default Preview)',
-    '  -h, --help            Show this help',
+    '  --catalog <url>                URL of /.well-known/x402.json (or set CARDANO402_CATALOG_URL)',
+    '  --transport <name>             "stdio" (default) or "http"',
+    '  --port <n>                     HTTP transport port (default 3333)',
+    '  --listen-host <host>           HTTP listen host (default 127.0.0.1; use 0.0.0.0 ONLY with --http-bearer-token)',
+    '  --network <name>               Preview | Preprod | Mainnet (default Preview)',
+    '  --max-amount-per-call <lovelace>',
+    '                                 Hard cap per signed transaction (default 5_000_000 = 5 ADA)',
+    '  --max-amount-per-day <lovelace>',
+    '                                 Rolling 24h cap on signed amount (default 50_000_000 = 50 ADA)',
+    '  --pay-to-allowlist <a,b,c>     Refuse to sign to addresses outside this comma-separated list',
+    '  --mainnet-confirmed-tools <a,b,c>',
+    '                                 Only register these tools when the catalog network is cardano:mainnet',
+    '  --http-bearer-token <token>    Require Authorization: Bearer <token> on every HTTP transport request',
+    '  --http-origin-allowlist <a,b,c>',
+    '                                 Additional Origin header values to accept (loopback is always allowed)',
+    '  --elicitation-threshold <lovelace>',
+    '                                 Trigger MCP elicitation/create before signing if amount > threshold',
+    '                                 (default = --max-amount-per-call so every cap-hit is confirmed)',
+    '  -h, --help                     Show this help',
     '',
     'Environment:',
-    '  SEED_PHRASE              24-word seed phrase for the signing wallet (required)',
-    '  BLOCKFROST_KEY           Blockfrost project ID for the chosen network (required)',
-    '  CARDANO402_CATALOG_URL   Alternative to --catalog',
-    '  CARDANO402_NETWORK       Alternative to --network',
-    '  CARDANO402_ALLOW_INSECURE=true  Allow non-HTTPS catalog URLs',
-    '  MAINNET=true             Required to opt into a Mainnet connection',
+    '  SEED_PHRASE                       24-word seed phrase for the signing wallet (required)',
+    '  BLOCKFROST_KEY                    Blockfrost project ID for the chosen network (required)',
+    '  CARDANO402_CATALOG_URL            Alternative to --catalog',
+    '  CARDANO402_NETWORK                Alternative to --network',
+    '  CARDANO402_ALLOW_INSECURE=true    Allow non-HTTPS catalog URLs + private-CIDR base URLs',
+    '  MAINNET=true                      Required to opt into a Mainnet connection',
+    '  CARDANO402_LISTEN_HOST            Alternative to --listen-host',
+    '  MCP_HTTP_BEARER_TOKEN             Alternative to --http-bearer-token',
+    '  MCP_HTTP_ORIGIN_ALLOWLIST         Alternative to --http-origin-allowlist',
+    '  CARDANO402_MAX_AMOUNT_PER_CALL    Alternative to --max-amount-per-call',
+    '  CARDANO402_MAX_AMOUNT_PER_DAY     Alternative to --max-amount-per-day',
+    '  CARDANO402_PAY_TO_ALLOWLIST       Alternative to --pay-to-allowlist',
+    '  CARDANO402_MAINNET_CONFIRMED_TOOLS  Alternative to --mainnet-confirmed-tools',
+    '  CARDANO402_ELICITATION_THRESHOLD  Alternative to --elicitation-threshold',
   ].join('\n');
 }

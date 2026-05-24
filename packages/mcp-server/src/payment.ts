@@ -16,6 +16,21 @@ import {
 
 import type { CatalogEndpoint } from './catalog.js';
 import type { CardanoSigner } from './signer.js';
+import type { SpendTracker } from './spend-tracker.js';
+
+/**
+ * Hook called before signing when the requested amount exceeds the
+ * configured elicitation threshold. Implementations should surface an
+ * MCP `elicitation/create` request to the client and return whether the
+ * user accepted. Throwing or returning `false` aborts the signing.
+ */
+export type ElicitConfirmation = (args: {
+  toolName: string;
+  amount: bigint;
+  asset: string;
+  payTo: string;
+  network: string;
+}) => Promise<boolean>;
 
 export interface PayAndFetchOptions {
   baseUrl: string;
@@ -27,6 +42,17 @@ export interface PayAndFetchOptions {
   signer: CardanoSigner;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  /** Tracker enforcing per-call/per-day caps. Omit to skip enforcement. */
+  spendTracker?: SpendTracker;
+  /**
+   * Lovelace threshold above which `elicit` must accept before signing.
+   * Ignored if `elicit` is undefined.
+   */
+  elicitationThreshold?: bigint;
+  /** Confirmation callback — typically wired to `mcpServer.server.elicitInput`. */
+  elicit?: ElicitConfirmation;
+  /** Tool name carried into the elicitation prompt; cosmetic only. */
+  toolName?: string;
 }
 
 export interface PayAndFetchResult {
@@ -44,7 +70,6 @@ export interface PayAndFetchResult {
 }
 
 const X402_HEADER_PRIMARY = 'Payment-Signature';
-const X402_HEADER_ALIAS = 'PAYMENT-SIGNATURE';
 const X402_RESPONSE_HEADER_PRIMARY = 'x-payment-response';
 const X402_RESPONSE_HEADER_ALIAS = 'payment-response';
 const X402_REQUIRED_HEADER = 'payment-required';
@@ -241,12 +266,38 @@ export async function payAndFetch(options: PayAndFetchOptions): Promise<PayAndFe
     required.accepts[0];
   ensureCatalogMatchesAccept(options.endpoint, accept);
 
+  // Pre-sign gates — these run BEFORE signer.signPayment so a failure here
+  // never burns wallet UTXOs or daily budget.
+  const amount = BigInt(accept.amount);
+  if (options.spendTracker) {
+    options.spendTracker.assertCanSpend({ amount, payTo: accept.payTo });
+  }
+  if (options.elicit && options.elicitationThreshold !== undefined && amount > options.elicitationThreshold) {
+    const accepted = await options.elicit({
+      toolName: options.toolName ?? 'unknown',
+      amount,
+      asset: accept.asset,
+      payTo: accept.payTo,
+      network: accept.network,
+    });
+    if (!accepted) {
+      throw new Cardano402ValidationError(
+        `signing declined by user via elicitation for amount ${amount.toString()} ${accept.asset} -> ${accept.payTo}`,
+        []
+      );
+    }
+  }
+
   const signed = await options.signer.signPayment({
     payTo: accept.payTo,
-    amount: BigInt(accept.amount),
+    amount,
     asset: accept.asset,
     ttlSeconds: accept.maxTimeoutSeconds,
   });
+  // Only record AFTER a successful sign — failed signs don't burn budget.
+  if (options.spendTracker) {
+    options.spendTracker.record({ amount, payTo: accept.payTo });
+  }
 
   const paymentPayload = PaymentSignaturePayloadSchema.parse({
     x402Version: 2 as const,
@@ -262,11 +313,12 @@ export async function payAndFetch(options: PayAndFetchOptions): Promise<PayAndFe
   // PaymentSignaturePayloadSchema has already validated structure (including
   // the nonce regex). Encode as base64 JSON to match the gate's expected
   // `Payment-Signature` shape — same recipe as `examples/client.ts`.
+  // Only emit one header (canonical mixed-case) — gates that need the
+  // upper-case alias still see it via HTTP's case-insensitive matching.
   const paymentHeader = Buffer.from(JSON.stringify(paymentPayload)).toString('base64');
 
   const retryInit = buildInit({
     [X402_HEADER_PRIMARY]: paymentHeader,
-    [X402_HEADER_ALIAS]: paymentHeader,
   });
   const retry = await sendOnce(retryInit, 'paid');
 
