@@ -1,5 +1,5 @@
 import { loadConfig } from './config/index.js';
-import { initSentry } from './instrument.js';
+import { initSentry, Sentry } from './instrument.js';
 import { createServer } from './server.js';
 
 async function main(): Promise<void> {
@@ -28,6 +28,17 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     server.log.info(`Received ${signal}, shutting down...`);
     await server.close();
+    // Flush buffered Sentry events before the process dies. Without this,
+    // exception events captured by an in-flight /500 response right
+    // before shutdown are dropped because Sentry's transport buffers them
+    // asynchronously and process.exit() kills the loop before they ship.
+    // 2s ceiling so a hung Sentry endpoint doesn't block shutdown
+    // indefinitely (audit H9).
+    try {
+      await Sentry.close(2000);
+    } catch (err) {
+      server.log.warn({ err }, 'Sentry.close() failed during shutdown');
+    }
     process.exit(0);
   };
 
