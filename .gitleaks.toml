@@ -1,0 +1,43 @@
+# gitleaks configuration for cardano402.
+#
+# Extends the default rule pack and adds path-level allowlists for known
+# third-party research dumps + repo fixtures that gitleaks's generic
+# heuristics flag as false positives.
+#
+# To regenerate the upstream findings + see what the default rules catch:
+#   docker run --rm -v $(pwd):/repo zricethezav/gitleaks:v8.21.2 \
+#     detect --source /repo --redact --no-banner
+
+# Inherit gitleaks v8's default ruleset (AWS, GitHub, Stripe, generic
+# high-entropy strings, etc.). Without this line, ALL rules are dropped.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths and fixtures that contain known third-party content or test placeholders, not real secrets."
+
+# .planning/ holds local research artifacts and is gitignored at HEAD,
+# but its commit-history blobs were ingested by gitleaks's git-history
+# scan. The fluxpoint-studios subdir is a `repomix` dump of an external
+# Cardano SDK; its embedded T_PRIVATE_KEY / tokenAddress / tokenUnit
+# strings are from THAT project's test scaffolding, not ours.
+paths = [
+  '''^\.planning/''',
+  # Example config files SHIP placeholder values intentionally.
+  '''^config/config\.example\.json$''',
+  '''^\.env\.example$''',
+  # Test fixtures + mock contexts use deterministic stand-in values
+  # (e.g. "test seed phrase for integration testing only"). Real test
+  # secrets that NEED scanning live in env vars, not in tests/.
+  '''^tests/.*\.test\.ts$''',
+]
+
+# Per-rule allowlist for patterns that the "generic-api-key" entropy
+# rule false-positives on but are well-known Cardano-ecosystem constants
+# (CAIP-2 strings, BIP-39 example phrases used in upstream specs).
+regexes = [
+  # CAIP-2 chain IDs are public identifiers, not secrets.
+  '''cardano:(preview|preprod|mainnet)''',
+  # BIP-39 12/24-word example phrases from the Cardano spec docs.
+  '''(abandon\s+){11}about''',
+]
