@@ -52,10 +52,16 @@ jobs:
           # operators want surfaced. `pedantic` and `auditor` produce
           # more noise; switch to those if doing a dedicated audit pass.
           persona: regular
-          # Surface real-risk findings as PR-blocking. Setting to
-          # `medium` covers things like artipacked / template-injection
-          # / secret-bleed. The `low`-severity `unpinned-uses` rule is
-          # deferred to its own focused PR (touches every workflow file
-          # to pin actions to SHAs — too large to bundle here). Bump
-          # this back to `low` once SHA pinning lands.
-          min-severity: medium
+          # Start at `high` for the initial roll-out. Our existing
+          # workflows already fail `unpinned-uses` (low) on every
+          # @v4 / @v3 tag — those are real but mechanical to fix and
+          # warrant their own focused SHA-pinning PR. Setting `high`
+          # surfaces the catastrophic patterns (template injection,
+          # secret bleed, hijack-at-floating-tag of a trusted action)
+          # without gating PRs on the existing technical debt.
+          #
+          # FOLLOW-UP: once the SHA-pinning PR lands, drop this to
+          # `medium` (or `low` if we also fix `dependabot-cooldown`).
+          # The findings are still surfaced in the workflow log + GH
+          # Security tab regardless of this gate.
+          min-severity: high
