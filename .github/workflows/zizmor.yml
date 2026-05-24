@@ -39,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           # Full history so the GITHUB_TOKEN scope is recognised for
           # online audits that resolve action @refs against upstream
           # releases.
@@ -51,7 +52,10 @@ jobs:
           # operators want surfaced. `pedantic` and `auditor` produce
           # more noise; switch to those if doing a dedicated audit pass.
           persona: regular
-          # Surface anything that looks suspicious. `unknown` and
-          # `informational` would generate too much PR noise; `low`+
-          # is the right gate.
-          min-severity: low
+          # Surface real-risk findings as PR-blocking. Setting to
+          # `medium` covers things like artipacked / template-injection
+          # / secret-bleed. The `low`-severity `unpinned-uses` rule is
+          # deferred to its own focused PR (touches every workflow file
+          # to pin actions to SHAs — too large to bundle here). Bump
+          # this back to `low` once SHA pinning lands.
+          min-severity: medium

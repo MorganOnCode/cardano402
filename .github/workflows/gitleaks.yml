@@ -33,6 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           # Full history so push events scan every new commit, not just
           # the tip. Default fetch-depth: 1 would miss anything in
           # commits between pushes.
