@@ -255,6 +255,26 @@ Evidence:
 - `src/routes/settle.ts`
 - `tests/integration/settle-route.test.ts`
 
+### F6c - Sentry extra scrub was shallow
+
+Previous risk: request bodies and payment headers were redacted before Sentry
+events left the process, but `event.extra` redaction only checked top-level
+keys. A future `captureException(..., { extra: { config } })` refactor could
+therefore leak nested seed material, Blockfrost project IDs, payment headers,
+or raw transaction CBOR.
+
+Change:
+
+- `scrubSentryEvent` now recursively redacts nested `event.extra` keys that
+  match signing-secret, API-key, payment-header, payment-payload, or raw
+  transaction-CBOR patterns.
+- Added regression coverage for nested config/payment objects and arrays.
+
+Evidence:
+
+- `src/instrument.ts`
+- `tests/unit/instrument.test.ts`
+
 ### F7 - Root facilitator config allowed inline Mainnet signing keys
 
 Previous risk: the hosted/resource-server facilitator config accepted inline

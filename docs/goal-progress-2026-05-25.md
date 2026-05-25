@@ -156,6 +156,8 @@ needs admin-side enforcement of the documented required checks.
 - Labels are limited to endpoint, result, and bounded reason so operators can
   alert on invalid request spikes, nonce lookup failures, settlement failures,
   and status polling drift without user-controlled label cardinality.
+- Sentry event scrubbing now recursively redacts nested `event.extra` config,
+  payment header, payment payload, and raw transaction-CBOR fields.
 
 ### Release readiness gate
 
