@@ -51,6 +51,9 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       },
     },
     async (request, reply) => {
+      const chainConfig = fastify.config.chain;
+      const network = CAIP2_CHAIN_IDS[chainConfig.network as CardanoNetwork];
+
       // 1. Parse the envelope and accept either body shape (Track A3).
       const envelope = FacilitatorRequestEnvelopeSchema.safeParse(request.body);
 
@@ -58,7 +61,7 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         return reply.status(200).send({
           success: false,
           transaction: '',
-          network: '',
+          network,
           errorReason: 'invalid_request',
           errorMessage: 'Request body does not match expected format',
         });
@@ -69,7 +72,7 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         return reply.status(200).send({
           success: false,
           transaction: '',
-          network: '',
+          network,
           errorReason: 'invalid_request',
           errorMessage: normalised.error.message,
         });
@@ -77,7 +80,6 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
 
       // 2. Assemble VerifyContext from parsed request + server state
       const { paymentPayload, paymentRequirements } = normalised.data;
-      const chainConfig = fastify.config.chain;
       const verificationConfig = chainConfig.verification;
 
       const declaredNonce = paymentPayload.payload.nonce
@@ -110,9 +112,6 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
 
       // 3. Convert base64 transaction to Uint8Array for submission
       const cborBytes = Buffer.from(paymentPayload.payload.transaction, 'base64');
-
-      // 4. Determine CAIP-2 network string
-      const network = CAIP2_CHAIN_IDS[chainConfig.network as CardanoNetwork];
 
       // Only the default address-to-address method can be settled today.
       const method = resolveAssetTransferMethod(

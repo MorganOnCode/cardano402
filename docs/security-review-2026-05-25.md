@@ -234,6 +234,27 @@ Evidence:
 - `scripts/payment-security-check.mjs`
 - `tests/unit/sdk/payment-gate.test.ts`
 
+### F6b - `/settle` malformed-request responses used an invalid network value
+
+Previous risk: malformed `/settle` requests returned `network: ""`. That does
+not satisfy the CAIP-2 network shape used by the settlement response schema and
+does not match the Cardano x402 response examples, which keep the network in
+the response envelope even when reporting failure.
+
+Change:
+
+- `/settle` now derives the configured CAIP-2 network before request-envelope
+  validation.
+- Malformed-envelope and malformed-payment responses now return that configured
+  network instead of an empty string.
+- Integration tests assert the malformed-request response carries
+  `cardano:preview` under the test configuration.
+
+Evidence:
+
+- `src/routes/settle.ts`
+- `tests/integration/settle-route.test.ts`
+
 ### F7 - Root facilitator config allowed inline Mainnet signing keys
 
 Previous risk: the hosted/resource-server facilitator config accepted inline

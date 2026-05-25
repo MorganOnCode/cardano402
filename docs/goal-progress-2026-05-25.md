@@ -91,6 +91,9 @@ needs admin-side enforcement of the documented required checks.
   Fastify request through the actual payment gate pre-handler.
 - `createPaymentGate` now keeps the nested verify `accepted.network`
   server-owned instead of copying it from the client payment header.
+- `/settle` malformed-request failure responses now return the configured
+  CAIP-2 network instead of an empty string, keeping error responses aligned
+  with the settlement response schema.
 - Updated core spec notes so they no longer claim the app layer lacks alias
   support.
 
@@ -230,6 +233,8 @@ Passing checks:
 - `pnpm --filter @cardano402/mcp-server build`
 - `pnpm typecheck`
 - `pnpm test tests/unit/sdk/payment-gate.test.ts -- --runInBand` - 19 tests
+  passed
+- `pnpm test tests/integration/settle-route.test.ts -- --runInBand` - 12 tests
   passed
 - `pnpm test tests/unit/sdk/payment-gate.test.ts tests/integration/server.test.ts -- --runInBand`
 - `pnpm security:payments`
