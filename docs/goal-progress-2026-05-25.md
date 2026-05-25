@@ -23,6 +23,7 @@ deeper deployment/operator hardening.
 
 - Branch: `feat/mcp-0.1.3-hardening`
 - Pull request: `https://github.com/MorganOnCode/cardano402/pull/88`
+- Current PR head: `4f3e3de fix(mcp): restore corrupt spend ledger from backup`
 - Protocol monitor workflow commit: `91b8464 ci: add protocol monitor workflow`
 - Main hardening commit: `f6a2b65 feat(mcp): harden agent payment safety`
 - Report commit: `ceb2f4e docs: add goal progress report`
@@ -36,7 +37,7 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 ## Pull request status
 
 Observed on 2026-05-25 UTC for PR #88 head
-`c5ce1eda16c226964da551c744e3b1adc8fbd1b0`:
+`4f3e3de38e15a307ffda568513711d97a859f097`:
 
 - CI completed successfully.
 - CI jobs succeeded: Lint & Type Check, Test, Build, Docker Build, Security
@@ -48,6 +49,7 @@ Observed on 2026-05-25 UTC for PR #88 head
 - Gitleaks completed successfully.
 - Dependency Review completed successfully.
 - zizmor completed successfully.
+- All PR #88 review threads are resolved.
 
 Scorecard is configured as a scheduled security workflow but was not returned
 for this PR head in the workflow-run lookup. Repository branch protection still
@@ -72,12 +74,21 @@ needs admin-side enforcement of the documented required checks.
 - Persistent ledger operations use a lock to avoid concurrent signer races.
 - Spend entries now include recipient, asset, transaction hash, tool name, and
   status.
+- Persistent spend-ledger locks now write a holder PID and recover stale locks
+  only when the recorded holder process is no longer alive.
+- The spend ledger writes a `.bak` copy after successful persists. If the
+  active ledger is corrupt, the tracker restores the valid backup and
+  quarantines the corrupt active file. If no valid backup exists, it still
+  fails closed instead of silently resetting spend history.
+- MCP payment signing now prechecks spend caps and pay-to allowlists before
+  elicitation, then still performs an atomic reservation before signing.
 
 ### x402 and resource-server compatibility
 
 - `createPaymentGate` now accepts both `Payment-Signature` and `X-PAYMENT`.
 - CORS now allows `X-PAYMENT`.
-- Added regression coverage for the `X-PAYMENT` alias.
+- Added regression coverage for the `X-PAYMENT` alias, including a real
+  Fastify request through the actual payment gate pre-handler.
 - `createPaymentGate` now keeps the nested verify `accepted.network`
   server-owned instead of copying it from the client payment header.
 - Updated core spec notes so they no longer claim the app layer lacks alias
@@ -186,6 +197,14 @@ Observed on 2026-05-25 UTC:
 - `/health`, `/supported`, `/verify`, and `/settle` are Cloudflare-challenged
   for non-browser clients.
 
+Most recent monitor evidence, 2026-05-25T08:34:57Z:
+
+- `/.well-known/x402.json`: HTTP 200 JSON.
+- `/health`: HTTP 403 Cloudflare challenge, `cf-mitigated: challenge`.
+- `/supported`: HTTP 403 Cloudflare challenge, `cf-mitigated: challenge`.
+- `/verify`: HTTP 403 Cloudflare challenge, `cf-mitigated: challenge`.
+- `/settle`: HTTP 403 Cloudflare challenge, `cf-mitigated: challenge`.
+
 Interpretation:
 
 - This helps reduce opportunistic abuse.
@@ -202,14 +221,19 @@ Recommendation:
 
 Passing checks:
 
-- `pnpm --filter @cardano402/mcp-server test` - 102 tests passed
+- `pnpm --filter @cardano402/mcp-server test -- spend-tracker.test.ts` - 106
+  tests passed
+- `pnpm --filter @cardano402/mcp-server test -- payment-guards.test.ts` - 104
+  tests passed
+- `pnpm --filter @cardano402/mcp-server test`
 - `pnpm --filter @cardano402/mcp-server typecheck`
 - `pnpm --filter @cardano402/mcp-server build`
 - `pnpm typecheck`
-- `pnpm test tests/unit/sdk/payment-gate.test.ts -- --runInBand` - 18 tests
+- `pnpm test tests/unit/sdk/payment-gate.test.ts -- --runInBand` - 19 tests
   passed
 - `pnpm test tests/unit/sdk/payment-gate.test.ts tests/integration/server.test.ts -- --runInBand`
 - `pnpm security:payments`
+- `pnpm security:release`
 - `pnpm audit --prod`
 - `pnpm monitor:protocol -- --base-url <local-json-mock> --json`
 - `pnpm monitor:protocol -- --base-url <local-json-mock> --min-confirmations 6 --json`
@@ -225,6 +249,9 @@ Current live monitor status:
 - On 2026-05-25 at 07:29:35 UTC, the expanded monitor also checked `/health`
   with `--min-confirmations 6`; `/health`, `/supported`, `/verify`, and
   `/settle` returned HTTP 403 Cloudflare challenge HTML.
+- On 2026-05-25 at 08:34:57 UTC, the live monitor still failed for the same
+  external Cloudflare challenge posture while confirming the well-known
+  manifest remains reachable.
 - This failure is useful evidence, not a repo test regression: the local
   protocol monitor smoke test passes against a JSON mock, and the live failure
   reflects external WAF behavior.

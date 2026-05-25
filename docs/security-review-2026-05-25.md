@@ -126,6 +126,47 @@ Evidence:
 - `packages/mcp-server/src/payment.ts`
 - `packages/mcp-server/test/spend-tracker.test.ts`
 
+### F3a - MCP spend ledger operational recovery gaps
+
+Previous risk: fail-closed ledger handling protected funds, but a stale lock
+or corrupt active ledger could halt the signing wallet until manual operator
+repair.
+
+Change:
+
+- Persistent spend-ledger locks now write a holder PID. If the holder process
+  is no longer alive, the next signer can remove the stale lock and continue.
+  Active or unknown locks still fail closed after the timeout.
+- Successful ledger persists now maintain a `.bak` copy of the last valid
+  ledger. If the active ledger is malformed or has invalid entries, the
+  tracker restores the valid backup and quarantines the corrupt active file as
+  `.corrupt.<timestamp>.<pid>`.
+- If no valid backup exists, the tracker still fails closed instead of starting
+  with an empty ledger and silently resetting daily spend history.
+
+Evidence:
+
+- `packages/mcp-server/src/spend-tracker.ts`
+- `packages/mcp-server/test/spend-tracker.test.ts`
+
+### F3b - MCP elicitation happened before spend-policy rejection
+
+Previous risk: agents could be asked to approve a payment that would then be
+rejected by the spend cap or pay-to allowlist. This was not a fund-loss bug,
+but it created noisy prompts and confused operator decisions.
+
+Change:
+
+- `payAndFetch` now calls `spendTracker.assertCanSpend(...)` before
+  elicitation.
+- The later `reserve(...)` remains after elicitation and still rechecks
+  atomically before signing, so concurrent spend protection is preserved.
+
+Evidence:
+
+- `packages/mcp-server/src/payment.ts`
+- `packages/mcp-server/test/payment-guards.test.ts`
+
 ### F4 - SDK payment gate missed base x402 request-header alias
 
 Previous risk: the core header codec supported both `Payment-Signature` and
@@ -135,7 +176,7 @@ Alias-only clients would be rejected despite documented compatibility.
 Change:
 
 - `createPaymentGate` now accepts either `payment-signature` or `x-payment`.
-- Added a regression test.
+- Added unit and Fastify request-level regression tests.
 
 Evidence:
 
@@ -249,7 +290,7 @@ Evidence:
 
 ### L1 - Agent API endpoints are Cloudflare-challenged
 
-Observed on 2026-05-25 UTC:
+Observed on 2026-05-25 UTC, most recently at 2026-05-25T08:34:57Z:
 
 - `GET https://cardano402.com/.well-known/x402.json` returns HTTP 200 JSON.
 - `GET https://cardano402.com/health` returns HTTP 403 with
@@ -412,6 +453,8 @@ Already present or appropriate for this repo:
 Commands run after the current MCP and SDK changes:
 
 - `pnpm --filter @cardano402/mcp-server test`
+- `pnpm --filter @cardano402/mcp-server test -- spend-tracker.test.ts`
+- `pnpm --filter @cardano402/mcp-server test -- payment-guards.test.ts`
 - `pnpm --filter @cardano402/mcp-server typecheck`
 - `pnpm --filter @cardano402/mcp-server build`
 - `pnpm typecheck`
@@ -428,12 +471,15 @@ Commands run after the current MCP and SDK changes:
 
 Results:
 
-- MCP tests passed: 102 tests.
-- Root test suite passed: 462 tests.
+- MCP spend-tracker test run passed: 106 tests.
+- MCP payment-guards test run passed: 104 tests.
+- Root test suite passed: 472 tests in the latest full run on this hardening
+  branch.
 - Typecheck passed.
 - MCP build passed.
 - Production dependency audit reported no known vulnerabilities.
 - Payment invariant check passed.
+- Release readiness check passed.
 - Protected brand search returned no local matches.
 - Live well-known manifest is reachable.
 - Live machine API endpoints are currently challenged by Cloudflare.
