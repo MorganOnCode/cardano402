@@ -26,19 +26,19 @@ const FAILURE_MESSAGES: Record<string, string> = {
   recipient_mismatch: 'No output pays to the required recipient',
   amount_insufficient: 'Payment amount is less than required',
   missing_witness: 'Transaction has no signatures',
+  ttl_required: 'Transaction TTL is required',
   transaction_expired: 'Transaction TTL has expired',
+  transaction_ttl_too_far: 'Transaction TTL exceeds the payment timeout window',
   unreasonable_fee: 'Transaction fee is outside acceptable bounds',
   cbor_required: 'Transaction CBOR is required for this check',
   unsupported_token: 'Token is not supported by this facilitator',
   min_utxo_insufficient: 'Output does not contain enough ADA for minimum UTXO requirement',
   nonce_required: 'payload.nonce is required by the x402 Cardano scheme',
-  nonce_not_in_inputs:
-    'payload.nonce does not reference any input UTXO of the signed transaction',
+  nonce_not_in_inputs: 'payload.nonce does not reference any input UTXO of the signed transaction',
   nonce_utxo_spent:
     'The UTXO referenced by payload.nonce is not unspent in the current chain state',
   nonce_lookup_failed: 'Failed to query the chain for the nonce UTXO state',
-  nonce_lookup_unavailable:
-    'Facilitator is not configured to chain-verify the nonce UTXO',
+  nonce_lookup_unavailable: 'Facilitator is not configured to chain-verify the nonce UTXO',
 };
 
 /**

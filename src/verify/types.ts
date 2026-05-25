@@ -116,6 +116,8 @@ export interface VerifyContext {
   requiredAmount: bigint;
   /** Maximum timeout in seconds from PaymentRequirements */
   maxTimeoutSeconds: number;
+  /** Grace buffer in slots/seconds applied to TTL consistency checks. */
+  ttlGraceBufferSeconds?: number;
   /** Base64-encoded signed CBOR from CardanoPayload.transaction */
   transactionCbor: string;
   /** Payer address from CardanoPayload.payer, if provided */

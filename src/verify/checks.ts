@@ -392,8 +392,19 @@ export function checkWitnessPresent(ctx: VerifyContext): CheckResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Validate that the transaction TTL is not expired.
- * If TTL is not set in the transaction, this check passes (skip).
+ * Validate that the transaction TTL is present, not expired, and consistent
+ * with PaymentRequirements.maxTimeoutSeconds.
+ *
+ * A transaction with no TTL is valid indefinitely on-chain. That is a poor
+ * fit for x402 because the payment instrument can be replayed or submitted
+ * long after the resource server's quoted payment window. Fail closed.
+ *
+ * The Cardano spec says TTL MUST not be in the past and SHOULD be consistent
+ * with maxTimeoutSeconds. For a money-handling facilitator, enforce the SHOULD:
+ * currentSlot + maxTimeoutSeconds + graceBufferSeconds is the latest allowed
+ * TTL. Cardano slots are approximately one second on current public networks,
+ * so the config field is treated as slots here.
+ *
  * Async because it needs to query the current slot from ChainProvider.
  */
 export async function checkTtl(ctx: VerifyContext): Promise<CheckResult> {
@@ -403,14 +414,21 @@ export async function checkTtl(ctx: VerifyContext): Promise<CheckResult> {
 
   const { ttl } = ctx._parsedTx.body;
 
-  // No TTL set -- transaction is valid indefinitely
   if (ttl === undefined) {
-    return { check: 'ttl', passed: true };
+    return {
+      check: 'ttl',
+      passed: false,
+      reason: 'ttl_required',
+      details: {
+        message: 'Signed payment transactions must include a TTL bounded by maxTimeoutSeconds.',
+      },
+    };
   }
 
   const currentSlot = await ctx.getCurrentSlot();
+  const currentSlotBig = BigInt(currentSlot);
 
-  if (BigInt(currentSlot) > ttl) {
+  if (currentSlotBig > ttl) {
     return {
       check: 'ttl',
       passed: false,
@@ -418,6 +436,23 @@ export async function checkTtl(ctx: VerifyContext): Promise<CheckResult> {
       details: {
         ttl: ttl.toString(),
         currentSlot: currentSlot.toString(),
+      },
+    };
+  }
+
+  const grace = ctx.ttlGraceBufferSeconds ?? 30;
+  const latestAllowedTtl = currentSlotBig + BigInt(ctx.maxTimeoutSeconds + grace);
+  if (ttl > latestAllowedTtl) {
+    return {
+      check: 'ttl',
+      passed: false,
+      reason: 'transaction_ttl_too_far',
+      details: {
+        ttl: ttl.toString(),
+        currentSlot: currentSlot.toString(),
+        maxTimeoutSeconds: ctx.maxTimeoutSeconds,
+        graceBufferSeconds: grace,
+        latestAllowedTtl: latestAllowedTtl.toString(),
       },
     };
   }

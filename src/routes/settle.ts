@@ -90,6 +90,7 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         payTo: paymentRequirements.payTo,
         requiredAmount: BigInt(paymentRequirements.amount),
         maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
+        ttlGraceBufferSeconds: verificationConfig.graceBufferSeconds,
         asset: paymentRequirements.asset,
         transactionCbor: paymentPayload.payload.transaction,
         payerAddress: paymentPayload.payload.payer,
