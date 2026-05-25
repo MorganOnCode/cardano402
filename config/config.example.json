@@ -25,7 +25,7 @@
       "tier": "free"
     },
     "facilitator": {
-      "seedPhrase": "your 24-word seed phrase here"
+      "seedPhraseFile": "/run/secrets/cardano402-facilitator.seed"
     },
     "cache": {
       "utxoTtlSeconds": 60

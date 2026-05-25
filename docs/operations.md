@@ -73,7 +73,7 @@ Copy `config/config.example.json` to `config/config.json` and set:
 - `chain.redis.host` to `"redis-prod"` (Docker service name)
 - `chain.redis.password` to your Redis password
 - `chain.blockfrost.projectId` to your Blockfrost key
-- `chain.facilitator.seedPhrase` to your facilitator wallet seed
+- `chain.facilitator.seedPhraseFile` to a `0600` file containing your facilitator wallet seed
 
 ### 2. Set Redis password
 

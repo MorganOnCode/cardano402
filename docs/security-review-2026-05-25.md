@@ -169,6 +169,32 @@ Evidence:
 - `package.json`
 - `.github/workflows/ci.yml`
 
+### F7 - Root facilitator config allowed inline Mainnet signing keys
+
+Previous risk: the hosted/resource-server facilitator config accepted inline
+`chain.facilitator.seedPhrase` or `chain.facilitator.privateKey` values in
+`config.json`. That keeps hot signing material in ordinary config files and
+raises the chance of accidental backup, log, shell, or repository exposure.
+
+Change:
+
+- Added `chain.facilitator.seedPhraseFile` and
+  `chain.facilitator.privateKeyFile`.
+- POSIX credential files must be regular files and must not be group/world
+  readable or writable.
+- Mainnet now rejects inline facilitator signing material unless
+  `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true` is explicitly set.
+- Updated deployment examples and runbooks to use file-based signing material.
+
+Evidence:
+
+- `src/chain/config.ts`
+- `tests/unit/config.test.ts`
+- `config/config.example.json`
+- `docs/deployment.md`
+- `docs/operations.md`
+- `docs/vps-deployment.md`
+
 ### F5 - Dependency audit gate was too soft
 
 Previous risk: CI dependency audit was non-blocking and high-only.
@@ -348,7 +374,7 @@ Commands run after the current MCP and SDK changes:
 Results:
 
 - MCP tests passed: 102 tests.
-- Root test suite passed: 456 tests.
+- Root test suite passed: 462 tests.
 - Typecheck passed.
 - MCP build passed.
 - Production dependency audit reported no known vulnerabilities.

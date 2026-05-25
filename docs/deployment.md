@@ -7,7 +7,7 @@ Deployment options for the x402 Cardano Payment Facilitator.
 - **Docker and Docker Compose** (for containerized deployment)
   - OR **Node.js 20+** and **pnpm** (for bare metal)
 - **Blockfrost API key** -- register at [blockfrost.io](https://blockfrost.io)
-- **Funded Cardano wallet** (24-word seed phrase)
+- **Funded Cardano wallet** (seed phrase or private key stored in a restrictive file)
 - **Redis 7+** (provided via Docker Compose or external)
 
 ## Configuration
@@ -30,7 +30,8 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 |-------|-------------|---------|
 | `chain.network` | Cardano network | `"Preview"`, `"Preprod"`, `"Mainnet"` |
 | `chain.blockfrost.projectId` | Blockfrost API key | `"previewXXX..."` |
-| `chain.facilitator.seedPhrase` | 24-word wallet seed phrase | `"word1 word2 ..."` |
+| `chain.facilitator.seedPhraseFile` | `0600` file containing facilitator wallet seed phrase | `"/run/secrets/cardano402-facilitator.seed"` |
+| `chain.facilitator.privateKeyFile` | `0600` file containing facilitator wallet private key | `"/run/secrets/cardano402-facilitator.skey"` |
 | `chain.redis.host` | Redis hostname | `"localhost"` or `"redis-prod"` |
 
 ### Optional Settings
@@ -64,14 +65,14 @@ Follow these steps to deploy on the Cardano Preview testnet:
 1. **Create a Blockfrost account** at [blockfrost.io](https://blockfrost.io)
 2. **Create a project** for the "Cardano Preview" network
 3. **Copy the project ID** into `config.chain.blockfrost.projectId`
-4. **Generate or use an existing 24-word seed phrase** for the facilitator wallet
+4. **Generate or use an existing 24-word seed phrase** for the facilitator wallet and store it in a `0600` file
 5. **Fund the wallet** via the [Cardano Testnet Faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/)
    - Request at least 10 ADA for facilitator operations
 6. **Set the network** to `"Preview"` in `config.chain.network`
 
 ### Mainnet Safety
 
-The facilitator requires the `MAINNET=true` environment variable to connect to mainnet. This is a safety guardrail that prevents accidental mainnet usage during development.
+The facilitator requires the `MAINNET=true` environment variable to connect to mainnet. This is a safety guardrail that prevents accidental mainnet usage during development. Mainnet also requires facilitator signing material to come from `chain.facilitator.seedPhraseFile` or `chain.facilitator.privateKeyFile` by default; inline `seedPhrase` / `privateKey` values in `config.json` are rejected unless `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true` is set.
 
 Without it, attempting to use `"Mainnet"` as the network will cause a startup error:
 
@@ -105,7 +106,7 @@ pnpm dev
    - `chain.redis.host` to `"redis-prod"` (Docker Compose service name)
    - `chain.redis.password` to your Redis password
    - `chain.blockfrost.projectId` to your Blockfrost key
-   - `chain.facilitator.seedPhrase` to your facilitator wallet seed phrase
+   - `chain.facilitator.seedPhraseFile` to a `0600` file containing your facilitator wallet seed phrase
 
 2. **Set Redis password**
 

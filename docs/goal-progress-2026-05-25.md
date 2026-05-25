@@ -73,6 +73,17 @@ deeper deployment/operator hardening.
   path under the Cardano SDK dependency.
 - `pnpm audit --prod` currently reports no known vulnerabilities.
 
+### Root facilitator signing-key hardening
+
+- Added `chain.facilitator.seedPhraseFile`.
+- Added `chain.facilitator.privateKeyFile`.
+- Enforced restrictive POSIX permissions for facilitator signing-key files.
+- Mainnet now rejects inline `chain.facilitator.seedPhrase` /
+  `chain.facilitator.privateKey` in `config.json` unless
+  `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true` is explicitly set.
+- Updated `config/config.example.json` and deployment docs to prefer
+  file-based facilitator signing material.
+
 ### Documentation and review artifacts
 
 - Added `docs/security-review-2026-05-25.md`.
@@ -121,7 +132,7 @@ Passing checks:
 
 Earlier full-suite verification after the same hardening line:
 
-- `pnpm test -- --runInBand` - 456 tests passed
+- `pnpm test -- --runInBand` - 462 tests passed
 
 ## Remaining work
 
@@ -132,4 +143,3 @@ Earlier full-suite verification after the same hardening line:
 4. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
 5. Branch protection review to require CodeQL, OSV, Gitleaks, Zizmor,
    dependency review, payment invariant checks, tests, and audit before merge.
-

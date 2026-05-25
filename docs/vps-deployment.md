@@ -45,7 +45,7 @@ nano config/config.json
 
 Set these fields:
 - `chain.blockfrost.projectId` — your Blockfrost Preview project ID
-- `chain.facilitator.seedPhrase` — 24-word seed phrase for a funded wallet
+- `chain.facilitator.seedPhraseFile` — `0600` file containing the 24-word seed phrase for a funded wallet
 - `chain.redis.host` → `"redis"` (Docker service name)
 - `chain.redis.password` → same value as `REDIS_PASSWORD` in `.env`
 - `logging.level` → `"info"` (not `"debug"` in production)

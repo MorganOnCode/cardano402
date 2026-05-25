@@ -1,4 +1,5 @@
-import { writeFileSync, unlinkSync, mkdirSync, existsSync } from 'node:fs';
+import { chmodSync, writeFileSync, unlinkSync, mkdirSync, existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -13,6 +14,17 @@ const minimalChainConfig = {
   blockfrost: { projectId: 'test-project-id' },
   facilitator: { seedPhrase: 'test seed phrase for unit testing only' },
 };
+
+function writeSecretFile(
+  contents = 'test seed phrase for unit testing only',
+  mode = 0o600
+): string {
+  const dir = mkdtempSync(join(tmpdir(), 'cardano402-config-secret-'));
+  const path = join(dir, 'secret.txt');
+  writeFileSync(path, `${contents}\n`, { mode });
+  chmodSync(path, mode);
+  return path;
+}
 
 describe('Config Loading', () => {
   beforeEach(() => {
@@ -134,6 +146,58 @@ describe('Config Loading', () => {
     }
   });
 
+  it('should load facilitator seed phrase from a restrictive file', () => {
+    const seedPhraseFile = writeSecretFile();
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        chain: {
+          blockfrost: { projectId: 'test123' },
+          facilitator: { seedPhraseFile },
+        },
+      })
+    );
+
+    const config = loadConfig(TEST_CONFIG_PATH);
+
+    expect(config.chain.facilitator.seedPhrase).toBe('test seed phrase for unit testing only');
+    expect(config.chain.facilitator.credentialSource).toBe('seedPhraseFile');
+  });
+
+  it('should reject group/world-readable facilitator credential files on POSIX', () => {
+    if (process.platform === 'win32') return;
+    const seedPhraseFile = writeSecretFile('test seed phrase', 0o644);
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        chain: {
+          blockfrost: { projectId: 'test123' },
+          facilitator: { seedPhraseFile },
+        },
+      })
+    );
+
+    expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|group\/world/);
+  });
+
+  it('should reject multiple facilitator credential sources', () => {
+    const seedPhraseFile = writeSecretFile();
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        chain: {
+          blockfrost: { projectId: 'test123' },
+          facilitator: {
+            seedPhrase: 'inline seed',
+            seedPhraseFile,
+          },
+        },
+      })
+    );
+
+    expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|exactly one/);
+  });
+
   describe('Redis password production guardrail', () => {
     it('rejects production env with no chain.redis.password', () => {
       const cfg = {
@@ -219,6 +283,53 @@ describe('Config Loading', () => {
       if (original !== undefined) {
         process.env.MAINNET = original;
       }
+    }
+  });
+
+  it('should reject inline mainnet facilitator credentials by default', () => {
+    const mainnetConfig = {
+      chain: {
+        network: 'Mainnet',
+        blockfrost: { projectId: 'mainnet-key' },
+        facilitator: { seedPhrase: 'test seed phrase' },
+      },
+    };
+    const originalMainnet = process.env.MAINNET;
+    const originalAllow = process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
+    process.env.MAINNET = 'true';
+    delete process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
+
+    writeFileSync(TEST_CONFIG_PATH, JSON.stringify(mainnetConfig));
+    try {
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|seedPhraseFile/);
+    } finally {
+      if (originalMainnet === undefined) delete process.env.MAINNET;
+      else process.env.MAINNET = originalMainnet;
+      if (originalAllow === undefined)
+        delete process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
+      else process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY = originalAllow;
+    }
+  });
+
+  it('should accept mainnet facilitator seed file', () => {
+    const seedPhraseFile = writeSecretFile();
+    const mainnetConfig = {
+      chain: {
+        network: 'Mainnet',
+        blockfrost: { projectId: 'mainnet-key' },
+        facilitator: { seedPhraseFile },
+      },
+    };
+    const original = process.env.MAINNET;
+    process.env.MAINNET = 'true';
+
+    writeFileSync(TEST_CONFIG_PATH, JSON.stringify(mainnetConfig));
+    try {
+      const config = loadConfig(TEST_CONFIG_PATH);
+      expect(config.chain.facilitator.credentialSource).toBe('seedPhraseFile');
+    } finally {
+      if (original === undefined) delete process.env.MAINNET;
+      else process.env.MAINNET = original;
     }
   });
 });
