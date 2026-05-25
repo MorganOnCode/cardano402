@@ -22,7 +22,7 @@ deeper deployment/operator hardening.
 ## Branch and commit
 
 - Branch: `feat/mcp-0.1.3-hardening`
-- Latest pushed commit: `91b8464 ci: add protocol monitor workflow`
+- Protocol monitor workflow commit: `91b8464 ci: add protocol monitor workflow`
 - Main hardening commit: `f6a2b65 feat(mcp): harden agent payment safety`
 - Report commit: `ceb2f4e docs: add goal progress report`
 - Remote: pushed to `origin/feat/mcp-0.1.3-hardening`
