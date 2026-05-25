@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -233,7 +233,13 @@ describe('SpendTracker', () => {
   it('fails closed when another process holds the persistent ledger lock', () => {
     const dir = mkdtempSync(join(tmpdir(), 'cardano402-spend-lock-'));
     const storePath = join(dir, 'ledger.json');
-    mkdirSync(`${storePath}.lock`, { mode: 0o700 });
+    const lockPath = `${storePath}.lock`;
+    mkdirSync(lockPath, { mode: 0o700 });
+    writeFileSync(
+      join(lockPath, 'holder.json'),
+      `${JSON.stringify({ pid: process.pid, acquiredAt: Date.now() })}\n`,
+      { mode: 0o600 }
+    );
 
     expect(
       () =>
@@ -244,5 +250,27 @@ describe('SpendTracker', () => {
           lockTimeoutMs: 0,
         })
     ).toThrow(/Timed out waiting for spend ledger lock/);
+  });
+
+  it('recovers a persistent ledger lock held by a dead process', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cardano402-spend-stale-lock-'));
+    const storePath = join(dir, 'ledger.json');
+    const lockPath = `${storePath}.lock`;
+    mkdirSync(lockPath, { mode: 0o700 });
+    writeFileSync(
+      join(lockPath, 'holder.json'),
+      `${JSON.stringify({ pid: 999_999_999, acquiredAt: Date.now() })}\n`,
+      { mode: 0o600 }
+    );
+
+    const tracker = new SpendTracker({
+      maxAmountPerCall: 10_000_000n,
+      maxAmountPerDay: 5_000_000n,
+      storePath,
+      lockTimeoutMs: 0,
+    });
+
+    expect(() => tracker.reserve({ amount: 5_000_000n, payTo: 'addr1' })).not.toThrow();
+    expect(tracker.spentInWindow()).toBe(5_000_000n);
   });
 });

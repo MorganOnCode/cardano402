@@ -63,10 +63,25 @@ interface StoredSpendLedger {
   }>;
 }
 
+interface StoreLockHolder {
+  pid: number;
+  acquiredAt: number;
+}
+
 export class SpendLimitError extends Error {
   constructor(message: string, public readonly code: 'per_call' | 'per_day' | 'pay_to_allowlist') {
     super(message);
     this.name = 'SpendLimitError';
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === 'EPERM';
   }
 }
 
@@ -290,14 +305,21 @@ export class SpendTracker {
     if (!this.storePath) return operation();
     mkdirSync(dirname(this.storePath), { recursive: true, mode: 0o700 });
     const lockPath = `${this.storePath}.lock`;
+    const holderPath = `${lockPath}/holder.json`;
     const started = Date.now();
     while (true) {
       try {
         mkdirSync(lockPath, { mode: 0o700 });
+        writeFileSync(
+          holderPath,
+          `${JSON.stringify({ pid: process.pid, acquiredAt: Date.now() } satisfies StoreLockHolder)}\n`,
+          { mode: 0o600 }
+        );
         break;
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
         if (code !== 'EEXIST') throw error;
+        if (this.removeStaleStoreLock(lockPath, holderPath)) continue;
         if (Date.now() - started >= this.lockTimeoutMs) {
           throw new Error(
             `Timed out waiting for spend ledger lock at ${lockPath}; remove it only after confirming no signer process is active`
@@ -311,6 +333,19 @@ export class SpendTracker {
     } finally {
       rmSync(lockPath, { recursive: true, force: true });
     }
+  }
+
+  private removeStaleStoreLock(lockPath: string, holderPath: string): boolean {
+    let holder: StoreLockHolder;
+    try {
+      holder = JSON.parse(readFileSync(holderPath, 'utf8')) as StoreLockHolder;
+    } catch {
+      return false;
+    }
+    if (!Number.isInteger(holder.pid) || holder.pid <= 0) return false;
+    if (holder.pid === process.pid || isProcessAlive(holder.pid)) return false;
+    rmSync(lockPath, { recursive: true, force: true });
+    return true;
   }
 
   private loadLedger(): void {
