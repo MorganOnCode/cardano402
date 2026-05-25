@@ -1,3 +1,4 @@
+import fastify from 'fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -304,6 +305,27 @@ describe('createPaymentGate', () => {
       expect(reply.sent).toBe(false);
       expect(facilitator.verify).toHaveBeenCalledTimes(1);
       expect(facilitator.settle).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts X-PAYMENT through a real Fastify request', async () => {
+      const app = fastify({ logger: false });
+      app.get('/paid', { preHandler: createPaymentGate(options) }, async () => ({ ok: true }));
+
+      try {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/paid',
+          headers: { 'X-PAYMENT': createPaymentSignature() },
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(JSON.parse(response.body)).toEqual({ ok: true });
+        expect(response.headers['x-payment-response']).toBeDefined();
+        expect(facilitator.verify).toHaveBeenCalledTimes(1);
+        expect(facilitator.settle).toHaveBeenCalledTimes(1);
+      } finally {
+        await app.close();
+      }
     });
 
     it('should attach x402Settlement to request', async () => {
