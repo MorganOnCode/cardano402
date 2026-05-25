@@ -1,0 +1,42 @@
+name: Protocol Monitor
+
+# Manual-dispatch only for now. The hourly schedule is intentionally omitted
+# until the Cloudflare Managed Challenge is lifted on /health and /supported
+# (those paths currently return `cf-mitigated: challenge`, which this monitor
+# correctly reports as a failure). Re-add the `schedule:` block below once the
+# WAF skip rule for the API paths is in place:
+#
+#   schedule:
+#     - cron: '17 * * * *'
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base service URL to check
+        required: false
+        default: https://cardano402.com
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    name: Check Agent Protocol Endpoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+      - name: Check protocol endpoints
+        env:
+          CARDANO402_MONITOR_BASE_URL: ${{ inputs.base_url || 'https://cardano402.com' }}
+        run: node scripts/protocol-monitor.mjs --json
