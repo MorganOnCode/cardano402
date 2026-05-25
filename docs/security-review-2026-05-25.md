@@ -321,6 +321,26 @@ Evidence:
 - `tests/unit/plugins/error-handler.test.ts`
 - `tests/unit/routes/metrics.test.ts`
 
+### F6f - Development request logging could attach payment bodies
+
+Previous risk: the request logger had a development-mode branch that attached
+`request.body` to log records. Even though production did not use it, signed
+payment payloads, raw transaction CBOR, nonces, or testnet seeds should not
+become normal log material in a financial-agent codebase.
+
+Change:
+
+- Removed development-mode request body logging entirely.
+- Added regression coverage that a posted payment payload is not present in
+  request logs.
+- Release readiness now fails if the request logger reintroduces `logData.body`.
+
+Evidence:
+
+- `src/plugins/request-logger.ts`
+- `tests/unit/plugins/request-logger.test.ts`
+- `scripts/release-readiness-check.mjs`
+
 ### F7 - Root facilitator config allowed inline Mainnet signing keys
 
 Previous risk: the hosted/resource-server facilitator config accepted inline

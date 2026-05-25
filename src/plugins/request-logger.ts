@@ -8,7 +8,7 @@ interface RequestLoggerOptions {
 }
 
 const requestLogger: FastifyPluginCallback<RequestLoggerOptions> = (fastify, options, done) => {
-  const { isDev } = options;
+  void options;
 
   // Log incoming requests
   fastify.addHook('onRequest', async (request) => {
@@ -18,11 +18,6 @@ const requestLogger: FastifyPluginCallback<RequestLoggerOptions> = (fastify, opt
       requestId: request.id,
       userAgent: request.headers['user-agent'],
     };
-
-    // Full body in dev, metadata only in prod (per CONTEXT.md)
-    if (isDev && request.body) {
-      logData.body = request.body;
-    }
 
     request.log.info(logData, 'Incoming request');
   });

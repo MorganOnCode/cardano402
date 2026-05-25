@@ -87,6 +87,14 @@ requireIncludes(
   'redactUrlQuery(request.url)',
   'Error handler must redact query strings before logging or sending URL context to Sentry.'
 );
+if (read('src/plugins/request-logger.ts').includes('logData.body')) {
+  fail('Request logger must not attach request bodies to logs.');
+}
+requireIncludes(
+  'src/server.ts',
+  'disableRequestLogging: true',
+  'Fastify automatic request logging must stay disabled so URL redaction is controlled by request-logger.'
+);
 requireIncludes(
   'src/routes/metrics.ts',
   'boundedRouteLabel(request.routeOptions?.url)',
