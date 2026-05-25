@@ -22,9 +22,14 @@ deeper deployment/operator hardening.
 ## Branch and commit
 
 - Branch: `feat/mcp-0.1.3-hardening`
-- Commit: `f6a2b65 feat(mcp): harden agent payment safety`
+- Latest commit: `67fb1f7 fix(config): require safer mainnet signing keys`
+- Main hardening commit: `f6a2b65 feat(mcp): harden agent payment safety`
+- Report commit: `ceb2f4e docs: add goal progress report`
 - Remote: pushed to `origin/feat/mcp-0.1.3-hardening`
 - PR URL: `https://github.com/MorganOnCode/cardano402/pull/new/feat/mcp-0.1.3-hardening`
+
+Current local status: clean working tree on `feat/mcp-0.1.3-hardening`,
+tracking `origin/feat/mcp-0.1.3-hardening`.
 
 ## In-scope changes made
 
@@ -136,10 +141,25 @@ Earlier full-suite verification after the same hardening line:
 
 ## Remaining work
 
-1. Remote signer / policy signer design for Mainnet.
-2. Cloudflare rules that preserve machine access to x402 API endpoints.
+1. Cloudflare rules that preserve machine access to x402 API endpoints.
+2. Remote signer / external policy signer design for Mainnet. File-based keys
+   are now enforced for Mainnet by default, but a remote/policy signer is still
+   the stronger long-term boundary.
 3. Deployment runbook hardening for confirmation depth, Blockfrost quota,
    rate-limit tuning, and incident response.
 4. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
 5. Branch protection review to require CodeQL, OSV, Gitleaks, Zizmor,
    dependency review, payment invariant checks, tests, and audit before merge.
+
+## Current summary
+
+The work is now protected on a pushed branch and is materially advancing the
+goal. The highest-risk local-agent and root-facilitator hot-key paths have been
+hardened, persistent spend controls have been added for MCP Mainnet usage, and
+payment-specific CI invariants now guard the resource-server trust boundary.
+The repo also has a written security review and this progress report.
+
+The main unresolved operational issue is that `cardano402.com` currently
+challenges machine API routes behind Cloudflare. That is safe from an abuse
+perspective but incompatible with public x402 facilitator usage unless WAF skip
+rules and compensating rate limits are configured.
