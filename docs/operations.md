@@ -19,6 +19,23 @@
 
 See [`backup-restore.md`](backup-restore.md) for the encrypted off-host backup runbook (restic, nightly cron, retention policy, restore procedure, disaster recovery scenarios).
 
+## Mainnet signer isolation
+
+The current root facilitator uses local Lucid signing material from a
+restrictive file. This is acceptable for Preview, Preprod, and limited-value
+Mainnet operation, but it is still a hot-wallet deployment because the web
+process can sign if the host is compromised.
+
+Before high-value Mainnet operation, use the target remote or hardware-backed
+policy signer model in
+[`mainnet-signer-isolation.md`](mainnet-signer-isolation.md). Until that exists:
+
+- keep only operational float in the facilitator wallet;
+- keep signing files out of unencrypted backups;
+- rotate the facilitator wallet after suspected host compromise;
+- avoid enabling `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY`;
+- use Preview or Preprod for public demos and integration testing.
+
 ## Manual deploy procedure
 
 Production deploys run manually from a tailnet-attached laptop (the VPS is Tailscale-only, no public SSH). The canonical "phased deploy" pattern used for any change that touches `docker-compose.prod.yml` or `Dockerfile`:

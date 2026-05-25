@@ -90,6 +90,9 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
   `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true` is explicitly set.
 - Updated `config/config.example.json` and deployment docs to prefer
   file-based facilitator signing material.
+- Added `docs/mainnet-signer-isolation.md` to define the target remote or
+  hardware-backed signer boundary and to make clear that file-backed Mainnet
+  credentials remain a hot-wallet interim state.
 
 ### Documentation and review artifacts
 
@@ -177,9 +180,9 @@ Earlier full-suite verification after the same hardening line:
 2. After the Cloudflare changes are applied, run the new protocol monitor
    workflow manually against `https://cardano402.com` and require it as an
    operational check for the live service.
-3. Remote signer / external policy signer design for Mainnet. File-based keys
-   are now enforced for Mainnet by default, but a remote/policy signer is still
-   the stronger long-term boundary.
+3. Implement the remote signer / external policy signer design for Mainnet.
+   The design target is now documented; code still uses local Lucid file-backed
+   signing material for the root facilitator.
 4. Deployment runbook hardening for confirmation depth, Blockfrost quota,
    rate-limit tuning, and incident response.
 5. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.

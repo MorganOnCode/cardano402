@@ -80,6 +80,12 @@ Without it, attempting to use `"Mainnet"` as the network will cause a startup er
 Mainnet connection requires explicit MAINNET=true environment variable
 ```
 
+File-based Mainnet credentials are still a hot-wallet model. For high-value
+Mainnet operation, use the signer isolation target described in
+[`mainnet-signer-isolation.md`](mainnet-signer-isolation.md); until that remote
+or hardware-backed signer exists, keep only limited operational funds in the
+facilitator wallet.
+
 ## Docker Deployment (Recommended)
 
 ### Development
@@ -203,3 +209,6 @@ For operational monitoring, log analysis, Sentry error tracking, Redis monitorin
 - **Rate limiting** is configured by default (100 req/min global, 20 req/min on sensitive endpoints)
 - **Non-root container** -- the Docker image runs as `appuser:1001`
 - **Token registry** is hardcoded as a security gate -- adding new tokens requires a code change and review
+- **Mainnet signing isolation** -- file-based credentials reduce accidental
+  leakage but do not isolate signing from a compromised web process; see
+  [`mainnet-signer-isolation.md`](mainnet-signer-isolation.md)

@@ -209,6 +209,9 @@ Change:
 - Mainnet now rejects inline facilitator signing material unless
   `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true` is explicitly set.
 - Updated deployment examples and runbooks to use file-based signing material.
+- Added a Mainnet signer isolation plan that treats file-based Mainnet
+  credentials as a hot-wallet interim state, not the final high-value signer
+  architecture.
 
 Evidence:
 
@@ -218,6 +221,7 @@ Evidence:
 - `docs/deployment.md`
 - `docs/operations.md`
 - `docs/vps-deployment.md`
+- `docs/mainnet-signer-isolation.md`
 
 ### F5 - Dependency audit gate was too soft
 
@@ -299,9 +303,16 @@ better than env material, but for Mainnet the safer target is a remote signer,
 hardware wallet bridge, or policy engine that can enforce address, asset,
 amount, TTL, and daily caps outside the MCP process.
 
+The root facilitator also currently initializes local Lucid signing material.
+For most public `/verify` and `/settle` calls, the facilitator settles
+client-signed transactions rather than spending from its own wallet. Still, any
+future facilitator-owned transaction, administrative transaction, demo-wallet
+flow, or agent automation should use the signer isolation model in
+`docs/mainnet-signer-isolation.md`.
+
 Recommended next step:
 
-- Add signer interface docs for remote signers.
+- Implement the documented signer provider boundary.
 - Support a process/HTTP signer adapter with strict request schema and timeout.
 - Require human approval or policy proof for Mainnet amounts above a low
   threshold.
