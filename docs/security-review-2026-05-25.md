@@ -322,14 +322,16 @@ Recommended next step:
 The code defaults away from mempool access, which is correct. `/health` now
 reports non-secret confirmation policy under `policy.confirmation`, including
 network, confirmation mode, nonce requirement, timeout, and minimum
-confirmations.
+confirmations. `pnpm monitor:protocol` now validates that policy and fails on
+unexpected mempool mode, disabled nonce enforcement, missing policy, or
+minimum-confirmation drift below the configured threshold.
 
 Recommended next step:
 
 - Add a deployment table mapping low/test, normal, and high-value resources to
   `minConfirmations` and timeouts.
-- Add external monitoring that alerts on unexpected `allow_mempool`,
-  `requireNonce: false`, or lower-than-approved `minConfirmations`.
+- Wire the scheduled monitor result into alerting once the live Cloudflare WAF
+  skip rules are applied.
 
 ### R3 - Script method is not implemented
 

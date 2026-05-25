@@ -7,6 +7,10 @@ on:
         description: Base URL to check
         required: false
         default: https://cardano402.com
+      min_confirmations:
+        description: Minimum approved confirmation depth
+        required: false
+        default: '6'
   schedule:
     - cron: '17 * * * *'
 
@@ -20,6 +24,7 @@ jobs:
     timeout-minutes: 10
     env:
       BASE_URL: ${{ inputs.base_url || 'https://cardano402.com' }}
+      MIN_CONFIRMATIONS: ${{ inputs.min_confirmations || '6' }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -40,4 +45,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Check x402 machine endpoints
-        run: pnpm monitor:protocol -- --base-url "$BASE_URL" --json
+        run: pnpm monitor:protocol -- --base-url "$BASE_URL" --min-confirmations "$MIN_CONFIRMATIONS" --json

@@ -102,6 +102,8 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
   max timeout, and nonce requirement.
 - Unit and integration tests assert the policy is present without exposing
   Blockfrost project IDs or signing material.
+- `pnpm monitor:protocol` now checks `/health` for missing policy,
+  `allow_mempool`, disabled nonce enforcement, and low confirmation depth.
 
 ### Documentation and review artifacts
 
@@ -120,9 +122,11 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 
 - Added `pnpm monitor:protocol`.
 - Added `scripts/protocol-monitor.mjs`.
-- The monitor checks `/.well-known/x402.json`, `/supported`, `/verify`, and
-  `/settle` and fails on Cloudflare challenges, HTML responses, or unexpected
-  statuses.
+- The monitor checks `/.well-known/x402.json`, `/health`, `/supported`,
+  `/verify`, and `/settle` and fails on Cloudflare challenges, HTML responses,
+  unexpected statuses, or production confirmation-policy drift.
+- The scheduled/manual protocol monitor workflow accepts a minimum confirmation
+  threshold and passes it to `pnpm monitor:protocol`.
 - Added a Cloudflare WAF/runbook section to `docs/operations.md` describing
   which machine routes must skip browser challenges and which compensating
   rate limits/logging should remain.
@@ -164,6 +168,7 @@ Passing checks:
 - `pnpm security:payments`
 - `pnpm audit --prod`
 - `pnpm monitor:protocol -- --base-url <local-json-mock> --json`
+- `pnpm monitor:protocol -- --base-url <local-json-mock> --min-confirmations 6 --json`
 - protected brand search - no matches
 
 Current live monitor status:
@@ -173,6 +178,9 @@ Current live monitor status:
 - `/.well-known/x402.json` returned HTTP 200 JSON.
 - `/supported`, `/verify`, and `/settle` returned HTTP 403 Cloudflare
   challenge HTML with `cf-mitigated: challenge`.
+- On 2026-05-25 at 07:29:35 UTC, the expanded monitor also checked `/health`
+  with `--min-confirmations 6`; `/health`, `/supported`, `/verify`, and
+  `/settle` returned HTTP 403 Cloudflare challenge HTML.
 - This failure is useful evidence, not a repo test regression: the local
   protocol monitor smoke test passes against a JSON mock, and the live failure
   reflects external WAF behavior.

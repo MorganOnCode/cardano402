@@ -231,13 +231,18 @@ without JavaScript or cookies.
 Run this from outside the Cloudflare zone after every WAF change:
 
 ```bash
-pnpm monitor:protocol -- --base-url https://cardano402.com --json
+pnpm monitor:protocol -- --base-url https://cardano402.com --min-confirmations 6 --json
 ```
 
 The monitor fails if any machine endpoint returns a Cloudflare challenge, HTML,
 or an unexpected status. It is acceptable for `/verify` and `/settle` to return
 structured JSON rejections for deliberately invalid monitor payloads; it is not
 acceptable for them to return a browser challenge.
+
+The monitor also checks `/health` policy drift. By default it fails if
+`policy.confirmation` is missing, if `confirmationMode` is `allow_mempool`, if
+`requireNonce` is false, or if `minConfirmations` is below the configured
+threshold.
 
 ### Health endpoint shows version 0.0.0
 
