@@ -22,7 +22,7 @@ deeper deployment/operator hardening.
 ## Branch and commit
 
 - Branch: `feat/mcp-0.1.3-hardening`
-- Latest commit: `67fb1f7 fix(config): require safer mainnet signing keys`
+- Latest pushed commit: `0c28d12 docs: define Cloudflare machine API posture`
 - Main hardening commit: `f6a2b65 feat(mcp): harden agent payment safety`
 - Report commit: `ceb2f4e docs: add goal progress report`
 - Remote: pushed to `origin/feat/mcp-0.1.3-hardening`
@@ -112,6 +112,9 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 - Added a Cloudflare WAF/runbook section to `docs/operations.md` describing
   which machine routes must skip browser challenges and which compensating
   rate limits/logging should remain.
+- Added a scheduled/manual GitHub Actions protocol monitor so the live x402
+  machine endpoints can be checked without blocking normal PR CI while the
+  Cloudflare zone is still being tuned.
 
 ## Live-site findings
 
@@ -147,6 +150,17 @@ Passing checks:
 - `pnpm monitor:protocol -- --base-url <local-json-mock> --json`
 - protected brand search - no matches
 
+Current live monitor status:
+
+- On 2026-05-25 at 07:13:06 UTC, `pnpm monitor:protocol -- --base-url
+  https://cardano402.com --json` failed as expected against the live site.
+- `/.well-known/x402.json` returned HTTP 200 JSON.
+- `/supported`, `/verify`, and `/settle` returned HTTP 403 Cloudflare
+  challenge HTML with `cf-mitigated: challenge`.
+- This failure is useful evidence, not a repo test regression: the local
+  protocol monitor smoke test passes against a JSON mock, and the live failure
+  reflects external WAF behavior.
+
 Earlier full-suite verification after the same hardening line:
 
 - `pnpm test -- --runInBand` - 462 tests passed
@@ -156,13 +170,16 @@ Earlier full-suite verification after the same hardening line:
 1. Apply and verify the documented Cloudflare WAF skip/rate-limit rules on
    the live zone. The runbook and monitor now exist; the external Cloudflare
    state still needs to be changed.
-2. Remote signer / external policy signer design for Mainnet. File-based keys
+2. After the Cloudflare changes are applied, run the new protocol monitor
+   workflow manually against `https://cardano402.com` and require it as an
+   operational check for the live service.
+3. Remote signer / external policy signer design for Mainnet. File-based keys
    are now enforced for Mainnet by default, but a remote/policy signer is still
    the stronger long-term boundary.
-3. Deployment runbook hardening for confirmation depth, Blockfrost quota,
+4. Deployment runbook hardening for confirmation depth, Blockfrost quota,
    rate-limit tuning, and incident response.
-4. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
-5. Branch protection review to require CodeQL, OSV, Gitleaks, Zizmor,
+5. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
+6. Branch protection review to require CodeQL, OSV, Gitleaks, Zizmor,
    dependency review, payment invariant checks, tests, and audit before merge.
 
 ## Current summary
