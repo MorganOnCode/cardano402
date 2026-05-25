@@ -271,6 +271,13 @@ export async function payAndFetch(options: PayAndFetchOptions): Promise<PayAndFe
   // another MCP process that shares the same persistent ledger sees this spend
   // while the signer is still working.
   const amount = BigInt(accept.amount);
+  options.spendTracker?.assertCanSpend({
+    amount,
+    payTo: accept.payTo,
+    asset: accept.asset,
+    toolName: options.toolName,
+  });
+
   if (
     options.elicit &&
     options.elicitationThreshold !== undefined &&
