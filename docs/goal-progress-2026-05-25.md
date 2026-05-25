@@ -23,7 +23,7 @@ deeper deployment/operator hardening.
 
 - Branch: `feat/mcp-0.1.3-hardening`
 - Pull request: `https://github.com/MorganOnCode/cardano402/pull/88`
-- Current PR head: `4f3e3de fix(mcp): restore corrupt spend ledger from backup`
+- Current PR head: `d03777f fix(logging): stop logging request bodies`
 - Protocol monitor workflow commit: `91b8464 ci: add protocol monitor workflow`
 - Main hardening commit: `f6a2b65 feat(mcp): harden agent payment safety`
 - Report commit: `ceb2f4e docs: add goal progress report`
@@ -37,7 +37,7 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 ## Pull request status
 
 Observed on 2026-05-25 UTC for PR #88 head
-`4f3e3de38e15a307ffda568513711d97a859f097`:
+`d03777fbab54a3d7ca108caf6a540c9ac16d42f3`:
 
 - CI completed successfully.
 - CI jobs succeeded: Lint & Type Check, Test, Build, Docker Build, Security
@@ -163,6 +163,10 @@ needs admin-side enforcement of the documented required checks.
 - Request logging, error-handler Sentry context, 404 responses, and unmatched
   HTTP metrics now avoid raw URL query strings so payment headers or tokens
   cannot leak through misconfigured query parameters.
+- Development-mode request logging no longer attaches request bodies, and the
+  release readiness gate now fails if body logging or Fastify automatic request
+  logging is reintroduced. This keeps signed payment payloads, raw transaction
+  CBOR, nonces, and test credentials out of normal logs.
 
 ### Release readiness gate
 
@@ -246,6 +250,10 @@ Passing checks:
   passed
 - `pnpm test tests/integration/settle-route.test.ts -- --runInBand` - 12 tests
   passed
+- `pnpm test tests/unit/plugins/error-handler.test.ts tests/unit/routes/metrics.test.ts -- --runInBand`
+  - 33 tests passed
+- `pnpm test tests/unit/plugins/request-logger.test.ts -- --runInBand` - 2
+  tests passed
 - `pnpm test tests/unit/sdk/payment-gate.test.ts tests/integration/server.test.ts -- --runInBand`
 - `pnpm security:payments`
 - `pnpm security:release`
