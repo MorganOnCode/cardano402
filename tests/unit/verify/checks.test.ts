@@ -926,19 +926,22 @@ describe('checkWitnessPresent', () => {
 // ---------------------------------------------------------------------------
 
 describe('checkTtl', () => {
-  it('passes when no TTL is set (skip)', async () => {
+  it('fails when no TTL is set', async () => {
     const ctx = makeCtx();
     ctx._parsedTx = makeParsedTx({ body: { ...makeParsedTx().body, ttl: undefined } });
     const result = await checkTtl(ctx);
     expect(result.check).toBe('ttl');
-    expect(result.passed).toBe(true);
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('ttl_required');
   });
 
-  it('passes when TTL is in the future', async () => {
+  it('passes when TTL is in the bounded payment window', async () => {
     const ctx = makeCtx({
       getCurrentSlot: vi.fn().mockResolvedValue(1000),
+      maxTimeoutSeconds: 300,
+      ttlGraceBufferSeconds: 30,
     });
-    ctx._parsedTx = makeParsedTx({ body: { ...makeParsedTx().body, ttl: 2000n } });
+    ctx._parsedTx = makeParsedTx({ body: { ...makeParsedTx().body, ttl: 1300n } });
     const result = await checkTtl(ctx);
     expect(result.check).toBe('ttl');
     expect(result.passed).toBe(true);
@@ -955,6 +958,24 @@ describe('checkTtl', () => {
     expect(result.reason).toBe('transaction_expired');
     expect(result.details).toHaveProperty('ttl');
     expect(result.details).toHaveProperty('currentSlot');
+  });
+
+  it('fails when TTL is beyond maxTimeoutSeconds plus grace', async () => {
+    const ctx = makeCtx({
+      getCurrentSlot: vi.fn().mockResolvedValue(1000),
+      maxTimeoutSeconds: 300,
+      ttlGraceBufferSeconds: 30,
+    });
+    ctx._parsedTx = makeParsedTx({ body: { ...makeParsedTx().body, ttl: 1331n } });
+    const result = await checkTtl(ctx);
+    expect(result.check).toBe('ttl');
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('transaction_ttl_too_far');
+    expect(result.details).toMatchObject({
+      latestAllowedTtl: '1330',
+      maxTimeoutSeconds: 300,
+      graceBufferSeconds: 30,
+    });
   });
 
   it('returns cbor_required when _parsedTx is missing', async () => {
