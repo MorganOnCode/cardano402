@@ -102,6 +102,17 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 - Updated MCP README for safer Mainnet seed handling and persistent spend store.
 - Removed all local references to the protected brand name.
 
+### Cloudflare protocol accessibility
+
+- Added `pnpm monitor:protocol`.
+- Added `scripts/protocol-monitor.mjs`.
+- The monitor checks `/.well-known/x402.json`, `/supported`, `/verify`, and
+  `/settle` and fails on Cloudflare challenges, HTML responses, or unexpected
+  statuses.
+- Added a Cloudflare WAF/runbook section to `docs/operations.md` describing
+  which machine routes must skip browser challenges and which compensating
+  rate limits/logging should remain.
+
 ## Live-site findings
 
 Observed on 2026-05-25 UTC:
@@ -133,6 +144,7 @@ Passing checks:
 - `pnpm test tests/unit/sdk/payment-gate.test.ts tests/integration/server.test.ts -- --runInBand`
 - `pnpm security:payments`
 - `pnpm audit --prod`
+- `pnpm monitor:protocol -- --base-url <local-json-mock> --json`
 - protected brand search - no matches
 
 Earlier full-suite verification after the same hardening line:
@@ -141,7 +153,9 @@ Earlier full-suite verification after the same hardening line:
 
 ## Remaining work
 
-1. Cloudflare rules that preserve machine access to x402 API endpoints.
+1. Apply and verify the documented Cloudflare WAF skip/rate-limit rules on
+   the live zone. The runbook and monitor now exist; the external Cloudflare
+   state still needs to be changed.
 2. Remote signer / external policy signer design for Mainnet. File-based keys
    are now enforced for Mainnet by default, but a remote/policy signer is still
    the stronger long-term boundary.
@@ -160,6 +174,6 @@ payment-specific CI invariants now guard the resource-server trust boundary.
 The repo also has a written security review and this progress report.
 
 The main unresolved operational issue is that `cardano402.com` currently
-challenges machine API routes behind Cloudflare. That is safe from an abuse
-perspective but incompatible with public x402 facilitator usage unless WAF skip
-rules and compensating rate limits are configured.
+challenges machine API routes behind Cloudflare. The repo now has a monitor and
+runbook for the desired posture, but the live Cloudflare zone still needs the
+skip/rate-limit rules applied and verified.

@@ -244,6 +244,13 @@ Recommendation:
   and optional API-key tiers for hosted-facilitator abuse control.
 - Keep admin/deploy/metrics endpoints private or tailnet-only.
 
+Follow-up added in this branch:
+
+- `pnpm monitor:protocol` now checks machine endpoints and fails on Cloudflare
+  challenges, HTML responses, or unexpected statuses.
+- `docs/operations.md` now includes a Cloudflare WAF posture and verification
+  runbook for preserving machine access without dropping abuse controls.
+
 ### L2 - Hosted manifest advertises no paid endpoints
 
 Observed `/.well-known/x402.json` returns `endpoints: []`.
@@ -364,6 +371,7 @@ Commands run after the current MCP and SDK changes:
 - `pnpm test -- --runInBand`
 - `pnpm audit --prod`
 - `pnpm security:payments`
+- `pnpm monitor:protocol -- --base-url <local-json-mock> --json`
 - `rg -n "<protected-brand-pattern>" .`
 - `curl -i https://cardano402.com/.well-known/x402.json`
 - `curl -i https://cardano402.com/health`

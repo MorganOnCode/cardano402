@@ -158,6 +158,53 @@ In Docker: `docker compose --profile production stop` sends SIGTERM.
 **Symptom:** Clients receive 429 Too Many Requests
 **Fix:** Default limits: 100 req/min global, 20 req/min on /verify, /settle, /status. Adjust in config `rateLimit` section.
 
+### Cloudflare challenge blocks x402 clients
+
+**Symptom:** Non-browser clients receive HTTP 403 with `cf-mitigated: challenge`
+for `/supported`, `/verify`, `/settle`, or `/status`.
+
+**Impact:** This blocks x402 resource servers and agents. Browser challenges are
+reasonable for the landing page, but machine protocol endpoints must return JSON
+without JavaScript or cookies.
+
+**Required machine-reachable paths:**
+
+- `/.well-known/x402.json`
+- `/.well-known/agent-card.json`
+- `/.well-known/ai-agent.json`
+- `/.well-known/mcp/server-card.json`
+- `/supported`
+- `/verify`
+- `/settle`
+- `/status`
+
+**Cloudflare WAF posture:**
+
+1. Keep the default managed challenge for `/` and human-facing landing assets.
+2. Add a WAF skip rule for the machine paths above that skips managed challenge
+   and bot fight mode, but does not skip logging.
+3. Add Cloudflare rate limiting on machine paths:
+   - `/.well-known/*` and `/supported`: high read limit, cacheable where safe.
+   - `/verify`: moderate limit; this burns CPU and Blockfrost quota.
+   - `/settle`: strictest limit; this can submit transactions.
+   - `/status`: moderate limit; this reads settlement state.
+4. Keep Fastify route limits enabled as the application backstop.
+5. Alert on spikes in 4xx/5xx, `invalid_request`, `nonce_lookup_failed`, and
+   Blockfrost quota errors.
+
+**Verification:**
+
+Run this from outside the Cloudflare zone after every WAF change:
+
+```bash
+pnpm monitor:protocol -- --base-url https://cardano402.com --json
+```
+
+The monitor fails if any machine endpoint returns a Cloudflare challenge, HTML,
+or an unexpected status. It is acceptable for `/verify` and `/settle` to return
+structured JSON rejections for deliberately invalid monitor payloads; it is not
+acceptable for them to return a browser challenge.
+
 ### Health endpoint shows version 0.0.0
 
 **Symptom:** Health endpoint returns version "0.0.0"
