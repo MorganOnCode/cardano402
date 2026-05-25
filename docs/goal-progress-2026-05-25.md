@@ -22,14 +22,36 @@ deeper deployment/operator hardening.
 ## Branch and commit
 
 - Branch: `feat/mcp-0.1.3-hardening`
+- Pull request: `https://github.com/MorganOnCode/cardano402/pull/88`
 - Protocol monitor workflow commit: `91b8464 ci: add protocol monitor workflow`
 - Main hardening commit: `f6a2b65 feat(mcp): harden agent payment safety`
 - Report commit: `ceb2f4e docs: add goal progress report`
 - Remote: pushed to `origin/feat/mcp-0.1.3-hardening`
-- PR URL: `https://github.com/MorganOnCode/cardano402/pull/new/feat/mcp-0.1.3-hardening`
+- PR #88 title updated to `feat(mcp): harden agent payment safety and
+  production posture`.
 
 Current local status: clean working tree on `feat/mcp-0.1.3-hardening`,
 tracking `origin/feat/mcp-0.1.3-hardening`.
+
+## Pull request status
+
+Observed on 2026-05-25 UTC for PR #88 head
+`c5ce1eda16c226964da551c744e3b1adc8fbd1b0`:
+
+- CI completed successfully.
+- CI jobs succeeded: Lint & Type Check, Test, Build, Docker Build, Security
+  Audit.
+- CI Security Audit included Dependency audit, Payment security invariants, and
+  Release readiness invariants.
+- CodeQL completed successfully.
+- OSV-Scanner completed successfully.
+- Gitleaks completed successfully.
+- Dependency Review completed successfully.
+- zizmor completed successfully.
+
+Scorecard is configured as a scheduled security workflow but was not returned
+for this PR head in the workflow-run lookup. Repository branch protection still
+needs admin-side enforcement of the documented required checks.
 
 ## In-scope changes made
 
