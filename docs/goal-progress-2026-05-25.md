@@ -1,0 +1,135 @@
+# Goal Progress Report - 2026-05-25
+
+## Original goal prompt
+
+> check this codebase for /opt/cardano402 and github/MorganOnCode/cardano402 and cardano402.com - ensure we're completely secure when offering a financial tool for people's agents to handle money. its open source to reduce risk and defer to installers. i want deep analysis of what the function is, compared to https://github.com/x402-foundation/x402 specs. Check for any bugs or exploits, use and recommend tools (inc paid) like sentry, greptile, audit tools etc.
+
+## Are we still on track?
+
+Yes. The work remains directly aligned with the goal:
+
+- It reviews the local codebase and live `cardano402.com` behavior.
+- It compares the implementation against the x402 Cardano exact scheme.
+- It hardens the highest-risk money-handling path: agent-controlled MCP
+  signing.
+- It adds CI checks for payment-specific regressions.
+- It documents remaining production risks and recommended tools.
+
+The goal is not complete yet. We have made concrete progress, but remaining
+work includes remote signer design, live Cloudflare API accessibility, and
+deeper deployment/operator hardening.
+
+## Branch and commit
+
+- Branch: `feat/mcp-0.1.3-hardening`
+- Commit: `f6a2b65 feat(mcp): harden agent payment safety`
+- Remote: pushed to `origin/feat/mcp-0.1.3-hardening`
+- PR URL: `https://github.com/MorganOnCode/cardano402/pull/new/feat/mcp-0.1.3-hardening`
+
+## In-scope changes made
+
+### MCP agent payment safety
+
+- Bumped `@cardano402/mcp-server` to `0.1.3`.
+- Added `0.1.3` changelog entry for security hardening.
+- Added `SEED_PHRASE_FILE` / `--seed-phrase-file`.
+- Enforced restrictive seed file permissions on POSIX.
+- Mainnet now rejects env-var seed material unless the explicit unsafe override
+  is set.
+- Added `CARDANO402_SPEND_STORE_PATH` / `--spend-store-path`.
+- Mainnet now requires persistent spend tracking.
+- Added persistent spend ledger support.
+- Added pending spend reservations before signing.
+- Reservations commit after successful signing and roll back on signer failure.
+- Pending reservations expire after TTL.
+- Persistent ledger operations use a lock to avoid concurrent signer races.
+- Spend entries now include recipient, asset, transaction hash, tool name, and
+  status.
+
+### x402 and resource-server compatibility
+
+- `createPaymentGate` now accepts both `Payment-Signature` and `X-PAYMENT`.
+- CORS now allows `X-PAYMENT`.
+- Added regression coverage for the `X-PAYMENT` alias.
+- Updated core spec notes so they no longer claim the app layer lacks alias
+  support.
+
+### Payment-specific CI guardrails
+
+- Added `scripts/payment-security-check.mjs`.
+- Added `pnpm security:payments`.
+- CI now runs the payment invariant check after dependency audit.
+- The check guards against:
+  - losing `X-PAYMENT` support,
+  - losing CORS support for `X-PAYMENT`,
+  - deriving `paymentRequirements` from client/request data,
+  - trusting `payload.accepted` for server-owned price fields,
+  - examples encouraging unsafe hot seed handling.
+
+### Dependency and audit posture
+
+- CI dependency audit now runs as `pnpm audit --prod --audit-level=moderate`.
+- Added a pnpm override for the vulnerable transitive `ip-address` dependency
+  path under the Cardano SDK dependency.
+- `pnpm audit --prod` currently reports no known vulnerabilities.
+
+### Documentation and review artifacts
+
+- Added `docs/security-review-2026-05-25.md`.
+- Documented:
+  - system function,
+  - x402 spec alignment,
+  - fixed findings,
+  - live-site findings,
+  - remaining production risks,
+  - recommended security tools.
+- Updated MCP README for safer Mainnet seed handling and persistent spend store.
+- Removed all local references to the protected brand name.
+
+## Live-site findings
+
+Observed on 2026-05-25 UTC:
+
+- `https://cardano402.com/.well-known/x402.json` returns HTTP 200 JSON.
+- `/health`, `/supported`, `/verify`, and `/settle` are Cloudflare-challenged
+  for non-browser clients.
+
+Interpretation:
+
+- This helps reduce opportunistic abuse.
+- It blocks machine clients if `cardano402.com` is intended to serve as a
+  public x402 facilitator.
+
+Recommendation:
+
+- Keep challenge rules for human-facing pages if desired.
+- Add route-specific WAF skip rules for machine API endpoints.
+- Compensate with rate limits, body-size limits, telemetry, and abuse budgets.
+
+## Verification performed
+
+Passing checks:
+
+- `pnpm --filter @cardano402/mcp-server test` - 102 tests passed
+- `pnpm --filter @cardano402/mcp-server typecheck`
+- `pnpm --filter @cardano402/mcp-server build`
+- `pnpm typecheck`
+- `pnpm test tests/unit/sdk/payment-gate.test.ts tests/integration/server.test.ts -- --runInBand`
+- `pnpm security:payments`
+- `pnpm audit --prod`
+- protected brand search - no matches
+
+Earlier full-suite verification after the same hardening line:
+
+- `pnpm test -- --runInBand` - 456 tests passed
+
+## Remaining work
+
+1. Remote signer / policy signer design for Mainnet.
+2. Cloudflare rules that preserve machine access to x402 API endpoints.
+3. Deployment runbook hardening for confirmation depth, Blockfrost quota,
+   rate-limit tuning, and incident response.
+4. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
+5. Branch protection review to require CodeQL, OSV, Gitleaks, Zizmor,
+   dependency review, payment invariant checks, tests, and audit before merge.
+
