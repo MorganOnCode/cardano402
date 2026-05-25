@@ -30,6 +30,7 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 |-------|-------------|---------|
 | `chain.network` | Cardano network | `"Preview"`, `"Preprod"`, `"Mainnet"` |
 | `chain.blockfrost.projectId` | Blockfrost API key | `"previewXXX..."` |
+| `chain.facilitator.signerMode` | Current root facilitator signer mode. Only `"local-file"` is implemented today | `"local-file"` |
 | `chain.facilitator.seedPhraseFile` | `0600` file containing facilitator wallet seed phrase | `"/run/secrets/cardano402-facilitator.seed"` |
 | `chain.facilitator.privateKeyFile` | `0600` file containing facilitator wallet private key | `"/run/secrets/cardano402-facilitator.skey"` |
 | `chain.redis.host` | Redis hostname | `"localhost"` or `"redis-prod"` |
@@ -88,6 +89,10 @@ Mainnet operation, use the signer isolation target described in
 [`mainnet-signer-isolation.md`](mainnet-signer-isolation.md); until that remote
 or hardware-backed signer exists, keep only limited operational funds in the
 facilitator wallet.
+
+`chain.facilitator.signerMode` is explicit so monitoring can report signer
+posture. The only supported value today is `"local-file"`; remote policy signer
+config should not be added until the signer provider boundary exists.
 
 ## Docker Deployment (Recommended)
 

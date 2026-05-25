@@ -17,6 +17,10 @@ any transaction can be signed.
 - Mainnet rejects inline `chain.facilitator.seedPhrase` and
   `chain.facilitator.privateKey` unless an explicit unsafe override is set.
 - Mainnet signing material must be loaded from restrictive files by default.
+- `chain.facilitator.signerMode` is explicit and currently supports only
+  `local-file`.
+- `/health` exposes `policy.signer` so operators and monitors can see that the
+  current signer is a hot-wallet mode.
 - The MCP agent signer already has spend caps, allowlists, elicitation, and a
   persistent spend ledger.
 - The root facilitator signer does not yet have an external signer boundary.

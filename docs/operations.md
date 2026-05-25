@@ -154,21 +154,30 @@ In Docker: `docker compose --profile production stop` sends SIGTERM.
 **Investigate:** `degraded` status -- check Redis connectivity.
 
 The response also includes non-secret confirmation policy under
-`policy.confirmation`:
+`policy.confirmation` and signer posture under `policy.signer`:
 
 ```json
 {
-  "network": "Mainnet",
-  "confirmationMode": "confirmed_only",
-  "minConfirmations": 6,
-  "maxTimeoutSeconds": 300,
-  "requireNonce": true
+  "confirmation": {
+    "network": "Mainnet",
+    "confirmationMode": "confirmed_only",
+    "minConfirmations": 6,
+    "maxTimeoutSeconds": 300,
+    "requireNonce": true
+  },
+  "signer": {
+    "mode": "local-file",
+    "credentialSource": "seedPhraseFile",
+    "hotWallet": true
+  }
 }
 ```
 
 Alert if production unexpectedly reports `confirmationMode:
 "allow_mempool"`, `requireNonce: false`, or a lower-than-approved
-`minConfirmations` value.
+`minConfirmations` value. Until remote policy signing is implemented,
+`policy.signer.hotWallet: true` is expected and should be treated as a
+deployment risk signal rather than a failure by itself.
 
 ## Common Issues
 

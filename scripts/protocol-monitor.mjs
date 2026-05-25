@@ -62,7 +62,8 @@ function parseArgs(argv) {
 }
 
 function validateHealthPolicy(body, args) {
-  const confirmation = body?.policy?.confirmation;
+  const policy = body?.policy;
+  const confirmation = policy?.confirmation;
   if (!confirmation) {
     return args.allowMissingHealthPolicy
       ? undefined
@@ -90,6 +91,25 @@ function validateHealthPolicy(body, args) {
     return {
       reason: 'min_confirmations_too_low',
       message: `Production monitor expects minConfirmations >= ${args.minConfirmations}`,
+    };
+  }
+  const signer = policy?.signer;
+  if (!signer) {
+    return {
+      reason: 'missing_signer_policy',
+      message: '/health must expose policy.signer for signer posture monitoring',
+    };
+  }
+  if (signer.mode !== 'local-file') {
+    return {
+      reason: 'unexpected_signer_mode',
+      message: 'Production monitor only recognises signer mode local-file until remote policy signing is implemented',
+    };
+  }
+  if (signer.hotWallet !== true) {
+    return {
+      reason: 'unexpected_signer_hot_wallet_flag',
+      message: 'Production monitor expects local-file signer mode to report hotWallet=true',
     };
   }
   return undefined;

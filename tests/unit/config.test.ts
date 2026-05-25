@@ -53,6 +53,7 @@ describe('Config Loading', () => {
     expect(config.chain.cache.utxoTtlSeconds).toBe(60);
     expect(config.chain.redis.host).toBe('127.0.0.1');
     expect(config.chain.redis.port).toBe(6379);
+    expect(config.chain.facilitator.signerMode).toBe('local-file');
   });
 
   it('should override defaults with provided values', () => {
@@ -161,6 +162,7 @@ describe('Config Loading', () => {
     const config = loadConfig(TEST_CONFIG_PATH);
 
     expect(config.chain.facilitator.seedPhrase).toBe('test seed phrase for unit testing only');
+    expect(config.chain.facilitator.signerMode).toBe('local-file');
     expect(config.chain.facilitator.credentialSource).toBe('seedPhraseFile');
   });
 

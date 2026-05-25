@@ -28,6 +28,10 @@ const TEST_CONFIG = {
       maxTimeoutSeconds: 300,
       requireNonce: true,
     },
+    facilitator: {
+      signerMode: 'local-file' as const,
+      credentialSource: 'seedPhraseFile' as const,
+    },
   },
 };
 
@@ -233,16 +237,23 @@ describe('Health Endpoint', () => {
       const response = await server.inject({ method: 'GET', url: '/health' });
 
       const body = response.json();
-      expect(body.policy.confirmation).toEqual({
-        network: 'Preview',
-        confirmationMode: 'confirmed_only',
-        minConfirmations: 6,
-        maxTimeoutSeconds: 300,
-        requireNonce: true,
+      expect(body.policy).toEqual({
+        signer: {
+          mode: 'local-file',
+          credentialSource: 'seedPhraseFile',
+          hotWallet: true,
+        },
+        confirmation: {
+          network: 'Preview',
+          confirmationMode: 'confirmed_only',
+          minConfirmations: 6,
+          maxTimeoutSeconds: 300,
+          requireNonce: true,
+        },
       });
       expect(JSON.stringify(body.policy)).not.toContain('projectId');
-      expect(JSON.stringify(body.policy)).not.toContain('seedPhrase');
-      expect(JSON.stringify(body.policy)).not.toContain('privateKey');
+      expect(JSON.stringify(body.policy)).not.toContain('test seed phrase');
+      expect(JSON.stringify(body.policy)).not.toContain('private-key-material');
     });
   });
 

@@ -33,6 +33,15 @@ function loadCredentialFile(path: string, label: string): string {
 
 const FacilitatorConfigSchema = z
   .object({
+    /**
+     * Root facilitator signer mode.
+     *
+     * `local-file` is the only implemented mode today: the process loads
+     * signing material from config or restrictive files and initializes a
+     * local Lucid wallet. Remote policy signing is intentionally not accepted
+     * until a signer provider boundary exists.
+     */
+    signerMode: z.literal('local-file').default('local-file'),
     /** Seed phrase for facilitator wallet (sensitive - never log) */
     seedPhrase: z.string().optional(),
     /** Restrictive file containing seed phrase for facilitator wallet. */
@@ -70,29 +79,34 @@ const FacilitatorConfigSchema = z
     ): {
       seedPhrase?: string;
       privateKey?: string;
+      signerMode?: 'local-file';
       credentialSource?: 'seedPhraseFile' | 'privateKeyFile' | 'seedPhrase' | 'privateKey';
     } => {
       try {
         if (data.seedPhraseFile) {
           return {
             seedPhrase: loadCredentialFile(data.seedPhraseFile, 'chain.facilitator.seedPhraseFile'),
+            signerMode: data.signerMode,
             credentialSource: 'seedPhraseFile' as const,
           };
         }
         if (data.privateKeyFile) {
           return {
             privateKey: loadCredentialFile(data.privateKeyFile, 'chain.facilitator.privateKeyFile'),
+            signerMode: data.signerMode,
             credentialSource: 'privateKeyFile' as const,
           };
         }
         if (data.seedPhrase) {
           return {
             seedPhrase: data.seedPhrase,
+            signerMode: data.signerMode,
             credentialSource: 'seedPhrase' as const,
           };
         }
         return {
           privateKey: data.privateKey,
+          signerMode: data.signerMode,
           credentialSource: 'privateKey' as const,
         };
       } catch (error) {

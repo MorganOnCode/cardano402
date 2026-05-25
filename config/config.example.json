@@ -25,6 +25,7 @@
       "tier": "free"
     },
     "facilitator": {
+      "signerMode": "local-file",
       "seedPhraseFile": "/run/secrets/cardano402-facilitator.seed"
     },
     "cache": {

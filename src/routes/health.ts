@@ -34,6 +34,11 @@ interface HealthResponse {
       maxTimeoutSeconds: number;
       requireNonce: boolean;
     };
+    signer: {
+      mode: 'local-file';
+      credentialSource?: string;
+      hotWallet: boolean;
+    };
   };
 }
 
@@ -103,6 +108,11 @@ const healthRoutes: FastifyPluginCallback = (fastify, _options, done) => {
           maxTimeoutSeconds: z.number(),
           requireNonce: z.boolean(),
         }),
+        signer: z.object({
+          mode: z.literal('local-file'),
+          credentialSource: z.string().optional(),
+          hotWallet: z.boolean(),
+        }),
       })
       .optional(),
   });
@@ -171,6 +181,12 @@ const healthRoutes: FastifyPluginCallback = (fastify, _options, done) => {
             minConfirmations: verification.minConfirmations,
             maxTimeoutSeconds: verification.maxTimeoutSeconds,
             requireNonce: verification.requireNonce,
+          },
+          signer: {
+            mode: fastify.config.chain.facilitator.signerMode ?? 'local-file',
+            credentialSource: fastify.config.chain.facilitator.credentialSource,
+            hotWallet:
+              (fastify.config.chain.facilitator.signerMode ?? 'local-file') === 'local-file',
           },
         };
       }

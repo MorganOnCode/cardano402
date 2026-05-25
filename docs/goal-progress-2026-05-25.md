@@ -84,6 +84,8 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 
 - Added `chain.facilitator.seedPhraseFile`.
 - Added `chain.facilitator.privateKeyFile`.
+- Added explicit `chain.facilitator.signerMode` with the current supported
+  root facilitator mode, `local-file`.
 - Enforced restrictive POSIX permissions for facilitator signing-key files.
 - Mainnet now rejects inline `chain.facilitator.seedPhrase` /
   `chain.facilitator.privateKey` in `config.json` unless
@@ -93,6 +95,8 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 - Added `docs/mainnet-signer-isolation.md` to define the target remote or
   hardware-backed signer boundary and to make clear that file-backed Mainnet
   credentials remain a hot-wallet interim state.
+- `/health` now exposes `policy.signer` so operators can see the current root
+  facilitator signer mode and whether it is a hot-wallet posture.
 
 ### Operator-visible confirmation policy
 
@@ -103,7 +107,8 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 - Unit and integration tests assert the policy is present without exposing
   Blockfrost project IDs or signing material.
 - `pnpm monitor:protocol` now checks `/health` for missing policy,
-  `allow_mempool`, disabled nonce enforcement, and low confirmation depth.
+  `allow_mempool`, disabled nonce enforcement, low confirmation depth, and
+  missing signer posture.
 
 ### Documentation and review artifacts
 

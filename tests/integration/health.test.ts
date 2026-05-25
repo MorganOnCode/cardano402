@@ -137,6 +137,10 @@ describe('Health Endpoint', () => {
       maxTimeoutSeconds: 300,
       requireNonce: false,
     });
+    expect(body.policy.signer).toEqual({
+      mode: 'local-file',
+      hotWallet: true,
+    });
     expect(response.body).not.toContain('test-project-id');
     expect(response.body).not.toContain('test seed phrase');
   });

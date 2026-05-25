@@ -208,6 +208,11 @@ Change:
   readable or writable.
 - Mainnet now rejects inline facilitator signing material unless
   `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true` is explicitly set.
+- `chain.facilitator.signerMode` is now explicit and defaults to the only
+  implemented root facilitator mode, `local-file`.
+- `/health` now reports non-secret signer posture under `policy.signer`,
+  including mode, credential source, and whether the signer is a hot-wallet
+  mode.
 - Updated deployment examples and runbooks to use file-based signing material.
 - Added a Mainnet signer isolation plan that treats file-based Mainnet
   credentials as a hot-wallet interim state, not the final high-value signer
@@ -222,6 +227,7 @@ Evidence:
 - `docs/operations.md`
 - `docs/vps-deployment.md`
 - `docs/mainnet-signer-isolation.md`
+- `scripts/protocol-monitor.mjs`
 
 ### F5 - Dependency audit gate was too soft
 
@@ -324,7 +330,8 @@ reports non-secret confirmation policy under `policy.confirmation`, including
 network, confirmation mode, nonce requirement, timeout, and minimum
 confirmations. `pnpm monitor:protocol` now validates that policy and fails on
 unexpected mempool mode, disabled nonce enforcement, missing policy, or
-minimum-confirmation drift below the configured threshold.
+minimum-confirmation drift below the configured threshold. The same monitor also
+checks that `/health` exposes signer posture.
 
 Recommended next step:
 
