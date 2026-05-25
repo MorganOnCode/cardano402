@@ -117,8 +117,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Dependency audit
-        run: pnpm audit --audit-level=high
-        continue-on-error: true  # Don't block on dev-only findings
+        run: pnpm audit --prod --audit-level=moderate
+      - name: Payment security invariants
+        run: pnpm security:payments
       - name: Check for secrets in code
         run: |
           if grep -rn 'purse glad\|mainnet0iKP\|previewzFEQ' --include='*.ts' --include='*.js' --include='*.json' . | grep -v node_modules | grep -v .git | grep -v config.example; then

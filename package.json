@@ -16,7 +16,8 @@
       "minimatch@<10": "^3.1.4",
       "minimatch@>=10": "^10.2.5",
       "brace-expansion@<2": "^1.1.13",
-      "brace-expansion@>=2": "^2.1.0"
+      "brace-expansion@>=2": "^2.1.0",
+      "@cardano-sdk/core>ip-address": "^10.1.1"
     }
   },
   "name": "cardano402",
@@ -54,6 +55,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "security:payments": "node scripts/payment-security-check.mjs",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",

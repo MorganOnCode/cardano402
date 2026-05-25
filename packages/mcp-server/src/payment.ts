@@ -15,7 +15,7 @@ import {
 } from '@cardano402/core';
 
 import type { CatalogEndpoint } from './catalog.js';
-import type { CardanoSigner } from './signer.js';
+import type { CardanoSigner, SignedPayment } from './signer.js';
 import type { SpendTracker } from './spend-tracker.js';
 
 /**
@@ -267,12 +267,15 @@ export async function payAndFetch(options: PayAndFetchOptions): Promise<PayAndFe
   ensureCatalogMatchesAccept(options.endpoint, accept);
 
   // Pre-sign gates — these run BEFORE signer.signPayment so a failure here
-  // never burns wallet UTXOs or daily budget.
+  // never burns wallet UTXOs. Spend tracking reserves budget before signing so
+  // another MCP process that shares the same persistent ledger sees this spend
+  // while the signer is still working.
   const amount = BigInt(accept.amount);
-  if (options.spendTracker) {
-    options.spendTracker.assertCanSpend({ amount, payTo: accept.payTo });
-  }
-  if (options.elicit && options.elicitationThreshold !== undefined && amount > options.elicitationThreshold) {
+  if (
+    options.elicit &&
+    options.elicitationThreshold !== undefined &&
+    amount > options.elicitationThreshold
+  ) {
     const accepted = await options.elicit({
       toolName: options.toolName ?? 'unknown',
       amount,
@@ -288,15 +291,29 @@ export async function payAndFetch(options: PayAndFetchOptions): Promise<PayAndFe
     }
   }
 
-  const signed = await options.signer.signPayment({
-    payTo: accept.payTo,
+  const spendReservation = options.spendTracker?.reserve({
     amount,
+    payTo: accept.payTo,
     asset: accept.asset,
-    ttlSeconds: accept.maxTimeoutSeconds,
+    toolName: options.toolName,
   });
-  // Only record AFTER a successful sign — failed signs don't burn budget.
-  if (options.spendTracker) {
-    options.spendTracker.record({ amount, payTo: accept.payTo });
+
+  let signed: SignedPayment;
+  try {
+    signed = await options.signer.signPayment({
+      payTo: accept.payTo,
+      amount,
+      asset: accept.asset,
+      ttlSeconds: accept.maxTimeoutSeconds,
+    });
+    spendReservation?.commit({
+      asset: accept.asset,
+      txHash: signed.txHash,
+      toolName: options.toolName,
+    });
+  } catch (error) {
+    spendReservation?.rollback();
+    throw error;
   }
 
   const paymentPayload = PaymentSignaturePayloadSchema.parse({

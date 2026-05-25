@@ -124,6 +124,7 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
       // wire, but CORS allowlists must enumerate them).
       'Payment-Signature',
       'PAYMENT-SIGNATURE',
+      'X-PAYMENT',
       'Payment-Required',
     ],
     // Both header names are emitted in parallel. See sdk/types.ts.

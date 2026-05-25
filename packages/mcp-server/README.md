@@ -16,11 +16,13 @@ Given a `/.well-known/x402.json` URL and a signing wallet, this package:
 ## CLI
 
 ```bash
-SEED_PHRASE="word1 word2 ... word24" \
+install -m 600 /dev/null ./seed.txt
+printf '%s\n' "word1 word2 ... word24" > ./seed.txt
 BLOCKFROST_KEY="preview..." \
   npx @cardano402/mcp-server \
     --catalog https://api.example.com/.well-known/x402.json \
-    --transport stdio
+    --transport stdio \
+    --seed-phrase-file ./seed.txt
 ```
 
 Flags:
@@ -32,8 +34,10 @@ Flags:
 | `--port <n>`                      | `3333`        | Only used when `--transport http`                                                                 |
 | `--listen-host <host>`            | `127.0.0.1`   | HTTP listen interface. Anything non-loopback **requires** `--http-bearer-token`                   |
 | `--network <name>`                | `Preview`     | `Preview`, `Preprod`, or `Mainnet`                                                                |
+| `--seed-phrase-file <path>`       | none          | Read wallet seed from a `0600` file. Required for `Mainnet` by default                            |
 | `--max-amount-per-call <lovelace>`| `5_000_000`   | Hard cap per signed transaction (5 ADA default)                                                   |
 | `--max-amount-per-day <lovelace>` | `50_000_000`  | Rolling 24h cap on signed amount (50 ADA default)                                                 |
+| `--spend-store-path <path>`       | none          | Persist rolling spend history to JSON. Required on `Mainnet`                                      |
 | `--pay-to-allowlist <a,b,c>`      | none          | Refuse to sign to addresses outside this comma-separated list                                     |
 | `--mainnet-confirmed-tools <a,b,c>` | none        | Required to register any tool whose catalog `network` is `cardano:mainnet`                        |
 | `--elicitation-threshold <lovelace>` | per-call cap | Amount above which an MCP `elicitation/create` confirmation is requested before signing       |
@@ -45,7 +49,8 @@ Environment:
 
 | Variable                              | Notes                                                                   |
 |---------------------------------------|-------------------------------------------------------------------------|
-| `SEED_PHRASE`                         | 24-word seed phrase for the wallet that will fund payments (required)   |
+| `SEED_PHRASE_FILE`                    | `0600` file containing the wallet seed phrase. Required for `Mainnet` by default |
+| `SEED_PHRASE`                         | 24-word seed phrase fallback for testnet/dev                            |
 | `BLOCKFROST_KEY`                      | Blockfrost project ID for the chosen network (required)                 |
 | `CARDANO402_CATALOG_URL`              | Alternative to `--catalog`                                              |
 | `CARDANO402_NETWORK`                  | Alternative to `--network`                                              |
@@ -56,9 +61,11 @@ Environment:
 | `MCP_HTTP_ORIGIN_ALLOWLIST`           | Alternative to `--http-origin-allowlist`                                |
 | `CARDANO402_MAX_AMOUNT_PER_CALL`      | Alternative to `--max-amount-per-call`                                  |
 | `CARDANO402_MAX_AMOUNT_PER_DAY`       | Alternative to `--max-amount-per-day`                                   |
+| `CARDANO402_SPEND_STORE_PATH`         | Alternative to `--spend-store-path`; required on `Mainnet`              |
 | `CARDANO402_PAY_TO_ALLOWLIST`         | Alternative to `--pay-to-allowlist`                                     |
 | `CARDANO402_MAINNET_CONFIRMED_TOOLS`  | Alternative to `--mainnet-confirmed-tools`                              |
 | `CARDANO402_ELICITATION_THRESHOLD`    | Alternative to `--elicitation-threshold`                                |
+| `CARDANO402_ALLOW_MAINNET_SEED_PHRASE_ENV` | `true` to permit Mainnet seed from `SEED_PHRASE` env var; unsafe hot-wallet override |
 
 ## Claude Desktop / Cursor config
 
@@ -71,10 +78,11 @@ Environment:
         "-y",
         "@cardano402/mcp-server",
         "--catalog",
-        "https://api.example.com/.well-known/x402.json"
+        "https://api.example.com/.well-known/x402.json",
+        "--seed-phrase-file",
+        "/absolute/path/to/seed.txt"
       ],
       "env": {
-        "SEED_PHRASE": "word1 word2 ... word24",
         "BLOCKFROST_KEY": "preview..."
       }
     }
@@ -139,8 +147,11 @@ cased method, underscore, sanitised path. For example, a catalog entry
 - **Path validation.** Endpoint paths containing `..`, NUL bytes,
   whitespace, CR/LF, or anything that looks like an absolute URL are
   rejected at register-time.
-- The signing wallet's seed phrase is read from `SEED_PHRASE` and lives
-  only in process memory. It is never logged.
+- The signing wallet's seed phrase should be read from
+  `SEED_PHRASE_FILE` / `--seed-phrase-file`, which must point at a
+  regular `0600` file on POSIX systems. `SEED_PHRASE` remains available
+  for testnet/dev, but Mainnet rejects env-var seed material unless
+  `CARDANO402_ALLOW_MAINNET_SEED_PHRASE_ENV=true` is set.
 - By default the server refuses to fetch a non-HTTPS catalog URL or to
   POST signed transactions to one, unless it's a loopback host. Override
   with `CARDANO402_ALLOW_INSECURE=true` if you really mean it.
@@ -232,8 +243,10 @@ real.
 Run from the package root:
 
 ```bash
-SEED_PHRASE="word1 ... word24" \
+install -m 600 /dev/null ./seed.txt
+printf '%s\n' "word1 ... word24" > ./seed.txt
 BLOCKFROST_KEY="previewXXXXXXXXXXXXXXXXXXXXXXXX" \
+SEED_PHRASE_FILE="./seed.txt" \
   node scripts/smoke.mjs
 ```
 

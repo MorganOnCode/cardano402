@@ -87,7 +87,7 @@ method** with full spec compliance, including the spec-mandated `nonce`
 (UTXO reference, must be a tx input, must be unspent). The `script`
 (Plutus V3) method is schema-recognised but the verifier is stubbed;
 requests for it receive a structured `method_not_implemented` reason.
-Other methods receive `method_not_supported`.
+Unknown third-party methods receive `method_not_supported`.
 
 Full status: [`docs/spec-alignment.md`](docs/spec-alignment.md).
 

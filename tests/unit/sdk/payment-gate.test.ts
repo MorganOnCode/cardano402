@@ -293,6 +293,19 @@ describe('createPaymentGate', () => {
       expect(reply.status).not.toHaveBeenCalled();
     });
 
+    it('should accept the X-PAYMENT request header alias', async () => {
+      const handler = createHandler(options);
+      const signature = createPaymentSignature();
+      const request = createMockRequest({ 'x-payment': signature });
+      const reply = createMockReply();
+
+      await handler(request, reply, vi.fn());
+
+      expect(reply.sent).toBe(false);
+      expect(facilitator.verify).toHaveBeenCalledTimes(1);
+      expect(facilitator.settle).toHaveBeenCalledTimes(1);
+    });
+
     it('should attach x402Settlement to request', async () => {
       const handler = createHandler(options);
       const signature = createPaymentSignature();

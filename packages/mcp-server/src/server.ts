@@ -123,7 +123,9 @@ export async function startCardano402Mcp(
     maxAmountPerCall: options.maxAmountPerCall,
     maxAmountPerDay: options.maxAmountPerDay,
     payToAllowlist: options.payToAllowlist,
+    storePath: options.spendStorePath,
   });
+  log('spend tracker ready', { persistent: options.spendStorePath ? 'true' : 'false' });
 
   // Default elicitation threshold = per-call cap, so any signing that
   // saturates the per-call limit requires a user accept. Operators can lower

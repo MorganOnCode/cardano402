@@ -2,6 +2,42 @@
 
 All notable changes to `@cardano402/mcp-server` are documented here.
 
+## 0.1.3 — security: persistent spend caps and safer Mainnet signing
+
+Security hardening release on top of `0.1.2`.
+
+### Fixed (security)
+
+- **Persistent Mainnet spend ledger.** Mainnet now requires
+  `--spend-store-path` or `CARDANO402_SPEND_STORE_PATH` so per-call and
+  rolling daily spend caps survive MCP server restarts.
+- **Concurrent signing spend race.** Spend checks now create a pending
+  reservation before wallet signing. Reservations count against the daily cap,
+  commit after successful signing, roll back on signer failure, expire after a
+  short TTL, and are protected by a process-safe ledger lock when persisted.
+- **Safer Mainnet seed loading.** Mainnet now requires
+  `--seed-phrase-file` or `SEED_PHRASE_FILE` by default. POSIX seed files must
+  be regular files and must not be group/world readable or writable. Using
+  `SEED_PHRASE` for Mainnet now requires the explicit
+  `CARDANO402_ALLOW_MAINNET_SEED_PHRASE_ENV=true` override.
+- **Spend records include context.** Persistent ledger entries now include
+  recipient, asset, transaction hash, tool name, reservation status, and
+  timestamps for auditability.
+
+### Added
+
+- CLI flags:
+  `--seed-phrase-file`, `--spend-store-path`.
+- Env vars:
+  `SEED_PHRASE_FILE`, `CARDANO402_SPEND_STORE_PATH`,
+  `CARDANO402_ALLOW_MAINNET_SEED_PHRASE_ENV`.
+
+### Tests
+
+102 MCP package tests cover config parsing, seed-file permissions, Mainnet
+guards, persistent spend history, pending reservation accounting, rollback,
+expiry, and locked-ledger failure.
+
 ## 0.1.2 — security: spending limits, loopback default, SSRF guard
 
 Security release. Closes three vulnerabilities in `0.1.1` (and earlier) that

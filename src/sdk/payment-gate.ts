@@ -33,7 +33,7 @@ export interface PaymentGateOptions {
 }
 
 /**
- * Decode the Payment-Signature header from a request.
+ * Decode the Payment-Signature/X-PAYMENT header from a request.
  * Returns the parsed payload or null if invalid.
  */
 function decodePaymentSignature(
@@ -54,7 +54,7 @@ function decodePaymentSignature(
  * Create a Fastify preHandler that enforces x402 payment.
  *
  * When applied to a route, this middleware:
- * 1. Checks for the Payment-Signature header
+ * 1. Checks for the Payment-Signature or X-PAYMENT header
  * 2. If absent: returns 402 with payment requirements
  * 3. If present: decodes, verifies, settles via the facilitator
  * 4. On success: attaches settlement result to request and allows through
@@ -78,8 +78,10 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
     request: FastifyRequest,
     reply: FastifyReply
   ): Promise<void> {
-    // 1. Check for Payment-Signature header
-    const paymentHeader = request.headers['payment-signature'] as string | undefined;
+    // 1. Check for Payment-Signature header and the base-x402 X-PAYMENT alias.
+    const paymentHeader = (request.headers['payment-signature'] ?? request.headers['x-payment']) as
+      | string
+      | undefined;
 
     if (!paymentHeader) {
       // Return 402 with payment requirements
