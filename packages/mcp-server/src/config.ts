@@ -4,7 +4,7 @@
 // All fields are validated through a Zod schema before reaching the runtime,
 // so callers can rely on the parsed config being well-formed.
 
-import { readFileSync, statSync } from 'node:fs';
+import { closeSync, fstatSync, openSync, readFileSync } from 'node:fs';
 
 import { z } from 'zod';
 
@@ -185,20 +185,25 @@ function parseCsv(value: string): string[] {
 }
 
 function loadSeedPhraseFromFile(path: string): string {
-  const stat = statSync(path);
-  if (!stat.isFile()) {
-    throw new Error(`SEED_PHRASE_FILE is not a regular file: ${path}`);
+  const fd = openSync(path, 'r');
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) {
+      throw new Error(`SEED_PHRASE_FILE is not a regular file: ${path}`);
+    }
+    if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) {
+      throw new Error(
+        `SEED_PHRASE_FILE must not be group/world readable or writable: ${path}`
+      );
+    }
+    const seedPhrase = readFileSync(fd, 'utf8').trim();
+    if (!seedPhrase) {
+      throw new Error(`SEED_PHRASE_FILE is empty: ${path}`);
+    }
+    return seedPhrase;
+  } finally {
+    closeSync(fd);
   }
-  if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) {
-    throw new Error(
-      `SEED_PHRASE_FILE must not be group/world readable or writable: ${path}`
-    );
-  }
-  const seedPhrase = readFileSync(path, 'utf8').trim();
-  if (!seedPhrase) {
-    throw new Error(`SEED_PHRASE_FILE is empty: ${path}`);
-  }
-  return seedPhrase;
 }
 
 /**

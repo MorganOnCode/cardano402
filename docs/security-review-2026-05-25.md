@@ -337,8 +337,8 @@ Recommended next step:
 
 - Add a deployment table mapping low/test, normal, and high-value resources to
   `minConfirmations` and timeouts.
-- Wire the scheduled monitor result into alerting once the live Cloudflare WAF
-  skip rules are applied.
+- Re-enable the protocol monitor schedule and wire its result into alerting
+  once the live Cloudflare WAF skip rules are applied.
 
 ### R3 - Script method is not implemented
 

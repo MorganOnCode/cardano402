@@ -39,6 +39,14 @@ export const ConfigSchema = z
       })
       .default(() => ({ global: 100, sensitive: 20, windowMs: 60000 })),
 
+    // Metrics endpoint access control
+    metrics: z
+      .object({
+        /** Bearer token required for GET /metrics when set. Required in production. */
+        bearerToken: z.string().min(16).optional(),
+      })
+      .default(() => ({})),
+
     // Chain provider configuration (Blockfrost, network, cache, reservation, Redis)
     chain: ChainConfigSchema,
 
@@ -96,6 +104,15 @@ export const ConfigSchema = z
             'chain.redis.password is required when config.env is "production". ' +
             'Set REDIS_PASSWORD in .env and chain.redis.password in config.json.',
           path: ['chain', 'redis', 'password'],
+        });
+      }
+      const metricsToken = data.metrics.bearerToken;
+      if (!metricsToken || metricsToken.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'metrics.bearerToken is required when config.env is "production" to protect /metrics.',
+          path: ['metrics', 'bearerToken'],
         });
       }
     }

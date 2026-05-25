@@ -86,6 +86,7 @@ function createTestConfig(overrides?: Partial<Config>): Config {
     server: { host: '0.0.0.0', port: 0 },
     logging: { level: 'error', pretty: false },
     rateLimit: { global: 1000, windowMs: 60000, sensitive: 100 },
+    metrics: {},
     env: 'test',
     chain: {
       network: 'Preview',

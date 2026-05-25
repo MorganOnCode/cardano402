@@ -47,8 +47,9 @@ Protected branches should require these checks before merge:
 - Scorecard supply-chain security
 - Zizmor
 
-The scheduled Protocol Monitor should be treated as an operational gate for the
-live service once Cloudflare machine-route skip rules are applied. It should
+The Protocol Monitor should be treated as an operational gate for the live
+service. It is manual-only until Cloudflare machine-route skip rules are
+applied; once those rules are live, re-enable the schedule and require it to
 pass against `https://cardano402.com` with the approved minimum confirmation
 threshold.
 

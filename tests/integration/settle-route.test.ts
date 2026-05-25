@@ -87,6 +87,7 @@ describe('POST /settle Route', () => {
     server: { host: '0.0.0.0', port: 0 },
     logging: { level: 'error', pretty: false },
     rateLimit: { global: 100, windowMs: 60000, sensitive: 20 },
+    metrics: {},
     env: 'test',
     chain: {
       network: 'Preview',

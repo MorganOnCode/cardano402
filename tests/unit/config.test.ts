@@ -240,6 +240,7 @@ describe('Config Loading', () => {
     it('accepts production env with a non-empty chain.redis.password', () => {
       const cfg = {
         env: 'production',
+        metrics: { bearerToken: 'test-metrics-bearer-token' },
         chain: {
           ...minimalChainConfig,
           redis: { host: 'redis', port: 6379, password: 'a-real-password' },
@@ -255,6 +256,33 @@ describe('Config Loading', () => {
         chain: {
           ...minimalChainConfig,
           redis: { host: 'localhost', port: 6379 },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+  });
+
+  describe('Metrics production guardrail', () => {
+    it('rejects production env without metrics.bearerToken', () => {
+      const cfg = {
+        env: 'production',
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|metrics/);
+    });
+
+    it('accepts production env with metrics.bearerToken', () => {
+      const cfg = {
+        env: 'production',
+        metrics: { bearerToken: 'test-metrics-bearer-token' },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
         },
       };
       writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));

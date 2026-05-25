@@ -11,8 +11,8 @@ on:
         description: Minimum approved confirmation depth
         required: false
         default: '6'
-  schedule:
-    - cron: '17 * * * *'
+  # Re-enable the hourly schedule after Cloudflare allows machine API routes
+  # without Managed Challenge responses.
 
 permissions:
   contents: read

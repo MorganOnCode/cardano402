@@ -280,7 +280,9 @@ Key log fields:
 ### Prometheus Metrics
 
 `GET /metrics` exposes process metrics, HTTP route counters, HTTP latency
-histograms, and payment-protocol outcome counters.
+histograms, and payment-protocol outcome counters. Set
+`metrics.bearerToken` in production and scrape the endpoint with
+`Authorization: Bearer <token>`.
 
 Key payment metric:
 

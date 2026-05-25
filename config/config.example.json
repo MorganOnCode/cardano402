@@ -18,6 +18,9 @@
     "sensitive": 20,
     "windowMs": 60000
   },
+  "metrics": {
+    "bearerToken": "replace-with-a-long-random-prometheus-token"
+  },
   "chain": {
     "network": "Preview",
     "blockfrost": {

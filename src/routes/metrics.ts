@@ -15,6 +15,13 @@ import { Counter, Histogram, Registry, collectDefaultMetrics } from 'prom-client
 const SKIP_ROUTES = new Set(['/metrics', '/health']);
 const PAYMENT_ROUTES = new Set(['/verify', '/settle', '/status']);
 
+function bearerToken(headers: Record<string, unknown>): string | undefined {
+  const value = headers.authorization;
+  if (typeof value !== 'string') return undefined;
+  const [scheme, token] = value.split(/\s+/, 2);
+  return scheme?.toLowerCase() === 'bearer' && token ? token : undefined;
+}
+
 function parseJsonPayload(payload: unknown): unknown {
   if (typeof payload === 'string') {
     try {
@@ -112,7 +119,12 @@ const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
     httpTotal.labels(method, route, statusCode).inc();
   });
 
-  fastify.get('/metrics', async (_req, reply) => {
+  fastify.get('/metrics', async (req, reply) => {
+    const expectedToken = fastify.config?.metrics?.bearerToken;
+    if (expectedToken && bearerToken(req.headers) !== expectedToken) {
+      return reply.status(401).send('Unauthorized\n');
+    }
+
     const body = await registry.metrics();
     return reply.type(registry.contentType).status(200).send(body);
   });

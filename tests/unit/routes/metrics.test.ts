@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import type { Config } from '../../../src/config/index.js';
 import { metricsRoutesPlugin } from '../../../src/routes/metrics.js';
 
 describe('Metrics routes', () => {
@@ -58,6 +59,43 @@ describe('Metrics routes', () => {
     it('attaches a service="cardano402" default label', async () => {
       const res = await server.inject({ method: 'GET', url: '/metrics' });
       expect(res.body).toMatch(/service="cardano402"/);
+    });
+
+    it('rejects requests without the configured bearer token', async () => {
+      const protectedServer = fastify({ logger: false });
+      protectedServer.decorate('config', {
+        metrics: { bearerToken: 'test-metrics-bearer-token' },
+      } as Partial<Config> as Config);
+      await protectedServer.register(metricsRoutesPlugin);
+      await protectedServer.ready();
+
+      try {
+        const res = await protectedServer.inject({ method: 'GET', url: '/metrics' });
+        expect(res.statusCode).toBe(401);
+      } finally {
+        await protectedServer.close();
+      }
+    });
+
+    it('returns metrics with the configured bearer token', async () => {
+      const protectedServer = fastify({ logger: false });
+      protectedServer.decorate('config', {
+        metrics: { bearerToken: 'test-metrics-bearer-token' },
+      } as Partial<Config> as Config);
+      await protectedServer.register(metricsRoutesPlugin);
+      await protectedServer.ready();
+
+      try {
+        const res = await protectedServer.inject({
+          method: 'GET',
+          url: '/metrics',
+          headers: { authorization: 'Bearer test-metrics-bearer-token' },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toMatch(/# HELP process_cpu_user_seconds_total/);
+      } finally {
+        await protectedServer.close();
+      }
     });
   });
 

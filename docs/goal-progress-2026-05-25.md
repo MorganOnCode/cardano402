@@ -167,14 +167,16 @@ needs admin-side enforcement of the documented required checks.
 - The monitor checks `/.well-known/x402.json`, `/health`, `/supported`,
   `/verify`, and `/settle` and fails on Cloudflare challenges, HTML responses,
   unexpected statuses, or production confirmation-policy drift.
-- The scheduled/manual protocol monitor workflow accepts a minimum confirmation
-  threshold and passes it to `pnpm monitor:protocol`.
+- The manual protocol monitor workflow accepts a minimum confirmation threshold
+  and passes it to `pnpm monitor:protocol`; the schedule is intentionally
+  disabled until Cloudflare allows machine API routes without browser
+  challenges.
 - Added a Cloudflare WAF/runbook section to `docs/operations.md` describing
   which machine routes must skip browser challenges and which compensating
   rate limits/logging should remain.
-- Added a scheduled/manual GitHub Actions protocol monitor so the live x402
-  machine endpoints can be checked without blocking normal PR CI while the
-  Cloudflare zone is still being tuned.
+- Added a manual GitHub Actions protocol monitor so the live x402 machine
+  endpoints can be checked without blocking normal PR CI while the Cloudflare
+  zone is still being tuned.
 
 ## Live-site findings
 

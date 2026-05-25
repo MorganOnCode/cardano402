@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs';
+import { closeSync, fstatSync, openSync, readFileSync } from 'node:fs';
 
 import { z } from 'zod';
 
@@ -17,18 +17,23 @@ import type { CardanoNetwork } from './types.js';
  * inline in config JSON.
  */
 function loadCredentialFile(path: string, label: string): string {
-  const stat = statSync(path);
-  if (!stat.isFile()) {
-    throw new Error(`${label} is not a regular file: ${path}`);
+  const fd = openSync(path, 'r');
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) {
+      throw new Error(`${label} is not a regular file: ${path}`);
+    }
+    if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) {
+      throw new Error(`${label} must not be group/world readable or writable: ${path}`);
+    }
+    const value = readFileSync(fd, 'utf8').trim();
+    if (!value) {
+      throw new Error(`${label} is empty: ${path}`);
+    }
+    return value;
+  } finally {
+    closeSync(fd);
   }
-  if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) {
-    throw new Error(`${label} must not be group/world readable or writable: ${path}`);
-  }
-  const value = readFileSync(path, 'utf8').trim();
-  if (!value) {
-    throw new Error(`${label} is empty: ${path}`);
-  }
-  return value;
 }
 
 const FacilitatorConfigSchema = z

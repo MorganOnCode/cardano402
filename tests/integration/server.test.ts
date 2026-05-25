@@ -41,6 +41,7 @@ describe('Server Integration', () => {
     server: { host: '0.0.0.0', port: 0 }, // Port 0 = random available port
     logging: { level: 'error', pretty: false }, // Quiet logs in tests
     rateLimit: { global: 100, windowMs: 60000, sensitive: 20 },
+    metrics: {},
     env: 'test',
     chain: {
       network: 'Preview',
