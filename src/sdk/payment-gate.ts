@@ -110,7 +110,7 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
         x402Version: 2 as const,
         accepted: {
           scheme: 'exact' as const,
-          network: payload.accepted.network,
+          network: options.network,
           amount: options.amount,
           asset: options.asset ?? 'lovelace',
           payTo: options.payTo,

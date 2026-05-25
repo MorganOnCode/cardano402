@@ -169,6 +169,30 @@ Evidence:
 - `package.json`
 - `.github/workflows/ci.yml`
 
+### F6a - Payment gate forwarded client-owned network in verify payload
+
+Previous risk: `createPaymentGate` correctly derived `paymentRequirements`
+from server-side options, but the nested `paymentPayload.accepted.network`
+sent to `/verify` still copied `payload.accepted.network` from the inbound
+payment header. Verification ultimately uses server-owned
+`paymentRequirements.network`, but forwarding attacker-controlled network
+metadata is a trust-boundary inconsistency and could confuse downstream
+logging, policy, or future facilitator logic.
+
+Change:
+
+- `createPaymentGate` now builds `paymentPayload.accepted.network` from
+  `PaymentGateOptions.network`.
+- The payment invariant check now fails on any
+  `payload.accepted.network` forwarding in the gate.
+- Added a regression test with a spoofed client `accepted` object.
+
+Evidence:
+
+- `src/sdk/payment-gate.ts`
+- `scripts/payment-security-check.mjs`
+- `tests/unit/sdk/payment-gate.test.ts`
+
 ### F7 - Root facilitator config allowed inline Mainnet signing keys
 
 Previous risk: the hosted/resource-server facilitator config accepted inline

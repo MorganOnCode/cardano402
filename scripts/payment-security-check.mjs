@@ -73,10 +73,10 @@ function checkPaymentRequirementsTrustBoundary() {
   }
 
   const gate = readRelative('src/sdk/payment-gate.ts');
-  for (const field of ['amount', 'asset', 'payTo', 'maxTimeoutSeconds']) {
+  for (const field of ['network', 'amount', 'asset', 'payTo', 'maxTimeoutSeconds']) {
     if (gate.includes(`${field}: payload.accepted.${field}`)) {
       fail(
-        `src/sdk/payment-gate.ts must not trust payload.accepted.${field}; paymentRequirements.${field} must come from PaymentGateOptions.`
+        `src/sdk/payment-gate.ts must not trust payload.accepted.${field}; server-owned payment fields must come from PaymentGateOptions.`
       );
     }
   }

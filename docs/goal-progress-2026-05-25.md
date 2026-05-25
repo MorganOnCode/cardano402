@@ -56,6 +56,8 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 - `createPaymentGate` now accepts both `Payment-Signature` and `X-PAYMENT`.
 - CORS now allows `X-PAYMENT`.
 - Added regression coverage for the `X-PAYMENT` alias.
+- `createPaymentGate` now keeps the nested verify `accepted.network`
+  server-owned instead of copying it from the client payment header.
 - Updated core spec notes so they no longer claim the app layer lacks alias
   support.
 
@@ -68,7 +70,7 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
   - losing `X-PAYMENT` support,
   - losing CORS support for `X-PAYMENT`,
   - deriving `paymentRequirements` from client/request data,
-  - trusting `payload.accepted` for server-owned price fields,
+  - trusting `payload.accepted` for server-owned network or price fields,
   - examples encouraging unsafe hot seed handling.
 
 ### Dependency and audit posture
@@ -144,6 +146,8 @@ Passing checks:
 - `pnpm --filter @cardano402/mcp-server typecheck`
 - `pnpm --filter @cardano402/mcp-server build`
 - `pnpm typecheck`
+- `pnpm test tests/unit/sdk/payment-gate.test.ts -- --runInBand` - 18 tests
+  passed
 - `pnpm test tests/unit/sdk/payment-gate.test.ts tests/integration/server.test.ts -- --runInBand`
 - `pnpm security:payments`
 - `pnpm audit --prod`
