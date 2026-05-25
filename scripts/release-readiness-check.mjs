@@ -51,6 +51,12 @@ requireIncludes(
   'pnpm security:release',
   'CI security job must run release readiness invariants.'
 );
+requireFile('semgrep/payment-security.yml');
+requireIncludes(
+  'package.json',
+  'security:semgrep',
+  'Package scripts must expose the optional Semgrep payment-security ruleset.'
+);
 requireIncludes(
   '.github/workflows/protocol-monitor.yml',
   '--min-confirmations "$MIN_CONFIRMATIONS"',

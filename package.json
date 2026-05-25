@@ -56,6 +56,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "security:payments": "node scripts/payment-security-check.mjs",
+    "security:semgrep": "semgrep --config semgrep/payment-security.yml --error",
     "security:release": "node scripts/release-readiness-check.mjs",
     "monitor:protocol": "node scripts/protocol-monitor.mjs",
     "docker:up": "docker-compose up -d",

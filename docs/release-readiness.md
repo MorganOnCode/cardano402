@@ -17,6 +17,12 @@ pnpm security:payments
 pnpm security:release
 ```
 
+If the Semgrep CLI is installed, also run the optional AST-aware payment rules:
+
+```bash
+pnpm security:semgrep
+```
+
 For MCP package releases, also run:
 
 ```bash
@@ -67,6 +73,8 @@ Before release, verify:
   passes after Cloudflare machine-route rules are applied.
 - `facilitator_payment_results_total` is scraped and alerting on invalid
   request spikes, nonce lookup failures, settlement failures, and status drift.
+- The optional Semgrep payment rules are run for high-risk PRs or replicated in
+  Semgrep Cloud / a paid code-review workflow.
 - Mainnet deployments do not use inline signing material unless the explicit
   unsafe override is documented and approved.
 - High-value Mainnet deployments have an implementation plan for the remote or

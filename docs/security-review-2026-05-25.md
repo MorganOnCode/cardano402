@@ -462,8 +462,9 @@ Already present or appropriate for this repo:
 - Semgrep: add custom rules for payment-specific anti-patterns:
   client-supplied `paymentRequirements`, missing settlement before handler
   execution, unsafe seed handling, and Cloudflare/API challenge bypass drift.
-  The repo now has a dependency-free local check for the highest-risk subset;
-  Semgrep is still useful for richer AST-aware enforcement across adapters.
+  The repo now has a dependency-free local check for the highest-risk subset
+  plus `semgrep/payment-security.yml` and `pnpm security:semgrep` for optional
+  AST-aware enforcement across adapters.
 - Socket or Snyk: paid dependency intelligence can complement OSV/npm audit,
   especially for maintainer-risk and install-script behavior.
 - Cloudflare WAF/Bot Management: use route-specific API allowances instead of a
@@ -482,6 +483,7 @@ Commands run after the current MCP and SDK changes:
 - `pnpm test -- --runInBand`
 - `pnpm audit --prod`
 - `pnpm security:payments`
+- `pnpm security:release`
 - `pnpm monitor:protocol -- --base-url <local-json-mock> --json`
 - `rg -n "<protected-brand-pattern>" .`
 - `curl -i https://cardano402.com/.well-known/x402.json`

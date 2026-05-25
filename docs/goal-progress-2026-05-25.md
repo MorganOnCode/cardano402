@@ -108,6 +108,9 @@ needs admin-side enforcement of the documented required checks.
   - deriving `paymentRequirements` from client/request data,
   - trusting `payload.accepted` for server-owned network or price fields,
   - examples encouraging unsafe hot seed handling.
+- Added optional Semgrep payment-security rules at
+  `semgrep/payment-security.yml` and exposed them as `pnpm security:semgrep`
+  for teams that want AST-aware local or paid-review enforcement.
 
 ### Dependency and audit posture
 

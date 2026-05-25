@@ -1,0 +1,55 @@
+rules:
+  - id: cardano402.client-controlled-payment-requirements
+    message: paymentRequirements must come from server-owned configuration, not request/client data.
+    severity: ERROR
+    languages:
+      - typescript
+      - javascript
+    pattern-either:
+      - pattern: |
+          paymentRequirements: request.body
+      - pattern: |
+          paymentRequirements: (request.body as $TYPE)
+      - pattern: |
+          paymentRequirements: body
+      - pattern: |
+          paymentRequirements: payload.paymentRequirements
+      - pattern: |
+          paymentRequirements: $REQ.body.paymentRequirements
+      - pattern: |
+          paymentRequirements: $BODY.paymentRequirements
+
+  - id: cardano402.payment-gate-client-owned-accepted-network
+    message: Payment gate must use the server-owned network, not payload.accepted.network.
+    severity: ERROR
+    languages:
+      - typescript
+      - javascript
+    pattern: |
+      network: payload.accepted.network
+
+  - id: cardano402.payment-gate-client-owned-accepted-price-field
+    message: Payment gate must use server-owned amount, asset, payTo, and timeout fields.
+    severity: ERROR
+    languages:
+      - typescript
+      - javascript
+    pattern-either:
+      - pattern: |
+          amount: payload.accepted.amount
+      - pattern: |
+          asset: payload.accepted.asset
+      - pattern: |
+          payTo: payload.accepted.payTo
+      - pattern: |
+          maxTimeoutSeconds: payload.accepted.maxTimeoutSeconds
+
+  - id: cardano402.unsafe-env-seed-example
+    message: Examples and production code must not encourage hot seed material from process.env.SEED_PHRASE.
+    severity: WARNING
+    languages:
+      - typescript
+      - javascript
+    pattern-either:
+      - pattern: process.env.SEED_PHRASE!
+      - pattern: process.env.SEED_PHRASE
