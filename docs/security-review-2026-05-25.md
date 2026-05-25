@@ -319,16 +319,17 @@ Recommended next step:
 
 ### R2 - Confirmation policy must be operator-visible
 
-The code defaults away from mempool access, which is correct. Operators still
-need clear deployment-level guidance for choosing `minConfirmations` by value
-tier.
+The code defaults away from mempool access, which is correct. `/health` now
+reports non-secret confirmation policy under `policy.confirmation`, including
+network, confirmation mode, nonce requirement, timeout, and minimum
+confirmations.
 
 Recommended next step:
 
 - Add a deployment table mapping low/test, normal, and high-value resources to
   `minConfirmations` and timeouts.
-- Add a live readiness check that reports confirmation mode without exposing
-  secrets.
+- Add external monitoring that alerts on unexpected `allow_mempool`,
+  `requireNonce: false`, or lower-than-approved `minConfirmations`.
 
 ### R3 - Script method is not implemented
 

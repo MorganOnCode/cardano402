@@ -122,4 +122,22 @@ describe('Health Endpoint', () => {
     expect(body.version).toBeDefined();
     expect(typeof body.version).toBe('string');
   });
+
+  it('should expose confirmation policy without secrets', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: '/health',
+    });
+
+    const body = JSON.parse(response.body);
+    expect(body.policy.confirmation).toEqual({
+      network: 'Preview',
+      confirmationMode: 'confirmed_only',
+      minConfirmations: 1,
+      maxTimeoutSeconds: 300,
+      requireNonce: false,
+    });
+    expect(response.body).not.toContain('test-project-id');
+    expect(response.body).not.toContain('test seed phrase');
+  });
 });

@@ -19,9 +19,22 @@ function createMockStorage(healthy = true) {
   };
 }
 
+const TEST_CONFIG = {
+  chain: {
+    network: 'Preview',
+    verification: {
+      confirmationMode: 'confirmed_only' as const,
+      minConfirmations: 6,
+      maxTimeoutSeconds: 300,
+      requireNonce: true,
+    },
+  },
+};
+
 async function createHealthServer(options?: {
   redis?: { ping: ReturnType<typeof vi.fn> } | Record<string, unknown>;
   storage?: { healthy: ReturnType<typeof vi.fn> } | Record<string, unknown>;
+  config?: typeof TEST_CONFIG;
 }): Promise<FastifyInstance> {
   const server = fastify({ logger: false });
 
@@ -37,6 +50,9 @@ async function createHealthServer(options?: {
 
   // Decorate with storage (default: healthy mock)
   server.decorate('storage', (options?.storage ?? createMockStorage()) as never);
+  if (options?.config) {
+    server.decorate('config', options.config as never);
+  }
 
   await server.register(healthRoutesPlugin);
   await server.ready();
@@ -205,6 +221,28 @@ describe('Health Endpoint', () => {
       const body = response.json();
       expect(body.dependencies).toHaveProperty('redis');
       expect(body.dependencies).toHaveProperty('storage');
+    });
+
+    it('should expose non-secret confirmation policy when config is available', async () => {
+      await server.close();
+      server = await createHealthServer({
+        redis: { ping: vi.fn().mockResolvedValue('PONG') },
+        config: TEST_CONFIG,
+      });
+
+      const response = await server.inject({ method: 'GET', url: '/health' });
+
+      const body = response.json();
+      expect(body.policy.confirmation).toEqual({
+        network: 'Preview',
+        confirmationMode: 'confirmed_only',
+        minConfirmations: 6,
+        maxTimeoutSeconds: 300,
+        requireNonce: true,
+      });
+      expect(JSON.stringify(body.policy)).not.toContain('projectId');
+      expect(JSON.stringify(body.policy)).not.toContain('seedPhrase');
+      expect(JSON.stringify(body.policy)).not.toContain('privateKey');
     });
   });
 

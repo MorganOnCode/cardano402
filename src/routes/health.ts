@@ -26,6 +26,15 @@ interface HealthResponse {
   version: string;
   uptime: number;
   dependencies: Record<string, DependencyStatus>;
+  policy?: {
+    confirmation: {
+      network: string;
+      confirmationMode: 'confirmed_only' | 'allow_mempool';
+      minConfirmations: number;
+      maxTimeoutSeconds: number;
+      requireNonce: boolean;
+    };
+  };
 }
 
 // Dependency check functions
@@ -85,6 +94,17 @@ const healthRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       redis: DependencyStatusSchema,
       storage: DependencyStatusSchema,
     }),
+    policy: z
+      .object({
+        confirmation: z.object({
+          network: z.string(),
+          confirmationMode: z.enum(['confirmed_only', 'allow_mempool']),
+          minConfirmations: z.number(),
+          maxTimeoutSeconds: z.number(),
+          requireNonce: z.boolean(),
+        }),
+      })
+      .optional(),
   });
 
   fastify.get<{ Reply: HealthResponse }>(
@@ -141,6 +161,19 @@ const healthRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         uptime: process.uptime(),
         dependencies,
       };
+
+      if (fastify.config?.chain) {
+        const verification = fastify.config.chain.verification;
+        response.policy = {
+          confirmation: {
+            network: fastify.config.chain.network,
+            confirmationMode: verification.confirmationMode,
+            minConfirmations: verification.minConfirmations,
+            maxTimeoutSeconds: verification.maxTimeoutSeconds,
+            requireNonce: verification.requireNonce,
+          },
+        };
+      }
 
       // Set appropriate status code
       const statusCode = status === 'healthy' ? 200 : status === 'degraded' ? 200 : 503;

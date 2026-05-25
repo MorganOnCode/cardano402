@@ -48,6 +48,9 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 | `rateLimit.windowMs` | `60000` | Rate limit window in milliseconds |
 | `chain.blockfrost.tier` | `"free"` | Blockfrost plan tier |
 | `chain.cache.utxoTtlSeconds` | `60` | UTXO cache TTL |
+| `chain.verification.confirmationMode` | `"confirmed_only"` | Settlement response policy; `allow_mempool` is lower assurance |
+| `chain.verification.minConfirmations` | `6` | Cardano confirmation depth before reporting `confirmed` |
+| `chain.verification.requireNonce` | `true` | Require spec nonce UTXO anti-replay field |
 | `chain.redis.port` | `6379` | Redis port |
 | `chain.redis.password` | *(none)* | Redis password (enable in production) |
 | `chain.redis.db` | `0` | Redis database index |

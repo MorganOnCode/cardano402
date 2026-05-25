@@ -153,6 +153,23 @@ In Docker: `docker compose --profile production stop` sends SIGTERM.
 **Alert on:** `unhealthy` status or health endpoint unreachable.
 **Investigate:** `degraded` status -- check Redis connectivity.
 
+The response also includes non-secret confirmation policy under
+`policy.confirmation`:
+
+```json
+{
+  "network": "Mainnet",
+  "confirmationMode": "confirmed_only",
+  "minConfirmations": 6,
+  "maxTimeoutSeconds": 300,
+  "requireNonce": true
+}
+```
+
+Alert if production unexpectedly reports `confirmationMode:
+"allow_mempool"`, `requireNonce: false`, or a lower-than-approved
+`minConfirmations` value.
+
 ## Common Issues
 
 ### Config validation error on startup

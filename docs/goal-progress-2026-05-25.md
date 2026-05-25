@@ -94,6 +94,15 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
   hardware-backed signer boundary and to make clear that file-backed Mainnet
   credentials remain a hot-wallet interim state.
 
+### Operator-visible confirmation policy
+
+- `/health` now exposes non-secret settlement policy under
+  `policy.confirmation`.
+- The payload includes network, confirmation mode, minimum confirmations,
+  max timeout, and nonce requirement.
+- Unit and integration tests assert the policy is present without exposing
+  Blockfrost project IDs or signing material.
+
 ### Documentation and review artifacts
 
 - Added `docs/security-review-2026-05-25.md`.
@@ -183,8 +192,8 @@ Earlier full-suite verification after the same hardening line:
 3. Implement the remote signer / external policy signer design for Mainnet.
    The design target is now documented; code still uses local Lucid file-backed
    signing material for the root facilitator.
-4. Deployment runbook hardening for confirmation depth, Blockfrost quota,
-   rate-limit tuning, and incident response.
+4. Deployment runbook hardening for Blockfrost quota, rate-limit tuning, and
+   incident response.
 5. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
 6. Branch protection review to require CodeQL, OSV, Gitleaks, Zizmor,
    dependency review, payment invariant checks, tests, and audit before merge.
