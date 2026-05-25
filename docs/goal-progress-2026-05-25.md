@@ -23,7 +23,10 @@ deeper deployment/operator hardening.
 
 - Branch: `feat/mcp-0.1.3-hardening`
 - Pull request: `https://github.com/MorganOnCode/cardano402/pull/88`
-- Current PR head: `d03777f fix(logging): stop logging request bodies`
+- Latest security/code head covered by this report:
+  `d03777f fix(logging): stop logging request bodies`
+- A docs-only progress refresh was pushed after that code head:
+  `a585aee docs: refresh hardening goal progress`
 - Protocol monitor workflow commit: `91b8464 ci: add protocol monitor workflow`
 - Main hardening commit: `f6a2b65 feat(mcp): harden agent payment safety`
 - Report commit: `ceb2f4e docs: add goal progress report`
@@ -36,7 +39,7 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
 
 ## Pull request status
 
-Observed on 2026-05-25 UTC for PR #88 head
+Observed on 2026-05-25 UTC for PR #88 security/code head
 `d03777fbab54a3d7ca108caf6a540c9ac16d42f3`:
 
 - CI completed successfully.
