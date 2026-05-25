@@ -118,6 +118,13 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
   alert on invalid request spikes, nonce lookup failures, settlement failures,
   and status polling drift without user-controlled label cardinality.
 
+### Release readiness gate
+
+- Added `scripts/release-readiness-check.mjs`.
+- Added `pnpm security:release` and wired it into the CI security job.
+- Added `docs/release-readiness.md` with local checks, required GitHub checks,
+  money-handling review points, and release-note requirements.
+
 ### Documentation and review artifacts
 
 - Added `docs/security-review-2026-05-25.md`.
@@ -216,8 +223,9 @@ Earlier full-suite verification after the same hardening line:
 4. Deployment runbook hardening for Blockfrost quota dashboards, rate-limit
    tuning, and incident response.
 5. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
-6. Branch protection review to require CodeQL, OSV, Gitleaks, Zizmor,
-   dependency review, payment invariant checks, tests, and audit before merge.
+6. Repository admin branch protection still needs to require the documented
+   checks before merge; the in-repo release readiness gate now makes the desired
+   check set explicit and CI-enforced.
 
 ## Current summary
 

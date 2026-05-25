@@ -299,6 +299,13 @@ Recommended alerts:
 The `reason` label is bounded by the application to avoid attacker-controlled
 Prometheus cardinality.
 
+### Release readiness
+
+Before publishing or deploying money-handling changes, follow
+[`release-readiness.md`](release-readiness.md). The `pnpm security:release`
+gate checks that required security workflows, protocol monitor invariants,
+payment outcome metrics, and prepublish hooks remain wired into the repo.
+
 ### Sentry
 
 If configured, Sentry captures:

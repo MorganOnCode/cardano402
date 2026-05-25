@@ -376,8 +376,8 @@ Recommended next step:
 
 - Require passing status checks on protected branches.
 - Turn on GitHub private vulnerability reporting.
-- Add release checklist entries for `pnpm audit --prod`, OSV, CodeQL, Gitleaks,
-  Scorecard, and Zizmor.
+- Keep `docs/release-readiness.md` and `pnpm security:release` current as
+  branch protection and package publishing policy changes.
 
 ## Tool recommendations
 
