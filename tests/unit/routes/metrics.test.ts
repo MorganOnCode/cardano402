@@ -121,6 +121,18 @@ describe('Metrics routes', () => {
       expect(res.body).not.toMatch(/route="\/files\/xyz789"/);
     });
 
+    it('collapses unmatched paths instead of labeling raw URLs or query strings', async () => {
+      await server.inject({ method: 'GET', url: '/unknown-a?token=secret' });
+      await server.inject({ method: 'GET', url: '/unknown-b?paymentHeader=secret' });
+
+      const res = await server.inject({ method: 'GET', url: '/metrics' });
+      expect(res.body).toMatch(/http_requests_total\{[^}]*route="__unmatched__"[^}]*\}\s+2/);
+      expect(res.body).not.toContain('/unknown-a');
+      expect(res.body).not.toContain('/unknown-b');
+      expect(res.body).not.toContain('paymentHeader=secret');
+      expect(res.body).not.toContain('token=secret');
+    });
+
     it('labels by method and status_code', async () => {
       await server.inject({ method: 'GET', url: '/sample' });
       const res = await server.inject({ method: 'GET', url: '/metrics' });

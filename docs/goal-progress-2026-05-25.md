@@ -160,6 +160,9 @@ needs admin-side enforcement of the documented required checks.
   payment header, payment payload, and raw transaction-CBOR fields.
 - Sentry startup now honors `config.sentry.environment`, falling back to
   `config.env` only when no Sentry-specific environment is configured.
+- Request logging, error-handler Sentry context, 404 responses, and unmatched
+  HTTP metrics now avoid raw URL query strings so payment headers or tokens
+  cannot leak through misconfigured query parameters.
 
 ### Release readiness gate
 

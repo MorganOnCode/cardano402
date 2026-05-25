@@ -12,6 +12,8 @@ import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';
 import { Counter, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 
+import { boundedRouteLabel } from '../plugins/safe-url.js';
+
 const SKIP_ROUTES = new Set(['/metrics', '/health']);
 const PAYMENT_ROUTES = new Set(['/verify', '/settle', '/status']);
 
@@ -98,7 +100,7 @@ const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
   });
 
   fastify.addHook('onSend', async (request, _reply, payload) => {
-    const route = request.routeOptions?.url ?? request.url;
+    const route = boundedRouteLabel(request.routeOptions?.url);
     if (!PAYMENT_ROUTES.has(route)) return payload;
 
     const parsed = parseJsonPayload(payload);
@@ -109,8 +111,8 @@ const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
 
   fastify.addHook('onResponse', async (request, reply) => {
     // Prefer the route pattern (e.g. "/files/:cid") over the raw URL so
-    // cardinality stays bounded. Falls back to raw URL for unmatched paths.
-    const route = request.routeOptions?.url ?? request.url;
+    // cardinality stays bounded. Unmatched paths collapse to one label.
+    const route = boundedRouteLabel(request.routeOptions?.url);
     if (SKIP_ROUTES.has(route)) return;
     const method = request.method;
     const statusCode = String(reply.statusCode);

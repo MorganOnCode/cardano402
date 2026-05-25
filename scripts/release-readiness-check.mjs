@@ -82,6 +82,16 @@ requireIncludes(
   'config.sentry?.environment ?? config.env',
   'Sentry initialization must honor sentry.environment when configured.'
 );
+requireIncludes(
+  'src/plugins/error-handler.ts',
+  'redactUrlQuery(request.url)',
+  'Error handler must redact query strings before logging or sending URL context to Sentry.'
+);
+requireIncludes(
+  'src/routes/metrics.ts',
+  'boundedRouteLabel(request.routeOptions?.url)',
+  'Metrics route labels must use bounded route patterns instead of raw request URLs.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {

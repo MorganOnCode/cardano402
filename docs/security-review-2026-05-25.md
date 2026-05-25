@@ -294,6 +294,33 @@ Evidence:
 - `src/index.ts`
 - `scripts/release-readiness-check.mjs`
 
+### F6e - Raw URL query strings reached logs, Sentry context, and metrics labels
+
+Previous risk: `request.url` includes query strings. Request logging, Sentry
+error context, 404 messages, and unmatched-route metrics could therefore carry
+query tokens, payment headers, or attacker-controlled high-cardinality labels if
+a misconfigured client placed sensitive payment data in the URL.
+
+Change:
+
+- Added a shared URL redaction helper for log/error contexts.
+- Request logs and error-handler Sentry context now redact query strings and
+  fragments.
+- 404 response messages redact query strings.
+- HTTP metrics now label unmatched paths as `__unmatched__` instead of raw URL
+  paths or query strings.
+- Release readiness now asserts the error-handler and metrics wiring remains
+  present.
+
+Evidence:
+
+- `src/plugins/safe-url.ts`
+- `src/plugins/request-logger.ts`
+- `src/plugins/error-handler.ts`
+- `src/routes/metrics.ts`
+- `tests/unit/plugins/error-handler.test.ts`
+- `tests/unit/routes/metrics.test.ts`
+
 ### F7 - Root facilitator config allowed inline Mainnet signing keys
 
 Previous risk: the hosted/resource-server facilitator config accepted inline

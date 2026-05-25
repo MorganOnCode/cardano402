@@ -1,6 +1,8 @@
 import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';
 
+import { redactUrlQuery } from './safe-url.js';
+
 interface RequestLoggerOptions {
   isDev: boolean;
 }
@@ -12,7 +14,7 @@ const requestLogger: FastifyPluginCallback<RequestLoggerOptions> = (fastify, opt
   fastify.addHook('onRequest', async (request) => {
     const logData: Record<string, unknown> = {
       method: request.method,
-      url: request.url,
+      url: redactUrlQuery(request.url),
       requestId: request.id,
       userAgent: request.headers['user-agent'],
     };
@@ -29,7 +31,7 @@ const requestLogger: FastifyPluginCallback<RequestLoggerOptions> = (fastify, opt
   fastify.addHook('onResponse', async (request, reply) => {
     const logData: Record<string, unknown> = {
       method: request.method,
-      url: request.url,
+      url: redactUrlQuery(request.url),
       statusCode: reply.statusCode,
       responseTime: reply.elapsedTime,
       requestId: request.id,
