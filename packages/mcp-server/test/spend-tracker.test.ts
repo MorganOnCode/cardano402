@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -272,5 +272,49 @@ describe('SpendTracker', () => {
 
     expect(() => tracker.reserve({ amount: 5_000_000n, payTo: 'addr1' })).not.toThrow();
     expect(tracker.spentInWindow()).toBe(5_000_000n);
+  });
+
+  it('restores the last known-good backup when the active ledger is corrupt', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cardano402-spend-corrupt-restore-'));
+    const storePath = join(dir, 'ledger.json');
+
+    const first = new SpendTracker({
+      maxAmountPerCall: 10_000_000n,
+      maxAmountPerDay: 5_000_000n,
+      storePath,
+      now: () => 1_000_000,
+    });
+    first.record({ amount: 4_000_000n, payTo: 'addr1' });
+
+    writeFileSync(storePath, '{"version":1,"entries":[{"amount":"not-a-number"', { mode: 0o600 });
+
+    const restored = new SpendTracker({
+      maxAmountPerCall: 10_000_000n,
+      maxAmountPerDay: 5_000_000n,
+      storePath,
+      now: () => 1_000_001,
+    });
+
+    expect(restored.spentInWindow()).toBe(4_000_000n);
+    expect(() => restored.reserve({ amount: 2_000_000n, payTo: 'addr1' })).toThrow(
+      SpendLimitError
+    );
+    expect(readdirSync(dir).some((name) => name.startsWith('ledger.json.corrupt.'))).toBe(true);
+  });
+
+  it('fails closed when the active ledger and backup are both corrupt', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cardano402-spend-corrupt-fail-'));
+    const storePath = join(dir, 'ledger.json');
+    writeFileSync(storePath, '{"version":1,"entries":[', { mode: 0o600 });
+    writeFileSync(`${storePath}.bak`, '{"version":1,"entries":[', { mode: 0o600 });
+
+    expect(
+      () =>
+        new SpendTracker({
+          maxAmountPerCall: 10_000_000n,
+          maxAmountPerDay: 5_000_000n,
+          storePath,
+        })
+    ).toThrow(/Spend ledger.*corrupt/);
   });
 });

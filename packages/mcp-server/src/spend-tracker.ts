@@ -6,7 +6,15 @@
 // does not reset the daily spend cap.
 
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname } from 'node:path';
 
 const STORE_LOCK_TIMEOUT_MS = 5_000;
@@ -66,6 +74,14 @@ interface StoredSpendLedger {
 interface StoreLockHolder {
   pid: number;
   acquiredAt: number;
+}
+
+class SpendLedgerCorruptError extends Error {
+  constructor(path: string, cause: unknown) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    super(`Spend ledger at ${path} is corrupt and no valid backup could be restored: ${detail}`);
+    this.name = 'SpendLedgerCorruptError';
+  }
 }
 
 export class SpendLimitError extends Error {
@@ -350,26 +366,36 @@ export class SpendTracker {
 
   private loadLedger(): void {
     if (!this.storePath) return;
-    this.history.splice(0, this.history.length);
-    let raw: string;
     try {
-      raw = readFileSync(this.storePath, 'utf8');
+      this.replaceHistory(this.readLedgerEntries(this.storePath));
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') return;
-      throw error;
+      if (this.restoreLedgerBackup()) return;
+      throw new SpendLedgerCorruptError(this.storePath, error);
     }
+  }
 
+  private readLedgerEntries(path: string): SpendEntry[] {
+    const raw = readFileSync(path, 'utf8');
     const parsed = JSON.parse(raw) as StoredSpendLedger;
     if (parsed.version !== 1 || !Array.isArray(parsed.entries)) {
-      throw new Error(`Unsupported spend ledger format at ${this.storePath}`);
+      throw new Error(`Unsupported spend ledger format at ${path}`);
     }
 
+    const entries: SpendEntry[] = [];
     for (const entry of parsed.entries) {
       if (!Number.isFinite(entry.at) || entry.at < 0) continue;
       const amount = BigInt(entry.amount);
       if (amount < 0n) continue;
-      this.history.push({
+      if (typeof entry.payTo !== 'string' || entry.payTo.length === 0) {
+        throw new Error(`Spend ledger entry is missing payTo at ${path}`);
+      }
+      const status = entry.status ?? 'committed';
+      if (status !== 'pending' && status !== 'committed') {
+        throw new Error(`Spend ledger entry has unsupported status at ${path}`);
+      }
+      entries.push({
         id: entry.id ?? randomUUID(),
         at: entry.at,
         amount,
@@ -377,10 +403,43 @@ export class SpendTracker {
         asset: entry.asset ?? 'lovelace',
         txHash: entry.txHash,
         toolName: entry.toolName,
-        status: entry.status ?? 'committed',
+        status,
         pendingUntil: entry.pendingUntil,
       });
     }
+    return entries;
+  }
+
+  private replaceHistory(entries: SpendEntry[]): void {
+    this.history.splice(0, this.history.length, ...entries);
+  }
+
+  private restoreLedgerBackup(): boolean {
+    if (!this.storePath) return false;
+    const backupPath = this.ledgerBackupPath();
+    if (!existsSync(backupPath)) return false;
+
+    let entries: SpendEntry[];
+    try {
+      entries = this.readLedgerEntries(backupPath);
+    } catch {
+      return false;
+    }
+
+    const corruptPath = `${this.storePath}.corrupt.${Date.now()}.${process.pid}`;
+    try {
+      renameSync(this.storePath, corruptPath);
+    } catch {
+      // If quarantine fails, still prefer restoring the last known-good backup
+      // over leaving a corrupted active ledger in place.
+    }
+    try {
+      copyFileSync(backupPath, this.storePath);
+    } catch (error) {
+      throw new SpendLedgerCorruptError(this.storePath, error);
+    }
+    this.replaceHistory(entries);
+    return true;
   }
 
   private persistLedger(): void {
@@ -403,5 +462,11 @@ export class SpendTracker {
     const tmp = `${this.storePath}.${process.pid}.tmp`;
     writeFileSync(tmp, `${JSON.stringify(ledger, null, 2)}\n`, { mode: 0o600 });
     renameSync(tmp, this.storePath);
+    copyFileSync(this.storePath, this.ledgerBackupPath());
+  }
+
+  private ledgerBackupPath(): string {
+    if (!this.storePath) throw new Error('spend ledger backup path requires a store path');
+    return `${this.storePath}.bak`;
   }
 }
