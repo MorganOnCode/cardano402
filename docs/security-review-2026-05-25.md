@@ -275,6 +275,25 @@ Evidence:
 - `src/instrument.ts`
 - `tests/unit/instrument.test.ts`
 
+### F6d - Sentry environment config was ignored
+
+Previous risk: `config.sentry.environment` existed in the schema and deployment
+docs, but startup initialized Sentry with the broader `config.env` value. That
+made it harder to route alerts, separate Preview/Preprod/Mainnet deployments,
+or distinguish production-like staging from real production in Sentry.
+
+Change:
+
+- Startup now initializes Sentry with `config.sentry.environment` when set,
+  falling back to `config.env` only when no Sentry-specific environment is
+  configured.
+- The release readiness check now asserts this wiring remains present.
+
+Evidence:
+
+- `src/index.ts`
+- `scripts/release-readiness-check.mjs`
+
 ### F7 - Root facilitator config allowed inline Mainnet signing keys
 
 Previous risk: the hosted/resource-server facilitator config accepted inline
@@ -331,7 +350,7 @@ Evidence:
 
 ### L1 - Agent API endpoints are Cloudflare-challenged
 
-Observed on 2026-05-25 UTC, most recently at 2026-05-25T08:34:57Z:
+Observed on 2026-05-25 UTC, most recently at 2026-05-25T08:57:47Z:
 
 - `GET https://cardano402.com/.well-known/x402.json` returns HTTP 200 JSON.
 - `GET https://cardano402.com/health` returns HTTP 403 with

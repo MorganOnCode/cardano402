@@ -77,6 +77,11 @@ requireIncludes(
   'facilitator_payment_results_total',
   'Metrics must expose payment outcome counters for abuse monitoring.'
 );
+requireIncludes(
+  'src/index.ts',
+  'config.sentry?.environment ?? config.env',
+  'Sentry initialization must honor sentry.environment when configured.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {

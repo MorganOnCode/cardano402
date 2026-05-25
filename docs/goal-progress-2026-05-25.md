@@ -158,6 +158,8 @@ needs admin-side enforcement of the documented required checks.
   and status polling drift without user-controlled label cardinality.
 - Sentry event scrubbing now recursively redacts nested `event.extra` config,
   payment header, payment payload, and raw transaction-CBOR fields.
+- Sentry startup now honors `config.sentry.environment`, falling back to
+  `config.env` only when no Sentry-specific environment is configured.
 
 ### Release readiness gate
 
@@ -205,7 +207,7 @@ Observed on 2026-05-25 UTC:
 - `/health`, `/supported`, `/verify`, and `/settle` are Cloudflare-challenged
   for non-browser clients.
 
-Most recent monitor evidence, 2026-05-25T08:34:57Z:
+Most recent monitor evidence, 2026-05-25T08:57:47Z:
 
 - `/.well-known/x402.json`: HTTP 200 JSON.
 - `/health`: HTTP 403 Cloudflare challenge, `cf-mitigated: challenge`.
@@ -259,7 +261,7 @@ Current live monitor status:
 - On 2026-05-25 at 07:29:35 UTC, the expanded monitor also checked `/health`
   with `--min-confirmations 6`; `/health`, `/supported`, `/verify`, and
   `/settle` returned HTTP 403 Cloudflare challenge HTML.
-- On 2026-05-25 at 08:34:57 UTC, the live monitor still failed for the same
+- On 2026-05-25 at 08:57:47 UTC, the live monitor still failed for the same
   external Cloudflare challenge posture while confirming the well-known
   manifest remains reachable.
 - This failure is useful evidence, not a repo test regression: the local
