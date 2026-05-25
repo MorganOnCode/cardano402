@@ -14,6 +14,19 @@ describe('Metrics routes', () => {
     server.get('/sample', async () => ({ ok: true }));
     server.get('/files/:cid', async (req) => ({ cid: (req.params as { cid: string }).cid }));
     server.get('/health', async () => ({ status: 'ok' }));
+    server.post('/verify', async (req) => {
+      const body = req.body as Record<string, unknown> | undefined;
+      return body?.valid
+        ? { isValid: true }
+        : { isValid: false, invalidReason: body?.reason ?? 'invalid_request' };
+    });
+    server.post('/settle', async (req) => {
+      const body = req.body as Record<string, unknown> | undefined;
+      return body?.success
+        ? { success: true, transaction: 'tx1', network: 'cardano:preview' }
+        : { success: false, errorReason: body?.reason ?? 'invalid_request' };
+    });
+    server.post('/status', async () => ({ status: 'confirmed', transaction: 'tx1' }));
     await server.ready();
   });
 
@@ -75,6 +88,56 @@ describe('Metrics routes', () => {
       const res = await server.inject({ method: 'GET', url: '/metrics' });
       expect(res.body).toMatch(/method="GET"/);
       expect(res.body).toMatch(/status_code="200"/);
+    });
+  });
+
+  describe('Payment protocol result tracking', () => {
+    it('counts verify valid and invalid outcomes with bounded reasons', async () => {
+      await server.inject({ method: 'POST', url: '/verify', payload: { valid: true } });
+      await server.inject({
+        method: 'POST',
+        url: '/verify',
+        payload: { reason: 'nonce_lookup_failed' },
+      });
+
+      const res = await server.inject({ method: 'GET', url: '/metrics' });
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/verify"[^}]*result="valid"[^}]*reason="none"[^}]*\}\s+1/
+      );
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/verify"[^}]*result="invalid"[^}]*reason="nonce_lookup_failed"[^}]*\}\s+1/
+      );
+    });
+
+    it('counts settle failures and status outcomes', async () => {
+      await server.inject({
+        method: 'POST',
+        url: '/settle',
+        payload: { reason: 'settlement_timeout' },
+      });
+      await server.inject({ method: 'POST', url: '/status', payload: { transaction: 'tx1' } });
+
+      const res = await server.inject({ method: 'GET', url: '/metrics' });
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/settle"[^}]*result="failure"[^}]*reason="settlement_timeout"[^}]*\}\s+1/
+      );
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/status"[^}]*result="confirmed"[^}]*reason="none"[^}]*\}\s+1/
+      );
+    });
+
+    it('bounds unexpected reason labels to avoid cardinality abuse', async () => {
+      await server.inject({
+        method: 'POST',
+        url: '/verify',
+        payload: { reason: 'attacker supplied reason with spaces and punctuation !!!' },
+      });
+
+      const res = await server.inject({ method: 'GET', url: '/metrics' });
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/verify"[^}]*result="invalid"[^}]*reason="other"[^}]*\}\s+1/
+      );
+      expect(res.body).not.toContain('attacker supplied reason');
     });
   });
 

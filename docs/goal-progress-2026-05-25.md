@@ -110,6 +110,14 @@ tracking `origin/feat/mcp-0.1.3-hardening`.
   `allow_mempool`, disabled nonce enforcement, low confirmation depth, and
   missing signer posture.
 
+### Payment abuse metrics
+
+- Added `facilitator_payment_results_total` Prometheus counter for `/verify`,
+  `/settle`, and `/status`.
+- Labels are limited to endpoint, result, and bounded reason so operators can
+  alert on invalid request spikes, nonce lookup failures, settlement failures,
+  and status polling drift without user-controlled label cardinality.
+
 ### Documentation and review artifacts
 
 - Added `docs/security-review-2026-05-25.md`.
@@ -205,8 +213,8 @@ Earlier full-suite verification after the same hardening line:
 3. Implement the remote signer / external policy signer design for Mainnet.
    The design target is now documented; code still uses local Lucid file-backed
    signing material for the root facilitator.
-4. Deployment runbook hardening for Blockfrost quota, rate-limit tuning, and
-   incident response.
+4. Deployment runbook hardening for Blockfrost quota dashboards, rate-limit
+   tuning, and incident response.
 5. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
 6. Branch protection review to require CodeQL, OSV, Gitleaks, Zizmor,
    dependency review, payment invariant checks, tests, and audit before merge.

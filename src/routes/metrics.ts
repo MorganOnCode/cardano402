@@ -13,6 +13,54 @@ import fp from 'fastify-plugin';
 import { Counter, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 
 const SKIP_ROUTES = new Set(['/metrics', '/health']);
+const PAYMENT_ROUTES = new Set(['/verify', '/settle', '/status']);
+
+function parseJsonPayload(payload: unknown): unknown {
+  if (typeof payload === 'string') {
+    try {
+      return JSON.parse(payload) as unknown;
+    } catch {
+      return undefined;
+    }
+  }
+  if (Buffer.isBuffer(payload)) {
+    try {
+      return JSON.parse(payload.toString('utf8')) as unknown;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function boundedReason(value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '') return 'none';
+  const normalized = value.trim();
+  return /^[a-z0-9_:-]{1,80}$/u.test(normalized) ? normalized : 'other';
+}
+
+function classifyPaymentResult(route: string, body: unknown): { result: string; reason: string } {
+  if (body === null || typeof body !== 'object') {
+    return { result: 'unparseable', reason: 'non_json_response' };
+  }
+
+  const record = body as Record<string, unknown>;
+  if (route === '/verify') {
+    return record.isValid === true
+      ? { result: 'valid', reason: 'none' }
+      : { result: 'invalid', reason: boundedReason(record.invalidReason) };
+  }
+  if (route === '/settle') {
+    return record.success === true
+      ? { result: 'success', reason: 'none' }
+      : { result: 'failure', reason: boundedReason(record.errorReason) };
+  }
+  if (route === '/status') {
+    return { result: boundedReason(record.status), reason: 'none' };
+  }
+
+  return { result: 'unknown', reason: 'unknown_route' };
+}
 
 const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
   const registry = new Registry();
@@ -33,6 +81,23 @@ const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
     help: 'Total HTTP requests, labeled by method, route, and status code',
     labelNames: ['method', 'route', 'status_code'],
     registers: [registry],
+  });
+
+  const paymentResultTotal = new Counter({
+    name: 'facilitator_payment_results_total',
+    help: 'Payment protocol results for facilitator endpoints, labeled by endpoint, result, and bounded reason',
+    labelNames: ['endpoint', 'result', 'reason'],
+    registers: [registry],
+  });
+
+  fastify.addHook('onSend', async (request, _reply, payload) => {
+    const route = request.routeOptions?.url ?? request.url;
+    if (!PAYMENT_ROUTES.has(route)) return payload;
+
+    const parsed = parseJsonPayload(payload);
+    const { result, reason } = classifyPaymentResult(route, parsed);
+    paymentResultTotal.labels(route, result, reason).inc();
+    return payload;
   });
 
   fastify.addHook('onResponse', async (request, reply) => {

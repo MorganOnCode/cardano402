@@ -277,6 +277,28 @@ Key log fields:
 - `responseTime` -- request duration in ms
 - `statusCode` -- HTTP response status
 
+### Prometheus Metrics
+
+`GET /metrics` exposes process metrics, HTTP route counters, HTTP latency
+histograms, and payment-protocol outcome counters.
+
+Key payment metric:
+
+```text
+facilitator_payment_results_total{endpoint="/verify",result="invalid",reason="nonce_lookup_failed"}
+```
+
+Recommended alerts:
+
+- `/verify` invalid spikes, especially `reason="invalid_request"` or
+  `reason="nonce_lookup_failed"`.
+- `/settle` failures with sustained non-`none` reasons.
+- `/status` `result="not_found"` spikes after settlement attempts.
+- HTTP 429/5xx spikes on `/verify`, `/settle`, or `/status`.
+
+The `reason` label is bounded by the application to avoid attacker-controlled
+Prometheus cardinality.
+
 ### Sentry
 
 If configured, Sentry captures:

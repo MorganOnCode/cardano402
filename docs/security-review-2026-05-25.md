@@ -361,7 +361,9 @@ Recommended next step:
 
 - Keep strict body limits.
 - Add per-IP and per-ASN rate limits at Cloudflare and Fastify.
-- Track rejected verification reason counts.
+- Track `facilitator_payment_results_total` for rejected verification reason
+  counts, settlement failures, and status polling drift. The metric uses
+  bounded reason labels to avoid attacker-controlled Prometheus cardinality.
 - Add request-cost dashboards for Blockfrost quota burn.
 
 ### R5 - Supply-chain controls need enforcement visibility
