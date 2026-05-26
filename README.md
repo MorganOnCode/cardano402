@@ -147,8 +147,9 @@ Edit `config/config.json`:
 
 - Set `chain.blockfrost.projectId` to your Blockfrost preview project ID
   (free tier from <https://blockfrost.io>).
-- Set `chain.facilitator.seedPhrase` to a 24-word seed phrase for a
-  preview-testnet wallet. Never commit `config.json`.
+- Set `chain.facilitator.seedPhraseFile` to a `0600` file containing the
+  seed phrase for a preview-testnet wallet. Never commit `config.json` or
+  local signing files.
 
 ### 4. Run
 

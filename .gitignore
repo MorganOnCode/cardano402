@@ -11,6 +11,7 @@ config/*.json
 !config/config.example.json
 config.json
 config/cmds.bash
+secrets/
 .env
 .env.*
 !.env.example
@@ -58,4 +59,3 @@ _tmp_*
 # out-of-tree before the next public push. Until then, keep it ignored
 # from clean checkouts.
 x402-rs-main/
-

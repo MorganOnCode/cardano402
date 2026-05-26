@@ -46,11 +46,23 @@ nano config/config.json
 Set these fields:
 - `chain.blockfrost.projectId` — your Blockfrost Preview project ID
 - `chain.facilitator.seedPhraseFile` — `0600` file containing the 24-word seed phrase for a funded wallet
-- `chain.redis.host` → `"redis"` (Docker service name)
+- `chain.redis.host` → `"redis-prod"` (production Docker service name)
 - `chain.redis.password` → same value as `REDIS_PASSWORD` in `.env`
 - `logging.level` → `"info"` (not `"debug"` in production)
 - `logging.pretty` → `false`
 - `env` → `"production"`
+
+Production Compose mounts `./secrets` read-only at `/run/secrets`. Create the
+files referenced by `config/config.json` before starting the stack:
+
+```bash
+mkdir -p secrets
+nano secrets/cardano402-facilitator.seed
+chmod 600 secrets/cardano402-facilitator.seed
+```
+
+If the `demo` section remains enabled, create the separate Preview/Preprod demo
+seed file referenced by `demo.seedPhraseFile`, or remove the `demo` section.
 
 ```bash
 cp .env.example .env
@@ -119,6 +131,8 @@ bash deploy.sh   # pulls git + rebuilds + restarts
 ## Security notes
 
 - `config/config.json` is mounted read-only and never in git
+- `secrets/` is mounted read-only at `/run/secrets`, ignored by git, and backed
+  up only through encrypted restic snapshots
 - Redis requires a password in production
 - Production Compose fails fast if `REDIS_PASSWORD` is unset and binds the
   facilitator and Redis ports to `127.0.0.1` for nginx/local access only

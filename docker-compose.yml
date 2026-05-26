@@ -1,5 +1,5 @@
 # Development and production Docker services
-# Dev:  docker compose up (starts redis + ipfs for local development)
+# Dev:  docker compose --profile development up (starts redis + ipfs for local development)
 # Prod: docker compose --profile production up (starts facilitator + redis with auth)
 
 services:
@@ -8,6 +8,8 @@ services:
   ipfs:
     image: ipfs/kubo:latest
     container_name: cardano402-ipfs
+    profiles:
+      - development
     ports:
       - "4001:4001"      # P2P swarm
       - "5001:5001"      # HTTP API
@@ -21,6 +23,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: cardano402-redis
+    profiles:
+      - development
     ports:
       - "6379:6379"
     volumes:
@@ -41,6 +45,7 @@ services:
       - "127.0.0.1:3000:3000"
     volumes:
       - ./config/config.json:/app/config/config.json:ro
+      - ./secrets:/run/secrets:ro
     cap_drop:
       - ALL
     security_opt:

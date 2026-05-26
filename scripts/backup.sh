@@ -89,22 +89,38 @@ STAGE_DIR=$(mktemp -d /tmp/cardano402-backup-XXXXXX)
 chmod 700 "$STAGE_DIR"
 log "Staging to $STAGE_DIR"
 
-# 1. Sensitive config (the most valuable target — seed phrase + Blockfrost key).
+# 1. Sensitive config and local signing files.
 mkdir -p "$STAGE_DIR/sensitive"
 cp -p "$REPO_ROOT/config/config.json" "$STAGE_DIR/sensitive/config.json"
 cp -p "$REPO_ROOT/.env"               "$STAGE_DIR/sensitive/dotenv"
+if [ -d "$REPO_ROOT/secrets" ]; then
+  cp -a "$REPO_ROOT/secrets" "$STAGE_DIR/sensitive/secrets"
+  log "Staged: local secret files ($(du -sh "$STAGE_DIR/sensitive/secrets" | cut -f1))"
+else
+  log "Skipped: $REPO_ROOT/secrets does not exist yet"
+fi
 log "Staged: sensitive config ($(du -sh "$STAGE_DIR/sensitive" | cut -f1))"
 
 # 2. Redis AOF volume. AOF is append-only; copying the on-disk state while
 #    redis is running yields a valid replica that may be slightly behind
 #    the in-memory state. Restic deduplicates so growing AOFs are cheap.
 log "Snapshotting Redis volume"
-docker run --rm \
-  -v cardano402_redis_data:/source:ro \
-  -v "$STAGE_DIR/redis":/dest \
-  alpine sh -c "cp -a /source/. /dest/" \
-  >> "$LOG_FILE" 2>&1
-log "Staged: redis ($(du -sh "$STAGE_DIR/redis" 2>/dev/null | cut -f1))"
+for redis_volume in cardano402_redis_prod_data cardano402_redis_data; do
+  if docker volume inspect "$redis_volume" >/dev/null 2>&1; then
+    mkdir -p "$STAGE_DIR/redis/$redis_volume"
+    docker run --rm \
+      -v "$redis_volume":/source:ro \
+      -v "$STAGE_DIR/redis/$redis_volume":/dest \
+      alpine sh -c "cp -a /source/. /dest/" \
+      >> "$LOG_FILE" 2>&1
+    log "Staged: redis volume $redis_volume ($(du -sh "$STAGE_DIR/redis/$redis_volume" 2>/dev/null | cut -f1))"
+  fi
+done
+if [ ! -d "$STAGE_DIR/redis" ]; then
+  log "Skipped: no known cardano402 Redis volume found"
+else
+  log "Staged: redis ($(du -sh "$STAGE_DIR/redis" 2>/dev/null | cut -f1))"
+fi
 
 # 3. Uploaded payment-gated files (the storage backend's filesystem root).
 if [ -d "$REPO_ROOT/data/files" ]; then

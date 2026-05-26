@@ -4,7 +4,8 @@
 #   docker compose -f docker-compose.prod.yml up -d
 #
 # Prerequisites:
-#   - ./config/config.json present with Blockfrost key + seed phrase
+#   - ./config/config.json present with Blockfrost key + signing-file paths
+#   - ./secrets/* signing files present with mode 0600
 #   - REDIS_PASSWORD set in environment or .env file
 #
 # The facilitator container mounts config.json read-only at runtime.
@@ -25,6 +26,7 @@ services:
       - "127.0.0.1:3000:3000"
     volumes:
       - ./config/config.json:/app/config/config.json:ro
+      - ./secrets:/run/secrets:ro
       - ./data:/app/data
     environment:
       - NODE_ENV=production
@@ -34,6 +36,10 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     # Cap memory + CPU so a runaway request loop can't OOM-kill the host.
     # 768m gives ~5x headroom over steady-state RSS (~120-180m). Generous on
     # purpose: tightening later is easy, debugging an OOM-kill of a payment
@@ -66,17 +72,25 @@ services:
     command: >
       redis-server
       --appendonly yes
-      --requirepass ${REDIS_PASSWORD}
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis}
       --maxmemory 256mb
       --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
+    networks:
+      default:
+        aliases:
+          - redis-prod
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     # Sits above redis-server --maxmemory 256m with comfortable overhead so
     # AOF rewrite spikes don't trip the limit.
     mem_limit: 384m
     cpus: 0.5
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3

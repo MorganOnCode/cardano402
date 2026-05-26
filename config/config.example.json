@@ -39,7 +39,7 @@
       "maxConcurrent": 20
     },
     "redis": {
-      "host": "redis",
+      "host": "redis-prod",
       "port": 6379,
       "password": "your-redis-password",
       "db": 0

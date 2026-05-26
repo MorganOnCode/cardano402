@@ -136,6 +136,41 @@ requireIncludes(
   'Production containers must drop ambient Linux capabilities.'
 );
 requireIncludes(
+  'docker-compose.yml',
+  './secrets:/run/secrets:ro',
+  'Production facilitator must mount local signing files read-only at the documented /run/secrets path.'
+);
+requireIncludes(
+  'docker-compose.prod.yml',
+  './secrets:/run/secrets:ro',
+  'VPS production Compose must mount local signing files read-only at the documented /run/secrets path.'
+);
+requireIncludes(
+  'docker-compose.prod.yml',
+  '${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis}',
+  'VPS production Redis must fail fast when REDIS_PASSWORD is unset.'
+);
+requireIncludes(
+  'docker-compose.prod.yml',
+  'no-new-privileges:true',
+  'VPS production containers must opt into no-new-privileges.'
+);
+requireIncludes(
+  'package.json',
+  'docker compose --profile development up -d',
+  'Development dependency script must not start production-profile services or rely on an empty default Compose profile.'
+);
+requireIncludes(
+  'config/config.example.json',
+  '"host": "redis-prod"',
+  'Example production config must point at the production Redis service name.'
+);
+requireIncludes(
+  'scripts/backup.sh',
+  '$REPO_ROOT/secrets',
+  'Encrypted backups must include local signing files from the production secrets directory when present.'
+);
+requireIncludes(
   'src/config/schema.ts',
   'demo.seedPhraseFile is required when config.env is "production"',
   'Production demo configuration must reject inline demo seed material.'

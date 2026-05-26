@@ -31,8 +31,8 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 | `chain.network` | Cardano network | `"Preview"`, `"Preprod"`, `"Mainnet"` |
 | `chain.blockfrost.projectId` | Blockfrost API key | `"previewXXX..."` |
 | `chain.facilitator.signerMode` | Current root facilitator signer mode. Only `"local-file"` is implemented today | `"local-file"` |
-| `chain.facilitator.seedPhraseFile` | `0600` file containing facilitator wallet seed phrase | `"/run/secrets/cardano402-facilitator.seed"` |
-| `chain.facilitator.privateKeyFile` | `0600` file containing facilitator wallet private key | `"/run/secrets/cardano402-facilitator.skey"` |
+| `chain.facilitator.seedPhraseFile` | `0600` file containing facilitator wallet seed phrase, mounted from local `./secrets` in production Compose | `"/run/secrets/cardano402-facilitator.seed"` |
+| `chain.facilitator.privateKeyFile` | `0600` file containing facilitator wallet private key, mounted from local `./secrets` in production Compose | `"/run/secrets/cardano402-facilitator.skey"` |
 | `chain.redis.host` | Redis hostname | `"localhost"` or `"redis-prod"` |
 
 ### Optional Settings
@@ -105,7 +105,7 @@ config should not be added until the signer provider boundary exists.
 Start Redis and IPFS for local development:
 
 ```bash
-docker compose up -d
+docker compose --profile development up -d
 ```
 
 Then run the facilitator locally with hot reload:
@@ -125,6 +125,19 @@ pnpm dev
    - `chain.redis.password` to your Redis password
    - `chain.blockfrost.projectId` to your Blockfrost key
    - `chain.facilitator.seedPhraseFile` to a `0600` file containing your facilitator wallet seed phrase
+
+   Production Compose mounts `./secrets` read-only at `/run/secrets`, matching
+   the example `seedPhraseFile` paths:
+
+   ```bash
+   mkdir -p secrets
+   nano secrets/cardano402-facilitator.seed
+   chmod 600 secrets/cardano402-facilitator.seed
+   ```
+
+   If the example `demo` section is kept, create the separate
+   `secrets/cardano402-demo-preview.seed` file with `0600` permissions. If the
+   live demo is disabled, remove the `demo` section from `config/config.json`.
 
 2. **Set Redis password**
 
@@ -155,7 +168,7 @@ pnpm dev
 | `production` | `facilitator` | 127.0.0.1:3000 | Facilitator server |
 | `production` | `redis-prod` | 127.0.0.1:6380 | Production Redis (with auth) |
 
-The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting. Production Compose fails fast when `REDIS_PASSWORD` is unset and binds ports to loopback for local reverse-proxy access.
+The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting. Production Compose fails fast when `REDIS_PASSWORD` is unset, mounts `./secrets` read-only at `/run/secrets`, and binds ports to loopback for local reverse-proxy access.
 
 ### Custom Docker Build
 

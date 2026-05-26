@@ -59,7 +59,7 @@
     "security:semgrep": "semgrep --config semgrep/payment-security.yml --error",
     "security:release": "node scripts/release-readiness-check.mjs",
     "monitor:protocol": "node scripts/protocol-monitor.mjs",
-    "docker:up": "docker-compose up -d",
+    "docker:up": "docker compose --profile development up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "prepare": "husky && pnpm --filter @cardano402/core build",

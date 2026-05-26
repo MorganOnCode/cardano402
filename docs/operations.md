@@ -10,8 +10,8 @@
 ## Quick Start (Development)
 
 1. Copy config: `cp config/config.example.json config/config.json`
-2. Edit config: set your Blockfrost project ID and seed phrase
-3. Start dependencies: `docker compose up -d`
+2. Edit config: set your Blockfrost project ID and seed phrase file
+3. Start dependencies: `docker compose --profile development up -d`
 4. Start server: `pnpm dev`
 5. Verify: `curl http://localhost:3000/health`
 
@@ -94,6 +94,12 @@ Copy `config/config.example.json` to `config/config.json` and set:
 - if the live demo is enabled, `demo.seedPhraseFile` to a separate `0600`
   Preview/Preprod wallet seed; production rejects inline demo seed material
 
+Production Compose mounts `./secrets` read-only at `/run/secrets`, so local
+files such as `secrets/cardano402-facilitator.seed` appear inside the container
+as `/run/secrets/cardano402-facilitator.seed`. Keep `secrets/` out of git and
+use `chmod 600` on every signing file. If the live demo is disabled, remove the
+`demo` section instead of leaving a missing `demo.seedPhraseFile` path.
+
 ### 2. Set Redis password
 
 Export the Redis password for Docker Compose:
@@ -111,8 +117,10 @@ This starts:
 - `cardano402` -- the payment facilitator (`127.0.0.1:3000`)
 - `cardano402-redis-prod` -- Redis with authentication (`127.0.0.1:6380`)
 
-Production Compose fails fast if `REDIS_PASSWORD` is unset. The production
-containers also drop ambient Linux capabilities and set `no-new-privileges`.
+Production Compose fails fast if `REDIS_PASSWORD` is unset, mounts `./secrets`
+read-only at `/run/secrets`, and keeps development-only Redis/IPFS services out
+of the production profile. The production containers also drop ambient Linux
+capabilities and set `no-new-privileges`.
 
 ### 4. Verify deployment
 
