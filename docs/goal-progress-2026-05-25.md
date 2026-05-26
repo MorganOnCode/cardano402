@@ -355,8 +355,14 @@ Passing checks:
 
 Current live monitor status:
 
+- On 2026-05-26 at 15:16:09 UTC, `pnpm monitor:protocol -- --base-url
+  https://cardano402.com --min-confirmations 6 --json` still failed against
+  the live site with the same external Cloudflare challenge posture.
+  `/.well-known/x402.json` returned HTTP 200 JSON; `/health`, `/supported`,
+  `/verify`, and `/settle` returned HTTP 403 challenge HTML with
+  `cf-mitigated: challenge`.
 - On 2026-05-26 at 08:55:07 UTC, `pnpm monitor:protocol -- --base-url
-https://cardano402.com --min-confirmations 6 --json` failed as expected
+  https://cardano402.com --min-confirmations 6 --json` failed as expected
   against the live site with the same external Cloudflare challenge posture.
   `/.well-known/x402.json` returned HTTP 200 JSON; `/health`, `/supported`,
   `/verify`, and `/settle` returned HTTP 403 challenge HTML with
