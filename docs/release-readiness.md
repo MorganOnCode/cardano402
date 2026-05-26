@@ -81,6 +81,9 @@ Before release, verify:
 - `X-Payment-Response` / `PAYMENT-RESPONSE` metadata is schema-checked before
   headers are emitted; malformed transaction hashes or networks from a
   facilitator fail closed instead of being surfaced to agents.
+- Core facilitator-client settle parsing rejects malformed transaction hashes
+  on successful settlement responses while preserving empty transaction fields
+  for failure responses.
 - `X-PAYMENT` and `Payment-Signature` request headers remain accepted where
   expected.
 - CORS preflight methods remain limited to the public GET/POST API surface.

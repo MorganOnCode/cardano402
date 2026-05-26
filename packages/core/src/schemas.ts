@@ -114,18 +114,28 @@ export const VerifyResponseSchema = z.object({
 });
 export type VerifyResponse = z.infer<typeof VerifyResponseSchema>;
 
-export const SettleResponseSchema = z.object({
-  success: z.boolean(),
-  transaction: z.string(),
-  network: NetworkSchema,
-  payer: CardanoAddressSchema.optional(),
-  errorReason: z.string().optional(),
-  errorMessage: z.string().optional(),
-  extensions: z
-    .object({ status: SettlementStatusSchema.optional() })
-    .passthrough()
-    .optional(),
-});
+export const SettleResponseSchema = z
+  .object({
+    success: z.boolean(),
+    transaction: z.string(),
+    network: NetworkSchema,
+    payer: CardanoAddressSchema.optional(),
+    errorReason: z.string().optional(),
+    errorMessage: z.string().optional(),
+    extensions: z
+      .object({ status: SettlementStatusSchema.optional() })
+      .passthrough()
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.success && !/^[0-9a-f]{64}$/.test(value.transaction)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['transaction'],
+        message: 'Successful settle responses must include a 64-character lowercase transaction hash',
+      });
+    }
+  });
 export type SettleResponse = z.infer<typeof SettleResponseSchema>;
 
 export const StatusResponseSchema = z.object({

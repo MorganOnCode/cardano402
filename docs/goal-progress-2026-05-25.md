@@ -419,6 +419,9 @@ Additional MCP catalog hardening:
 - The payment gate now schema-checks settlement metadata before emitting
   `X-Payment-Response` / `PAYMENT-RESPONSE`, rejecting malformed transaction
   hashes or networks from a facilitator instead of surfacing them to agents.
+- Core settle-response parsing now also rejects malformed transaction hashes
+  when `success: true`, while keeping failure responses with `transaction: ""`
+  parse-compatible.
 
 ## Remaining work
 

@@ -23,6 +23,10 @@ the facilitator codebase. No breaking changes for `0.1.x` consumers.
   `PaymentRequirementsSchema` and the `asset` field on 402 accept
   options so malformed asset strings fail before quote, verification,
   settlement, or signer paths consume them.
+- **Successful settle responses require transaction hashes.**
+  `SettleResponseSchema` now rejects malformed `transaction` values when
+  `success: true`, while preserving empty `transaction` fields for
+  failure responses.
 - **`ResourceInfoSchema`** — resource metadata in a 402 envelope.
   Fields: `description`, `mimeType` (default `'application/json'`),
   `url`.

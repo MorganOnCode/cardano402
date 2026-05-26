@@ -273,7 +273,7 @@ describe('SettleResponseSchema', () => {
     for (const status of ['confirmed', 'mempool', 'failed'] as const) {
       const parsed = SettleResponseSchema.safeParse({
         success: status !== 'failed',
-        transaction: status === 'failed' ? '' : 'txhash',
+        transaction: status === 'failed' ? '' : sampleTxHash,
         network: 'cardano:preview',
         extensions: { status },
       });
@@ -281,11 +281,34 @@ describe('SettleResponseSchema', () => {
     }
   });
 
+  it('rejects malformed transaction hashes on successful settlement responses', () => {
+    expect(
+      SettleResponseSchema.safeParse({
+        success: true,
+        transaction: 'abc123',
+        network: 'cardano:preview',
+        extensions: { status: 'confirmed' },
+      }).success
+    ).toBe(false);
+  });
+
+  it('allows empty transaction on failed settlement responses', () => {
+    expect(
+      SettleResponseSchema.safeParse({
+        success: false,
+        transaction: '',
+        network: 'cardano:preview',
+        errorReason: 'submission_failed',
+        extensions: { status: 'failed' },
+      }).success
+    ).toBe(true);
+  });
+
   it('rejects unknown extensions.status', () => {
     expect(
       SettleResponseSchema.safeParse({
         success: true,
-        transaction: 'tx',
+        transaction: sampleTxHash,
         network: 'cardano:preview',
         extensions: { status: 'pending' },
       }).success

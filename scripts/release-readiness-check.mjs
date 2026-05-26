@@ -433,6 +433,16 @@ requireIncludes(
   'Payment response headers must validate settlement transaction hashes before exposing them to clients.'
 );
 requireIncludes(
+  'packages/core/src/schemas.ts',
+  'Successful settle responses must include a 64-character lowercase transaction hash',
+  'Core settle response schema must reject malformed transaction hashes on successful settlement responses.'
+);
+requireIncludes(
+  'packages/core/test/schemas.test.ts',
+  'rejects malformed transaction hashes on successful settlement responses',
+  'Core settle response tests must prove malformed successful settlement hashes are rejected.'
+);
+requireIncludes(
   'src/sdk/payment-gate.ts',
   'PaymentResponseHeaderSchema.safeParse',
   'Payment gate must schema-check settlement metadata before emitting X-Payment-Response.'
