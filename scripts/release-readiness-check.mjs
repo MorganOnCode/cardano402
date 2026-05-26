@@ -583,6 +583,26 @@ requireIncludes(
   'Settle route tests must prove oversized payment amounts are rejected before settlement.'
 );
 requireIncludes(
+  'src/routes/verify.ts',
+  'paymentRequirements.maxTimeoutSeconds > verificationConfig.maxTimeoutSeconds',
+  'Verify route must reject paymentRequirements.maxTimeoutSeconds above the configured maximum before verification.'
+);
+requireIncludes(
+  'src/routes/settle.ts',
+  'paymentRequirements.maxTimeoutSeconds > verificationConfig.maxTimeoutSeconds',
+  'Settle route must reject paymentRequirements.maxTimeoutSeconds above the configured maximum before settlement.'
+);
+requireIncludes(
+  'tests/integration/verify-route.test.ts',
+  'payment timeouts above configured maximum before verification',
+  'Verify route tests must prove over-policy payment timeouts do not reach verification.'
+);
+requireIncludes(
+  'tests/integration/settle-route.test.ts',
+  'payment timeouts above configured maximum before settlement',
+  'Settle route tests must prove over-policy payment timeouts do not reach settlement.'
+);
+requireIncludes(
   'src/verify/request-shape.ts',
   'decodePaymentHeader(envelope.paymentHeader)',
   'Verify/settle request normalisation must strictly decode raw paymentHeader bodies.'

@@ -283,6 +283,23 @@ describe('POST /settle Route', () => {
     expect(mockSettlePayment).not.toHaveBeenCalled();
   });
 
+  it('should return invalid_request for payment timeouts above configured maximum before settlement', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/settle',
+      headers: { 'content-type': 'application/json' },
+      payload: createTestSettleRequest({ maxTimeoutSeconds: 301 }),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(false);
+    expect(body.network).toBe('cardano:preview');
+    expect(body.errorReason).toBe('invalid_request');
+    expect(body.errorMessage).toContain('maxTimeoutSeconds');
+    expect(mockSettlePayment).not.toHaveBeenCalled();
+  });
+
   it('should return invalid_request for malformed paymentHeader before settlement', async () => {
     const base = createTestSettleRequest();
     const response = await server.inject({

@@ -96,6 +96,19 @@ const verifyRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       const chainConfig = fastify.config.chain;
       const verificationConfig = chainConfig.verification;
 
+      if (paymentRequirements.maxTimeoutSeconds > verificationConfig.maxTimeoutSeconds) {
+        return reply.status(200).send({
+          isValid: false,
+          invalidReason: 'invalid_request',
+          invalidMessage:
+            'paymentRequirements.maxTimeoutSeconds exceeds the configured verification maximum',
+          extensions: {
+            maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
+            configuredMaxTimeoutSeconds: verificationConfig.maxTimeoutSeconds,
+          },
+        });
+      }
+
       // Parse the spec-mandated nonce if present. We deliberately accept the
       // raw payload here rather than rejecting at the schema level so that
       // the route can return a structured CheckResult-shaped failure.

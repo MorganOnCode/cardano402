@@ -83,6 +83,9 @@ Before release, verify:
   in constant time when configured.
 - `/verify` and `/settle` strictly decode raw `paymentHeader` request bodies and
   bound their size before verification or settlement work starts.
+- `/verify` and `/settle` reject `paymentRequirements.maxTimeoutSeconds` values
+  above the configured verification maximum before verification or settlement
+  work starts.
 - Transaction CBOR payloads are strictly base64-decoded and size-bounded before
   CBOR parsing or settlement submission.
 - CORS still allows `X-PAYMENT`.

@@ -298,6 +298,23 @@ describe('POST /verify Route', () => {
     expect(mockVerifyPayment).not.toHaveBeenCalled();
   });
 
+  it('should return invalid_request for payment timeouts above configured maximum before verification', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/verify',
+      headers: { 'content-type': 'application/json' },
+      payload: createTestVerifyRequest({ maxTimeoutSeconds: 301 }),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.isValid).toBe(false);
+    expect(body.invalidReason).toBe('invalid_request');
+    expect(body.invalidMessage).toContain('maxTimeoutSeconds');
+    expect(body.extensions.configuredMaxTimeoutSeconds).toBe(300);
+    expect(mockVerifyPayment).not.toHaveBeenCalled();
+  });
+
   it('should return invalid_request for malformed paymentHeader before verification', async () => {
     const base = createTestVerifyRequest();
     const response = await server.inject({

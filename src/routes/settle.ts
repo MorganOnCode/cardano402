@@ -83,6 +83,17 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       const { paymentPayload, paymentRequirements } = normalised.data;
       const verificationConfig = chainConfig.verification;
 
+      if (paymentRequirements.maxTimeoutSeconds > verificationConfig.maxTimeoutSeconds) {
+        return reply.status(200).send({
+          success: false,
+          transaction: '',
+          network,
+          errorReason: 'invalid_request',
+          errorMessage:
+            'paymentRequirements.maxTimeoutSeconds exceeds the configured verification maximum',
+        });
+      }
+
       const declaredNonce = paymentPayload.payload.nonce
         ? (parseNonce(paymentPayload.payload.nonce) ?? undefined)
         : undefined;

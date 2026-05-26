@@ -392,6 +392,12 @@ Additional supply-chain hardening:
   and Docker update surfaces, with `pnpm security:release` guarding those
   cooldown settings.
 
+Additional payment-timeout hardening:
+
+- `/verify` and `/settle` now reject `paymentRequirements.maxTimeoutSeconds`
+  values above the configured verification maximum before verification or
+  settlement work starts.
+
 ## Remaining work
 
 1. Apply and verify the documented Cloudflare WAF skip/rate-limit rules on
