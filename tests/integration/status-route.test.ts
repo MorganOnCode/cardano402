@@ -188,6 +188,21 @@ describe('POST /status Route', () => {
     expect(body.transaction).toBe('');
   });
 
+  it('should return not_found for non-hex tx hash without querying Blockfrost', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/status',
+      headers: { 'content-type': 'application/json' },
+      payload: createTestStatusRequest({ transaction: 'g'.repeat(64) }),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe('not_found');
+    expect(body.transaction).toBe('');
+    expect(mockGetTransaction).not.toHaveBeenCalled();
+  });
+
   it('should return not_found for empty body', async () => {
     const response = await server.inject({
       method: 'POST',

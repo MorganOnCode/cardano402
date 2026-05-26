@@ -365,6 +365,28 @@ Evidence:
 - `tests/unit/verify/checks.test.ts`
 - `tests/unit/verify/verify-payment.test.ts`
 
+### F6h - `/status` accepted non-hex transaction identifiers
+
+Previous risk: `POST /status` validated transaction identifiers by length only.
+A 64-character non-hex string could reach the Blockfrost client and turn a
+caller-supplied malformed transaction id into provider work or a 500. For a
+public facilitator endpoint, obviously invalid polling input should fail before
+any chain-provider call.
+
+Change:
+
+- `StatusRequestSchema` now requires a 64-character lowercase hex transaction
+  hash.
+- `/status` keeps returning the existing structured `not_found` response for
+  malformed requests.
+- Added route coverage that a non-hex hash does not call Blockfrost.
+
+Evidence:
+
+- `packages/core/src/schemas.ts`
+- `packages/core/test/schemas.test.ts`
+- `tests/integration/status-route.test.ts`
+
 ### F7 - Root facilitator config allowed inline Mainnet signing keys
 
 Previous risk: the hosted/resource-server facilitator config accepted inline

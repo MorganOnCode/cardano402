@@ -16,6 +16,7 @@ import {
   SettleResponseSchema,
   SettlementStatusSchema,
   StatusResponseSchema,
+  StatusRequestSchema,
   SupportedResponseSchema,
   UtxoRefSchema,
   VerifyErrorReasonSchema,
@@ -265,6 +266,29 @@ describe('StatusResponseSchema', () => {
     expect(StatusResponseSchema.safeParse({ status: 'failed', transaction: 'tx' }).success).toBe(
       false
     );
+  });
+});
+
+describe('StatusRequestSchema', () => {
+  it('accepts lowercase hex transaction hashes only', () => {
+    expect(
+      StatusRequestSchema.safeParse({
+        transaction: sampleTxHash,
+        paymentRequirements: sampleRequirements,
+      }).success
+    ).toBe(true);
+    expect(
+      StatusRequestSchema.safeParse({
+        transaction: 'g'.repeat(64),
+        paymentRequirements: sampleRequirements,
+      }).success
+    ).toBe(false);
+    expect(
+      StatusRequestSchema.safeParse({
+        transaction: 'A'.repeat(64),
+        paymentRequirements: sampleRequirements,
+      }).success
+    ).toBe(false);
   });
 });
 

@@ -173,6 +173,9 @@ needs admin-side enforcement of the documented required checks.
 - Malformed `paymentRequirements.payTo` values now return a structured
   `invalid_pay_to` verification failure instead of escaping as a public 500
   during Cardano address canonicalization.
+- `/status` now rejects non-hex transaction identifiers before they reach the
+  Blockfrost client, preserving the existing `not_found` response for malformed
+  polling input while avoiding provider work and avoidable 500s.
 
 ### Release readiness gate
 
@@ -262,6 +265,9 @@ Passing checks:
   tests passed
 - `pnpm test tests/unit/verify/checks.test.ts tests/unit/verify/verify-payment.test.ts -- --runInBand`
   - 92 tests passed
+- `pnpm test packages/core/test/schemas.test.ts tests/integration/status-route.test.ts -- --runInBand`
+  - status-route coverage passed in the root suite
+- `pnpm --filter @cardano402/core test -- schemas.test.ts` - 71 tests passed
 - `pnpm test tests/unit/sdk/payment-gate.test.ts tests/integration/server.test.ts -- --runInBand`
 - `pnpm security:payments`
 - `pnpm security:release`

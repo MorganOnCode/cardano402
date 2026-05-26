@@ -12,6 +12,7 @@ This document records the canonical values and shapes that `@cardano402/core` sh
 | Amounts | Base-10 lovelace **string** (BigInt-safe over JSON); never a number |
 | Address format | Bech32 Cardano address. `CardanoAddressSchema` enforces printable ASCII (`^[\x21-\x7e]+$`) with 200-char ceiling as of v0.1.1; tighter bech32 charset validation tracked for v0.3.0. |
 | UTXO reference (nonce) | `txHash#index` with 64 lowercase hex chars + decimal index |
+| Transaction hash (`/status`) | 64 lowercase hex chars |
 | Request header (canonical) | `Payment-Signature` |
 | Request header (alias) | `X-PAYMENT` (base x402 interop) |
 | Response header (canonical) | `X-Payment-Response` |
