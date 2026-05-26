@@ -20,6 +20,25 @@ log() {
     | tee -a "$LOG_FILE"
 }
 
+require_private_file() {
+  local path="$1"
+  local label="$2"
+  if [ ! -r "$path" ]; then
+    log "FATAL: $path missing or unreadable."
+    return 1
+  fi
+  if [ ! -f "$path" ]; then
+    log "FATAL: $path is not a regular file."
+    return 1
+  fi
+  local mode
+  mode=$(stat -c '%a' "$path")
+  if [ $((8#$mode & 0077)) -ne 0 ]; then
+    log "FATAL: $label must not be group/world readable or writable: $path"
+    return 1
+  fi
+}
+
 STAGE_DIR=""
 cleanup() {
   local rc=$?
@@ -47,8 +66,7 @@ echo $$ > "$LOCK_FILE"
 
 log "=== cardano402 backup starting ==="
 
-if [ ! -r "$ENV_FILE" ]; then
-  log "FATAL: $ENV_FILE missing or unreadable."
+if ! require_private_file "$ENV_FILE" "restic env file"; then
   log "  Copy scripts/cardano402-restic.env.example to $ENV_FILE, fill it in,"
   log "  chown root:root, chmod 600."
   exit 1

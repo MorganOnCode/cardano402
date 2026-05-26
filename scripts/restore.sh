@@ -17,8 +17,26 @@ ACTION="${1:-latest}"
 TARGET="${2:-/tmp/cardano402-restore-$(date +%s)}"
 ENV_FILE="${CARDANO402_RESTIC_ENV:-/etc/cardano402/restic.env}"
 
-if [ ! -r "$ENV_FILE" ]; then
-  echo "FATAL: $ENV_FILE missing or unreadable" >&2
+require_private_file() {
+  local path="$1"
+  local label="$2"
+  if [ ! -r "$path" ]; then
+    echo "FATAL: $path missing or unreadable" >&2
+    return 1
+  fi
+  if [ ! -f "$path" ]; then
+    echo "FATAL: $path is not a regular file" >&2
+    return 1
+  fi
+  local mode
+  mode=$(stat -c '%a' "$path")
+  if [ $((8#$mode & 0077)) -ne 0 ]; then
+    echo "FATAL: $label must not be group/world readable or writable: $path" >&2
+    return 1
+  fi
+}
+
+if ! require_private_file "$ENV_FILE" "restic env file"; then
   exit 1
 fi
 # shellcheck disable=SC1090
@@ -40,6 +58,7 @@ if [ "$ACTION" = "list" ]; then
 fi
 
 mkdir -p "$TARGET"
+chmod 700 "$TARGET"
 
 echo "Restoring snapshot '$ACTION' to $TARGET ..."
 restic restore "$ACTION" --target "$TARGET"

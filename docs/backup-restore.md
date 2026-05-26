@@ -104,6 +104,10 @@ sudo diff /opt/cardano402/config/config.json /tmp/restore-test/.../sensitive/con
 sudo rm -rf /tmp/restore-test
 ```
 
+The restore script forces the target directory to `0700` because restored
+snapshots contain `config.json`, `.env`, and payment-gated content. Keep that
+directory private until you delete it.
+
 ### 7. Enable the cron job
 
 ```bash

@@ -105,6 +105,8 @@ Before release, verify:
   rejected in production.
 - Public quota- or transaction-consuming routes, including `/demo/run`, use the
   tighter sensitive route rate limit instead of only the global limiter.
+- Backup and restore scripts reject loose restic credential-file permissions and
+  restore snapshots only into private directories.
 - High-value Mainnet deployments have an implementation plan for the remote or
   hardware-backed policy signer boundary.
 

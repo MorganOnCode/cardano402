@@ -96,6 +96,21 @@ requireIncludes(
   'Fastify automatic request logging must stay disabled so URL redaction is controlled by request-logger.'
 );
 requireIncludes(
+  'scripts/backup.sh',
+  'require_private_file "$ENV_FILE" "restic env file"',
+  'Backup script must reject loose permissions on the restic credential env file.'
+);
+requireIncludes(
+  'scripts/restore.sh',
+  'require_private_file "$ENV_FILE" "restic env file"',
+  'Restore script must reject loose permissions on the restic credential env file.'
+);
+requireIncludes(
+  'scripts/restore.sh',
+  'chmod 700 "$TARGET"',
+  'Restore script must force private permissions on restore targets containing secrets.'
+);
+requireIncludes(
   'src/config/schema.ts',
   'demo.seedPhraseFile is required when config.env is "production"',
   'Production demo configuration must reject inline demo seed material.'
