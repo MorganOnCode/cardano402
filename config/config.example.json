@@ -53,7 +53,7 @@
   },
   "demo": {
     "blockfrostProjectId": "your-preview-blockfrost-project-id",
-    "seedPhrase": "your 24-word PREVIEW TESTNET seed phrase (NEVER use mainnet seed here)",
+    "seedPhraseFile": "/run/secrets/cardano402-demo-preview.seed",
     "network": "Preview"
   },
   "storage": {

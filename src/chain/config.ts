@@ -16,7 +16,7 @@ import type { CardanoNetwork } from './types.js';
  * signing material should be loaded from restrictive files rather than stored
  * inline in config JSON.
  */
-function loadCredentialFile(path: string, label: string): string {
+export function loadCredentialFile(path: string, label: string): string {
   const fd = openSync(path, 'r');
   try {
     const stat = fstatSync(fd);

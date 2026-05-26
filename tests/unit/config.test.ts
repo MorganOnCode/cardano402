@@ -290,6 +290,106 @@ describe('Config Loading', () => {
     });
   });
 
+  describe('Demo credential guardrail', () => {
+    it('loads demo seed phrase from a restrictive file', () => {
+      const seedPhraseFile = writeSecretFile('test demo seed phrase');
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          chain: minimalChainConfig,
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhraseFile,
+            network: 'Preview',
+          },
+        })
+      );
+
+      const config = loadConfig(TEST_CONFIG_PATH);
+
+      expect(config.demo?.seedPhrase).toBe('test demo seed phrase');
+      expect(config.demo?.seedPhraseFile).toBe(seedPhraseFile);
+      expect(config.demo?.credentialSource).toBe('seedPhraseFile');
+    });
+
+    it('rejects group/world-readable demo seed files on POSIX', () => {
+      if (process.platform === 'win32') return;
+      const seedPhraseFile = writeSecretFile('test demo seed phrase', 0o644);
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          chain: minimalChainConfig,
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhraseFile,
+          },
+        })
+      );
+
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|group\/world/);
+    });
+
+    it('rejects multiple demo seed sources', () => {
+      const seedPhraseFile = writeSecretFile('test demo seed phrase');
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          chain: minimalChainConfig,
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhrase: 'inline demo seed',
+            seedPhraseFile,
+          },
+        })
+      );
+
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|exactly one/);
+    });
+
+    it('rejects inline demo seed material in production', () => {
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          env: 'production',
+          metrics: { bearerToken: 'test-metrics-bearer-token' },
+          chain: {
+            ...minimalChainConfig,
+            redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+          },
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhrase: 'inline demo seed',
+          },
+        })
+      );
+
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(
+        /CONFIG_INVALID|demo\.seedPhraseFile/
+      );
+    });
+
+    it('accepts production demo config with seedPhraseFile', () => {
+      const seedPhraseFile = writeSecretFile('test demo seed phrase');
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          env: 'production',
+          metrics: { bearerToken: 'test-metrics-bearer-token' },
+          chain: {
+            ...minimalChainConfig,
+            redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+          },
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhraseFile,
+          },
+        })
+      );
+
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+  });
+
   it('should reject mainnet without MAINNET=true env var', () => {
     const mainnetConfig = {
       chain: {

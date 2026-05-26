@@ -121,5 +121,7 @@ bash deploy.sh   # pulls git + rebuilds + restarts
 - `config/config.json` is mounted read-only and never in git
 - Redis requires a password in production
 - The facilitator runs as a non-root user inside the container
-- The demo wallet seed phrase is the facilitator's own wallet — it pays to itself on testnet
-- Never use a mainnet wallet for the demo
+- Demo wallet seed material must use `demo.seedPhraseFile` in production and
+  the file must be `0600`
+- The demo wallet pays to itself on testnet; never use a mainnet wallet for the
+  demo

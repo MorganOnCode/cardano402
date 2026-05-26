@@ -74,6 +74,9 @@ Follow these steps to deploy on the Cardano Preview testnet:
 5. **Fund the wallet** via the [Cardano Testnet Faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/)
    - Request at least 10 ADA for facilitator operations
 6. **Set the network** to `"Preview"` in `config.chain.network`
+7. **If enabling the live demo**, use a separate Preview/Preprod wallet via
+   `demo.seedPhraseFile`; production rejects inline demo seed material in
+   `config.json`
 
 ### Mainnet Safety
 

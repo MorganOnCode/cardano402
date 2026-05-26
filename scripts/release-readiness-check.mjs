@@ -96,6 +96,21 @@ requireIncludes(
   'Fastify automatic request logging must stay disabled so URL redaction is controlled by request-logger.'
 );
 requireIncludes(
+  'src/config/schema.ts',
+  'demo.seedPhraseFile is required when config.env is "production"',
+  'Production demo configuration must reject inline demo seed material.'
+);
+requireIncludes(
+  'tests/unit/config.test.ts',
+  'rejects inline demo seed material in production',
+  'Config tests must prove production demo seed material is file-based.'
+);
+requireIncludes(
+  'config/config.example.json',
+  'seedPhraseFile',
+  'Example config must steer demo wallet seed material to a restrictive file.'
+);
+requireIncludes(
   'src/routes/metrics.ts',
   'boundedRouteLabel(request.routeOptions?.url)',
   'Metrics route labels must use bounded route patterns instead of raw request URLs.'

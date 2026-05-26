@@ -91,6 +91,8 @@ Copy `config/config.example.json` to `config/config.json` and set:
 - `chain.redis.password` to your Redis password
 - `chain.blockfrost.projectId` to your Blockfrost key
 - `chain.facilitator.seedPhraseFile` to a `0600` file containing your facilitator wallet seed
+- if the live demo is enabled, `demo.seedPhraseFile` to a separate `0600`
+  Preview/Preprod wallet seed; production rejects inline demo seed material
 
 ### 2. Set Redis password
 

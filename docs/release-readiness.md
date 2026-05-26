@@ -100,6 +100,9 @@ Before release, verify:
   Semgrep Cloud / a paid code-review workflow.
 - Mainnet deployments do not use inline signing material unless the explicit
   unsafe override is documented and approved.
+- Production deployments with the live demo enabled use `demo.seedPhraseFile`
+  for a separate Preview/Preprod demo wallet; inline demo seed material is
+  rejected in production.
 - High-value Mainnet deployments have an implementation plan for the remote or
   hardware-backed policy signer boundary.
 
