@@ -24,7 +24,7 @@ admin-side branch protection/alerting enforcement.
 - Branch: `feat/mcp-0.1.3-hardening`
 - Pull request: `https://github.com/MorganOnCode/cardano402/pull/88`
 - Latest security/code head covered by this report:
-  `92c36f1 fix(deploy): align production secret mounts`
+  `c2ec1ea fix(compose): pass production guard env`
 - Previous production runtime hardening head:
   `c16176b fix(compose): harden production runtime defaults`
 - A docs-only progress refresh was pushed after that code head:
@@ -42,7 +42,7 @@ Current local status as of the `92c36f1` push: branch
 ## Pull request status
 
 Observed on 2026-05-26 UTC for PR #88 head
-`92c36f1 fix(deploy): align production secret mounts`:
+`c2ec1ea fix(compose): pass production guard env`:
 
 - Local verification for the deployment update completed successfully:
   `pnpm typecheck`, `pnpm lint`, `pnpm security:payments`,
@@ -53,9 +53,8 @@ Observed on 2026-05-26 UTC for PR #88 head
   JSON parse checks for both config templates, `pnpm typecheck`,
   `pnpm security:release`, development and production Compose service renders,
   `git diff --check`, and protected-name scan.
-- The prior PR head `c16176b` completed successfully on GitHub for CodeQL, CI,
-  Gitleaks, OSV-Scanner, Dependency Review, and zizmor before the `92c36f1`
-  deployment update was pushed.
+- The current PR head `c2ec1ea` completed successfully on GitHub for CodeQL,
+  CI, Gitleaks, OSV-Scanner, Dependency Review, and zizmor.
 - All PR #88 review threads are resolved.
 
 Scorecard is configured as a scheduled security workflow but was not returned
@@ -254,6 +253,8 @@ needs admin-side enforcement of the documented required checks.
   settlement dedup keys fail closed under pressure instead of being evicted.
 - Both production Compose paths now pass `NODE_ENV=production` and the
   `MAINNET` guardrail into the facilitator container.
+- Docker build context now excludes local `secrets/` signing files and runtime
+  `data/` uploads, and `pnpm security:release` guards those exclusions.
 
 ## Live-site findings
 

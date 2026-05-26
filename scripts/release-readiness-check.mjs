@@ -23,6 +23,14 @@ function requireIncludes(path, needle, message) {
   if (!text.includes(needle)) fail(message ?? `${path} must include ${needle}`);
 }
 
+function requireDockerignoreEntry(entry, message) {
+  const entries = read('.dockerignore')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'));
+  if (!entries.includes(entry)) fail(message);
+}
+
 const requiredWorkflows = [
   '.github/workflows/ci.yml',
   '.github/workflows/codeql.yml',
@@ -229,6 +237,14 @@ requireIncludes(
   'scripts/backup.sh',
   '$REPO_ROOT/secrets',
   'Encrypted backups must include local signing files from the production secrets directory when present.'
+);
+requireDockerignoreEntry(
+  'secrets',
+  'Docker build context must exclude local signing files from secrets/.'
+);
+requireDockerignoreEntry(
+  'data',
+  'Docker build context must exclude runtime uploaded data from data/.'
 );
 requireIncludes(
   'src/config/schema.ts',

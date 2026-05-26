@@ -9,6 +9,8 @@ coverage
 .claude
 .husky
 tests
+secrets
+data
 config/config.json
 config/cmds.bash
 .env

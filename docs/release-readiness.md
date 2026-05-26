@@ -107,6 +107,8 @@ Before release, verify:
   tighter sensitive route rate limit instead of only the global limiter.
 - Backup and restore scripts reject loose restic credential-file permissions and
   restore snapshots only into private directories.
+- Docker build context excludes local `secrets/` signing material and runtime
+  `data/` uploads.
 - Production Compose fails fast without `REDIS_PASSWORD`, binds production
   ports to loopback, and drops unnecessary container privileges.
 - Production Redis uses AOF and `maxmemory-policy noeviction` so settlement
