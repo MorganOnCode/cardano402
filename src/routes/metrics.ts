@@ -8,6 +8,8 @@
 // former to avoid recursive accounting, the latter to keep liveness-probe
 // noise out of latency percentiles.
 
+import { timingSafeEqual } from 'node:crypto';
+
 import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';
 import { Counter, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
@@ -20,8 +22,21 @@ const PAYMENT_ROUTES = new Set(['/verify', '/settle', '/status']);
 function bearerToken(headers: Record<string, unknown>): string | undefined {
   const value = headers.authorization;
   if (typeof value !== 'string') return undefined;
-  const [scheme, token] = value.split(/\s+/, 2);
-  return scheme?.toLowerCase() === 'bearer' && token ? token : undefined;
+  if (value.length < 7 || value.length > 8192) return undefined;
+  if (value.slice(0, 6).toLowerCase() !== 'bearer') return undefined;
+  const sep = value.charCodeAt(6);
+  if (sep !== 0x20 && sep !== 0x09) return undefined;
+  const token = value.slice(7);
+  if (!token || /[\s]/u.test(token)) return undefined;
+  return token;
+}
+
+function tokenMatches(presented: string | undefined, expected: string): boolean {
+  if (presented === undefined) return false;
+  const presentedBytes = Buffer.from(presented, 'utf8');
+  const expectedBytes = Buffer.from(expected, 'utf8');
+  if (presentedBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(presentedBytes, expectedBytes);
 }
 
 function parseJsonPayload(payload: unknown): unknown {
@@ -123,7 +138,7 @@ const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
 
   fastify.get('/metrics', async (req, reply) => {
     const expectedToken = fastify.config?.metrics?.bearerToken;
-    if (expectedToken && bearerToken(req.headers) !== expectedToken) {
+    if (expectedToken && !tokenMatches(bearerToken(req.headers), expectedToken)) {
       return reply.status(401).send('Unauthorized\n');
     }
 

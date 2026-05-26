@@ -323,7 +323,7 @@ Key log fields:
 `GET /metrics` exposes process metrics, HTTP route counters, HTTP latency
 histograms, and payment-protocol outcome counters. Set
 `metrics.bearerToken` in production and scrape the endpoint with
-`Authorization: Bearer <token>`.
+`Authorization: Bearer <token>`. Use a random token of at least 32 characters.
 
 Key payment metric:
 

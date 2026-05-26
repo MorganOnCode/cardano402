@@ -102,6 +102,8 @@ Before release, verify:
   passes after Cloudflare machine-route rules are applied.
 - `facilitator_payment_results_total` is scraped and alerting on invalid
   request spikes, nonce lookup failures, settlement failures, and status drift.
+- Production `metrics.bearerToken` values are at least 32 characters, metrics
+  Authorization headers are parsed strictly, and comparisons are constant-time.
 - The optional Semgrep payment rules are run for high-risk PRs or replicated in
   Semgrep Cloud / a paid code-review workflow.
 - Mainnet deployments do not use inline signing material unless the explicit

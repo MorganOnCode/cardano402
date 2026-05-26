@@ -8,6 +8,7 @@ import { loadConfig } from '../../src/config/index.js';
 
 const TEST_CONFIG_DIR = join(process.cwd(), 'tests', 'fixtures');
 const TEST_CONFIG_PATH = join(TEST_CONFIG_DIR, 'test-config.json');
+const STRONG_METRICS_TOKEN = '0123456789abcdef0123456789abcdef';
 
 // Minimal chain config required by schema (sensitive fields use test values)
 const minimalChainConfig = {
@@ -241,7 +242,7 @@ describe('Config Loading', () => {
     it('accepts production env with a non-empty chain.redis.password', () => {
       const cfg = {
         env: 'production',
-        metrics: { bearerToken: 'test-metrics-bearer-token' },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
         chain: {
           ...minimalChainConfig,
           redis: { host: 'redis', port: 6379, password: 'a-real-password' },
@@ -280,7 +281,7 @@ describe('Config Loading', () => {
     it('accepts production env with metrics.bearerToken', () => {
       const cfg = {
         env: 'production',
-        metrics: { bearerToken: 'test-metrics-bearer-token' },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
         chain: {
           ...minimalChainConfig,
           redis: { host: 'redis', port: 6379, password: 'a-real-password' },
@@ -288,6 +289,19 @@ describe('Config Loading', () => {
       };
       writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
       expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+
+    it('rejects production env with a short metrics.bearerToken', () => {
+      const cfg = {
+        env: 'production',
+        metrics: { bearerToken: 'short-metrics-token' },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|32/);
     });
   });
 
@@ -352,7 +366,7 @@ describe('Config Loading', () => {
         TEST_CONFIG_PATH,
         JSON.stringify({
           env: 'production',
-          metrics: { bearerToken: 'test-metrics-bearer-token' },
+          metrics: { bearerToken: STRONG_METRICS_TOKEN },
           chain: {
             ...minimalChainConfig,
             redis: { host: 'redis', port: 6379, password: 'a-real-password' },
@@ -375,7 +389,7 @@ describe('Config Loading', () => {
         TEST_CONFIG_PATH,
         JSON.stringify({
           env: 'production',
-          metrics: { bearerToken: 'test-metrics-bearer-token' },
+          metrics: { bearerToken: STRONG_METRICS_TOKEN },
           chain: {
             ...minimalChainConfig,
             redis: { host: 'redis', port: 6379, password: 'a-real-password' },

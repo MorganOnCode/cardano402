@@ -111,6 +111,21 @@ requireIncludes(
   'Metrics must expose payment outcome counters for abuse monitoring.'
 );
 requireIncludes(
+  'src/config/schema.ts',
+  'bearerToken: z.string().min(32).optional()',
+  'Production metrics bearer tokens must require at least 32 characters.'
+);
+requireIncludes(
+  'src/routes/metrics.ts',
+  'timingSafeEqual',
+  'Metrics bearer token checks must use constant-time comparison.'
+);
+requireIncludes(
+  'tests/unit/routes/metrics.test.ts',
+  'rejects bearer headers with extra whitespace in the token value',
+  'Metrics tests must prove malformed bearer headers are rejected.'
+);
+requireIncludes(
   'src/index.ts',
   'config.sentry?.environment ?? config.env',
   'Sentry initialization must honor sentry.environment when configured.'

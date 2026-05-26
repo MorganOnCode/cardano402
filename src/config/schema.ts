@@ -110,7 +110,7 @@ export const ConfigSchema = z
     metrics: z
       .object({
         /** Bearer token required for GET /metrics when set. Required in production. */
-        bearerToken: z.string().min(16).optional(),
+        bearerToken: z.string().min(32).optional(),
       })
       .default(() => ({})),
 

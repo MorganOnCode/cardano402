@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Config } from '../../../src/config/index.js';
 import { metricsRoutesPlugin } from '../../../src/routes/metrics.js';
 
+const STRONG_METRICS_TOKEN = '0123456789abcdef0123456789abcdef';
+
 describe('Metrics routes', () => {
   let server: FastifyInstance;
 
@@ -64,7 +66,7 @@ describe('Metrics routes', () => {
     it('rejects requests without the configured bearer token', async () => {
       const protectedServer = fastify({ logger: false });
       protectedServer.decorate('config', {
-        metrics: { bearerToken: 'test-metrics-bearer-token' },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
       } as Partial<Config> as Config);
       await protectedServer.register(metricsRoutesPlugin);
       await protectedServer.ready();
@@ -80,7 +82,7 @@ describe('Metrics routes', () => {
     it('returns metrics with the configured bearer token', async () => {
       const protectedServer = fastify({ logger: false });
       protectedServer.decorate('config', {
-        metrics: { bearerToken: 'test-metrics-bearer-token' },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
       } as Partial<Config> as Config);
       await protectedServer.register(metricsRoutesPlugin);
       await protectedServer.ready();
@@ -89,10 +91,30 @@ describe('Metrics routes', () => {
         const res = await protectedServer.inject({
           method: 'GET',
           url: '/metrics',
-          headers: { authorization: 'Bearer test-metrics-bearer-token' },
+          headers: { authorization: `Bearer ${STRONG_METRICS_TOKEN}` },
         });
         expect(res.statusCode).toBe(200);
         expect(res.body).toMatch(/# HELP process_cpu_user_seconds_total/);
+      } finally {
+        await protectedServer.close();
+      }
+    });
+
+    it('rejects bearer headers with extra whitespace in the token value', async () => {
+      const protectedServer = fastify({ logger: false });
+      protectedServer.decorate('config', {
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+      } as Partial<Config> as Config);
+      await protectedServer.register(metricsRoutesPlugin);
+      await protectedServer.ready();
+
+      try {
+        const res = await protectedServer.inject({
+          method: 'GET',
+          url: '/metrics',
+          headers: { authorization: `Bearer ${STRONG_METRICS_TOKEN} extra` },
+        });
+        expect(res.statusCode).toBe(401);
       } finally {
         await protectedServer.close();
       }

@@ -48,7 +48,7 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 | `rateLimit.global` | `100` | Requests per minute (global) |
 | `rateLimit.sensitive` | `20` | Requests per minute (`/verify`, `/settle`, `/status`, `/upload`, `/demo/run`) |
 | `rateLimit.windowMs` | `60000` | Rate limit window in milliseconds |
-| `metrics.bearerToken` | *(none)* | Bearer token for `GET /metrics` (required in production) |
+| `metrics.bearerToken` | *(none)* | Bearer token for `GET /metrics` (required in production; minimum 32 characters) |
 | `chain.blockfrost.tier` | `"free"` | Blockfrost plan tier |
 | `chain.cache.utxoTtlSeconds` | `60` | UTXO cache TTL |
 | `chain.verification.confirmationMode` | `"confirmed_only"` | Settlement response policy; `allow_mempool` is lower assurance |
