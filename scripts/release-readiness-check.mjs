@@ -161,6 +161,16 @@ requireIncludes(
   'Development dependency script must not start production-profile services or rely on an empty default Compose profile.'
 );
 requireIncludes(
+  'README.md',
+  'config/config.development.example.json',
+  'README quickstart must use the development config template instead of the production-shaped template.'
+);
+requireIncludes(
+  'config/config.development.example.json',
+  '"host": "127.0.0.1"',
+  'Development config template must point host-run pnpm dev at local forwarded Redis.'
+);
+requireIncludes(
   'config/config.example.json',
   '"host": "redis-prod"',
   'Example production config must point at the production Redis service name.'

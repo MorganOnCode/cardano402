@@ -140,16 +140,18 @@ pnpm docker:up   # starts Redis
 ### 3. Configure
 
 ```bash
-cp config/config.example.json config/config.json
+cp config/config.development.example.json config/config.json
+mkdir -p secrets
 ```
 
 Edit `config/config.json`:
 
 - Set `chain.blockfrost.projectId` to your Blockfrost preview project ID
   (free tier from <https://blockfrost.io>).
-- Set `chain.facilitator.seedPhraseFile` to a `0600` file containing the
-  seed phrase for a preview-testnet wallet. Never commit `config.json` or
-  local signing files.
+- Put a preview-testnet wallet seed phrase in
+  `secrets/cardano402-preview.seed`, then run
+  `chmod 600 secrets/cardano402-preview.seed`.
+- Never commit `config.json` or local signing files.
 
 ### 4. Run
 

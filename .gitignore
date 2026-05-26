@@ -9,6 +9,7 @@ dist/
 # example template is committed.
 config/*.json
 !config/config.example.json
+!config/config.development.example.json
 config.json
 config/cmds.bash
 secrets/

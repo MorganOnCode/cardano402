@@ -49,6 +49,10 @@ Observed on 2026-05-26 UTC for PR #88 head
   `pnpm security:release`, `bash -n scripts/backup.sh`, `git diff --check`,
   protected-name scan, production Compose render checks, and empty
   `REDIS_PASSWORD` failure-path checks.
+- Follow-up local verification for the development config split completed:
+  JSON parse checks for both config templates, `pnpm typecheck`,
+  `pnpm security:release`, development and production Compose service renders,
+  `git diff --check`, and protected-name scan.
 - The prior PR head `c16176b` completed successfully on GitHub for CodeQL, CI,
   Gitleaks, OSV-Scanner, Dependency Review, and zizmor before the `92c36f1`
   deployment update was pushed.
@@ -237,6 +241,10 @@ needs admin-side enforcement of the documented required checks.
   directory exists and snapshot both known production Redis volume names.
 - Deployment, operations, VPS, backup/restore, README, and release-readiness
   docs now describe the executable file-based secret path.
+- Added a separate `config/config.development.example.json` for local
+  `pnpm dev` usage so the production-shaped config template can keep
+  `redis-prod` and `/run/secrets` defaults without breaking the development
+  quickstart.
 
 ## Live-site findings
 

@@ -9,8 +9,8 @@
 
 ## Quick Start (Development)
 
-1. Copy config: `cp config/config.example.json config/config.json`
-2. Edit config: set your Blockfrost project ID and seed phrase file
+1. Copy config: `cp config/config.development.example.json config/config.json`
+2. Edit config: set your Blockfrost project ID and create the seed phrase file
 3. Start dependencies: `docker compose --profile development up -d`
 4. Start server: `pnpm dev`
 5. Verify: `curl http://localhost:3000/health`

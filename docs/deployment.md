@@ -105,8 +105,14 @@ config should not be added until the signer provider boundary exists.
 Start Redis and IPFS for local development:
 
 ```bash
+cp config/config.development.example.json config/config.json
+mkdir -p secrets
 docker compose --profile development up -d
 ```
+
+Edit `config/config.json`, set `chain.blockfrost.projectId`, create
+`secrets/cardano402-preview.seed`, and run
+`chmod 600 secrets/cardano402-preview.seed` before starting the server.
 
 Then run the facilitator locally with hot reload:
 
