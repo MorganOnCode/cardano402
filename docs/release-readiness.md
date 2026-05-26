@@ -74,6 +74,8 @@ Before release, verify:
   before any chain-provider lookup.
 - `/files/:cid` validates content identifiers before backend lookup, so
   malformed or oversized values do not reach filesystem/IPFS storage backends.
+- `/upload` enforces its intended multipart file limit explicitly instead of
+  inheriting the smaller global JSON body limit or storing oversized files.
 - `/health` exposes non-secret `policy.confirmation` and `policy.signer`.
 - `pnpm monitor:protocol -- --base-url https://cardano402.com --min-confirmations 6 --json`
   passes after Cloudflare machine-route rules are applied.

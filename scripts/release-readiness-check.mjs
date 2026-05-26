@@ -140,6 +140,26 @@ requireIncludes(
   'should reject malformed content identifiers before storage lookup',
   'Download route tests must prove malformed content identifiers do not reach storage.'
 );
+requireIncludes(
+  'src/routes/upload.ts',
+  'UPLOAD_MULTIPART_LIMITS',
+  'Upload route must pass explicit multipart limits instead of relying on global parser defaults.'
+);
+requireIncludes(
+  'src/routes/upload.ts',
+  'request.file({ limits: UPLOAD_MULTIPART_LIMITS })',
+  'Upload route must enforce the intended upload size policy at the multipart parser.'
+);
+requireIncludes(
+  'tests/integration/upload-route.test.ts',
+  'should accept files larger than the global JSON body limit when under upload limit',
+  'Upload tests must prove multipart upload limit is independent from the global JSON body limit.'
+);
+requireIncludes(
+  'tests/integration/upload-route.test.ts',
+  'should reject files over the upload limit before storage write',
+  'Upload tests must prove oversized files are rejected before storage writes.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {
