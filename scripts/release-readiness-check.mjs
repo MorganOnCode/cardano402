@@ -40,6 +40,14 @@ function requireWorkflowPinnedPnpm(path) {
   }
 }
 
+function requireDependabotEcosystem(ecosystem) {
+  requireIncludes(
+    '.github/dependabot.yml',
+    `package-ecosystem: "${ecosystem}"`,
+    `Dependabot must cover the ${ecosystem} ecosystem.`
+  );
+}
+
 const requiredWorkflows = [
   '.github/workflows/ci.yml',
   '.github/workflows/codeql.yml',
@@ -52,6 +60,11 @@ const requiredWorkflows = [
 ];
 
 for (const workflow of requiredWorkflows) requireFile(workflow);
+
+requireFile('.github/dependabot.yml');
+requireDependabotEcosystem('npm');
+requireDependabotEcosystem('github-actions');
+requireDependabotEcosystem('docker');
 
 requireWorkflowPinnedPnpm('.github/workflows/ci.yml');
 requireWorkflowPinnedPnpm('.github/workflows/protocol-monitor.yml');

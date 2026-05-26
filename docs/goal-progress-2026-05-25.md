@@ -126,6 +126,9 @@ needs admin-side enforcement of the documented required checks.
 - Added a pnpm override for the vulnerable transitive `ip-address` dependency
   path under the Cardano SDK dependency.
 - `pnpm audit --prod` currently reports no known vulnerabilities.
+- Dependabot now covers npm, GitHub Actions, and Docker ecosystems, and the
+  release-readiness gate fails if any of those ecosystems are removed from the
+  automation config.
 
 ### Root facilitator signing-key hardening
 

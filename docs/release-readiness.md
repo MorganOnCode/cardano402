@@ -121,6 +121,8 @@ Before release, verify:
   declared in `package.json`.
 - CI and protocol-monitor workflows pin `pnpm/action-setup` to the same
   `pnpm@10.8.1` toolchain used by local and Docker builds.
+- Dependabot covers npm, GitHub Actions, and Docker ecosystems so dependency,
+  workflow, and image updates are surfaced for review.
 - Production Compose fails fast without `REDIS_PASSWORD`, binds production
   ports to loopback, and drops unnecessary container privileges.
 - Production Redis uses AOF and `maxmemory-policy noeviction` so settlement
