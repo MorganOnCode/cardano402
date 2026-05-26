@@ -68,6 +68,10 @@ Before release, verify:
 - `X-PAYMENT` and `Payment-Signature` request headers remain accepted where
   expected.
 - CORS still allows `X-PAYMENT`.
+- Malformed `paymentRequirements.payTo` values return structured verification
+  failures rather than public 500s.
+- `/status` transaction hashes are validated as 64-character lowercase hex
+  before any chain-provider lookup.
 - `/health` exposes non-secret `policy.confirmation` and `policy.signer`.
 - `pnpm monitor:protocol -- --base-url https://cardano402.com --min-confirmations 6 --json`
   passes after Cloudflare machine-route rules are applied.

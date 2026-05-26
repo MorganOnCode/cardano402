@@ -110,6 +110,26 @@ requireIncludes(
   "settlementStatus !== 'confirmed'",
   'Payment gate must reject mempool or missing settlement status before serving protected routes.'
 );
+requireIncludes(
+  'src/verify/checks.ts',
+  'invalid_pay_to',
+  'Verification must turn malformed payment recipient addresses into structured invalid_pay_to failures.'
+);
+requireIncludes(
+  'src/verify/verify-payment.ts',
+  'Payment requirements contain an invalid recipient address',
+  'Verification responses must retain a human-readable invalid_pay_to message.'
+);
+requireIncludes(
+  'packages/core/src/schemas.ts',
+  '^[0-9a-f]{64}$',
+  'Status requests must require 64-character lowercase hex transaction hashes.'
+);
+requireIncludes(
+  'tests/integration/status-route.test.ts',
+  'not.toHaveBeenCalled()',
+  'Status route tests must prove invalid transaction hashes do not query Blockfrost.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {
