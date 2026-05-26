@@ -613,6 +613,26 @@ requireIncludes(
   'Settle route must reject paymentRequirements.maxTimeoutSeconds above the configured maximum before settlement.'
 );
 requireIncludes(
+  'src/catalog.ts',
+  'PaidEndpointSchema.parse(endpoint)',
+  'Resource-server catalog registration must validate paid endpoint payment terms before publishing discovery manifests.'
+);
+requireIncludes(
+  'src/catalog.ts',
+  'amount: LovelaceAmountSchema',
+  'Resource-server catalog registration must reject malformed or over-uint64 amounts before discovery publication.'
+);
+requireIncludes(
+  'src/catalog.ts',
+  'payTo: CardanoAddressSchema',
+  'Resource-server catalog registration must reject malformed recipient addresses before discovery publication.'
+);
+requireIncludes(
+  'tests/unit/catalog.test.ts',
+  'rejects paid routes with %s before publishing discovery',
+  'ServiceCatalog tests must prove malformed paid routes are rejected before discovery publication.'
+);
+requireIncludes(
   'tests/integration/verify-route.test.ts',
   'payment timeouts above configured maximum before verification',
   'Verify route tests must prove over-policy payment timeouts do not reach verification.'

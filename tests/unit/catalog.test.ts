@@ -54,7 +54,7 @@ describe('ServiceCatalog', () => {
   it('emits an MCP server-card.json shape with priced tools', () => {
     const out = makeCatalog().toMcpServerCardJson();
     expect((out.tools as unknown[]).length).toBe(1);
-    const tool = (out.tools as Array<Record<string, unknown>>)[0];
+    const tool = (out.tools as Record<string, unknown>[])[0];
     expect(tool.priced).toBe(true);
     expect(tool.method).toBe('POST');
     expect(tool.path).toBe('/api/analyze');
@@ -64,5 +64,31 @@ describe('ServiceCatalog', () => {
     const catalog = new ServiceCatalog();
     const x = catalog.toX402Json();
     expect((x.endpoints as unknown[]).length).toBe(0);
+  });
+
+  it.each([
+    ['non-decimal amount', { amount: '1e6' }],
+    ['negative amount', { amount: '-1' }],
+    ['over-uint64 amount', { amount: '18446744073709551616' }],
+    ['malformed network', { network: 'cardano-mainnet' }],
+    ['address with whitespace', { payTo: 'addr1 bad' }],
+    ['address with control characters', { payTo: 'addr1abc\n' }],
+    ['over-policy timeout', { maxTimeoutSeconds: 3601 }],
+    ['path traversal', { path: '/api/../admin' }],
+    ['absolute URL path', { path: 'https://attacker.example/x' }],
+  ])('rejects paid routes with %s before publishing discovery', (_label, patch) => {
+    expect(() =>
+      new ServiceCatalog().registerPaidRoute({
+        method: 'POST',
+        path: '/api/analyze',
+        scheme: 'exact',
+        network: 'cardano:mainnet',
+        amount: '2000000',
+        asset: 'lovelace',
+        payTo: 'addr1...',
+        maxTimeoutSeconds: 600,
+        ...patch,
+      })
+    ).toThrow();
   });
 });

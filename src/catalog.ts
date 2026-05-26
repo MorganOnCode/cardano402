@@ -8,6 +8,36 @@
 // find the catalog without prior arrangement, and no central party gates
 // inclusion.
 
+import { CardanoAddressSchema, LovelaceAmountSchema, NetworkSchema } from '@cardano402/core';
+import { z } from 'zod';
+
+export const MAX_CATALOG_PAYMENT_TIMEOUT_SECONDS = 3600;
+
+const CatalogEndpointPathSchema = z
+  .string()
+  .min(1)
+  .refine((path) => !path.includes('\0'), 'path must not contain NUL bytes')
+  .refine((path) => !/[\s\r\n]/u.test(path), 'path must not contain whitespace or CR/LF')
+  .refine((path) => !/(^|\/)\.\.(\/|$)/u.test(path), 'path must not contain .. segments')
+  .refine((path) => !/^[a-z][a-z0-9+.-]*:\/\//iu.test(path), 'path must not be an absolute URL')
+  .refine((path) => !path.startsWith('//'), 'path must not be protocol-relative');
+
+export const PaidEndpointSchema = z
+  .object({
+    method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']),
+    path: CatalogEndpointPathSchema,
+    scheme: z.literal('exact'),
+    network: NetworkSchema,
+    amount: LovelaceAmountSchema,
+    asset: z.string().min(1),
+    payTo: CardanoAddressSchema,
+    maxTimeoutSeconds: z.number().int().min(1).max(MAX_CATALOG_PAYMENT_TIMEOUT_SECONDS),
+    description: z.string().optional(),
+    inputSchema: z.record(z.string(), z.unknown()).optional(),
+    outputSchema: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+
 export interface PaidEndpoint {
   /** HTTP method */
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -62,7 +92,7 @@ export class ServiceCatalog {
   }
 
   registerPaidRoute(endpoint: PaidEndpoint): this {
-    this.endpoints.push(endpoint);
+    this.endpoints.push(PaidEndpointSchema.parse(endpoint));
     return this;
   }
 

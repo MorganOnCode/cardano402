@@ -405,6 +405,10 @@ Additional MCP catalog hardening:
   recipient addresses with whitespace/control characters, and catalog TTL
   windows above 3600 seconds. This keeps the agent-visible catalog contract
   aligned with the stricter payment schema before any signer path is reached.
+- The resource-server `ServiceCatalog` now applies the same validation before
+  publishing discovery manifests, so malformed paid-route terms or unsafe paths
+  fail at startup instead of being advertised through `/.well-known/x402.json`,
+  agent-card, ai-agent, or MCP server-card output.
 
 ## Remaining work
 
