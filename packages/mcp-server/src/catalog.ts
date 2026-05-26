@@ -16,6 +16,17 @@ import { z } from 'zod';
 
 export const MAX_CATALOG_PAYMENT_TIMEOUT_SECONDS = 3600;
 
+const AssetIdentifierSchema = z.union([
+  z.literal('lovelace'),
+  z
+    .string()
+    .regex(/^[0-9a-f]{56}\.[0-9a-f]{2,64}$/)
+    .refine((value) => {
+      const assetNameHex = value.split('.')[1];
+      return typeof assetNameHex === 'string' && assetNameHex.length % 2 === 0;
+    }),
+]);
+
 export const CatalogEndpointSchema = z
   .object({
     method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']),
@@ -23,7 +34,7 @@ export const CatalogEndpointSchema = z
     scheme: z.string().default('exact'),
     network: NetworkSchema,
     amount: LovelaceAmountSchema,
-    asset: z.string().min(1),
+    asset: AssetIdentifierSchema,
     payTo: CardanoAddressSchema,
     maxTimeoutSeconds: z.number().int().min(1).max(MAX_CATALOG_PAYMENT_TIMEOUT_SECONDS),
     description: z.string().optional(),

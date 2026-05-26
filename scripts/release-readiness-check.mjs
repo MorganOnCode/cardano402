@@ -434,6 +434,11 @@ requireIncludes(
 );
 requireIncludes(
   'src/sdk/payment-required.ts',
+  'asset: AssetIdentifierSchema',
+  'Payment-Required quotes must validate asset identifiers before being emitted to clients.'
+);
+requireIncludes(
+  'src/sdk/payment-required.ts',
   'MAX_PAYMENT_REQUIRED_TIMEOUT_SECONDS',
   'Payment-Required quotes must bound maxTimeoutSeconds before clients sign against them.'
 );
@@ -529,6 +534,11 @@ requireIncludes(
 );
 requireIncludes(
   'packages/mcp-server/src/catalog.ts',
+  'asset: AssetIdentifierSchema',
+  'MCP catalog parsing must reject malformed asset identifiers before tool registration.'
+);
+requireIncludes(
+  'packages/mcp-server/src/catalog.ts',
   'MAX_CATALOG_PAYMENT_TIMEOUT_SECONDS',
   'MCP catalog parsing must bound maxTimeoutSeconds before passing TTLs to the signer.'
 );
@@ -618,6 +628,16 @@ requireIncludes(
   'Lovelace amount schema must bound public payment amounts before BigInt conversion.'
 );
 requireIncludes(
+  'packages/core/src/schemas.ts',
+  'AssetIdentifierSchema',
+  'Core schemas must validate public asset identifiers before quote, verification, settlement, or signing paths consume them.'
+);
+requireIncludes(
+  'packages/core/src/schemas.ts',
+  '^[0-9a-f]{56}\\.[0-9a-f]{2,64}$',
+  'Native asset identifiers must use lowercase policyId.assetNameHex form.'
+);
+requireIncludes(
   'tests/integration/verify-route.test.ts',
   'over-uint64 payment amounts before verification',
   'Verify route tests must prove oversized payment amounts are rejected before verification.'
@@ -651,6 +671,11 @@ requireIncludes(
   'src/catalog.ts',
   'payTo: CardanoAddressSchema',
   'Resource-server catalog registration must reject malformed recipient addresses before discovery publication.'
+);
+requireIncludes(
+  'src/catalog.ts',
+  'asset: AssetIdentifierSchema',
+  'Resource-server catalog registration must reject malformed asset identifiers before discovery publication.'
 );
 requireIncludes(
   'tests/unit/catalog.test.ts',

@@ -413,6 +413,9 @@ Additional MCP catalog hardening:
   terms before serving requests, so malformed amounts, networks, recipients,
   assets, schemes, or over-long TTL windows fail closed before an agent is
   asked to sign them.
+- Core now exposes `AssetIdentifierSchema`, and discovery/quote/payment schemas
+  use it to restrict assets to `lovelace` or lowercase `policyId.assetNameHex`
+  before verification, settlement, MCP catalog, or signer flows consume them.
 
 ## Remaining work
 

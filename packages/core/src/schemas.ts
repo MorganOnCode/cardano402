@@ -33,6 +33,23 @@ export const CardanoAddressSchema = z
   );
 export type CardanoAddress = z.infer<typeof CardanoAddressSchema>;
 
+export const AssetIdentifierSchema = z.union([
+  z.literal('lovelace'),
+  z
+    .string()
+    .regex(
+      /^[0-9a-f]{56}\.[0-9a-f]{2,64}$/,
+      'Asset must be "lovelace" or "policyId.assetNameHex" with lowercase hex'
+    )
+    .refine((value) => {
+      const assetNameHex = value.split('.')[1];
+      return typeof assetNameHex === 'string' && assetNameHex.length % 2 === 0;
+    }, {
+      message: 'Asset name hex must have an even number of characters',
+    }),
+]);
+export type AssetIdentifier = z.infer<typeof AssetIdentifierSchema>;
+
 export const UtxoRefSchema = z
   .string()
   .regex(/^[0-9a-f]{64}#\d+$/, 'UTXO ref must be of the form txHash#index (lowercase hex)');
@@ -54,7 +71,7 @@ export const PaymentRequirementsSchema = z
   .object({
     scheme: SchemeSchema,
     network: NetworkSchema,
-    asset: z.string().default('lovelace'),
+    asset: AssetIdentifierSchema.default('lovelace'),
     amount: LovelaceAmountSchema,
     payTo: CardanoAddressSchema,
     maxTimeoutSeconds: z.number().int().positive(),
@@ -146,7 +163,7 @@ export const PaymentAcceptSchema = z.object({
   amount: z.string(),
   payTo: z.string(),
   maxTimeoutSeconds: z.number().int().positive().default(300),
-  asset: z.string().default('lovelace'),
+  asset: AssetIdentifierSchema.default('lovelace'),
   extra: z.record(z.string(), z.unknown()).nullable().default(null),
 });
 export type PaymentAccept = z.infer<typeof PaymentAcceptSchema>;

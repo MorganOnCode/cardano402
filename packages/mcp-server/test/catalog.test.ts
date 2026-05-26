@@ -77,6 +77,7 @@ describe('WellKnownX402Schema', () => {
     ['malformed network', { network: 'cardano-mainnet' }],
     ['address with whitespace', { payTo: 'addr_test1 bad' }],
     ['address with control characters', { payTo: 'addr_test1abc\n' }],
+    ['malformed asset identifier', { asset: 'policyId.assetName' }],
     ['over-policy timeout', { maxTimeoutSeconds: 3601 }],
   ])('rejects catalog endpoints with %s', (_label, patch) => {
     const bad = {

@@ -22,6 +22,17 @@ const CatalogEndpointPathSchema = z
   .refine((path) => !/^[a-z][a-z0-9+.-]*:\/\//iu.test(path), 'path must not be an absolute URL')
   .refine((path) => !path.startsWith('//'), 'path must not be protocol-relative');
 
+const AssetIdentifierSchema = z.union([
+  z.literal('lovelace'),
+  z
+    .string()
+    .regex(/^[0-9a-f]{56}\.[0-9a-f]{2,64}$/)
+    .refine((value) => {
+      const assetNameHex = value.split('.')[1];
+      return typeof assetNameHex === 'string' && assetNameHex.length % 2 === 0;
+    }),
+]);
+
 export const PaidEndpointSchema = z
   .object({
     method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']),
@@ -29,7 +40,7 @@ export const PaidEndpointSchema = z
     scheme: z.literal('exact'),
     network: NetworkSchema,
     amount: LovelaceAmountSchema,
-    asset: z.string().min(1),
+    asset: AssetIdentifierSchema,
     payTo: CardanoAddressSchema,
     maxTimeoutSeconds: z.number().int().min(1).max(MAX_CATALOG_PAYMENT_TIMEOUT_SECONDS),
     description: z.string().optional(),

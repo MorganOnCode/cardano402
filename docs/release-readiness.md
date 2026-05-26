@@ -75,6 +75,9 @@ Before release, verify:
 - `Payment-Required` quotes and payment gates are schema-validated before
   serving requests, so misconfigured routes fail closed instead of emitting
   malformed payment terms for agents to sign.
+- Asset identifiers are validated as either `lovelace` or lowercase
+  `policyId.assetNameHex` before discovery, quote, verification, settlement, or
+  signer paths consume them.
 - `X-PAYMENT` and `Payment-Signature` request headers remain accepted where
   expected.
 - CORS preflight methods remain limited to the public GET/POST API surface.

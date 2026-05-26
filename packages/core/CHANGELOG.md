@@ -15,10 +15,14 @@ the facilitator codebase. No breaking changes for `0.1.x` consumers.
 - **`PaymentAcceptSchema`** — one accept option in a 402 envelope.
   Fields: `scheme` (default `'exact'`), `network`, `amount`, `payTo`,
   `maxTimeoutSeconds` (default `300`), `asset` (default `'lovelace'`),
-  `extra` (default `null`). Promoted as-is — `network` / `amount` /
-  `payTo` stay loose `z.string()` to match existing facilitator
-  emissions. v0.3.0 will tighten to `NetworkSchema` /
-  `LovelaceAmountSchema` / `CardanoAddressSchema`.
+  `extra` (default `null`). `network` / `amount` / `payTo` stay loose
+  `z.string()` to match existing facilitator emissions; `asset` is
+  validated by `AssetIdentifierSchema`.
+- **`AssetIdentifierSchema`** — accepts `lovelace` or lowercase
+  `policyId.assetNameHex` native asset identifiers. Used by
+  `PaymentRequirementsSchema` and the `asset` field on 402 accept
+  options so malformed asset strings fail before quote, verification,
+  settlement, or signer paths consume them.
 - **`ResourceInfoSchema`** — resource metadata in a 402 envelope.
   Fields: `description`, `mimeType` (default `'application/json'`),
   `url`.

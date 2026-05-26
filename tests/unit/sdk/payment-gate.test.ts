@@ -123,6 +123,7 @@ describe('createPaymentGate', () => {
     ['over-uint64 amount', { amount: '18446744073709551616' }],
     ['address with whitespace', { payTo: 'addr_test1 bad' }],
     ['empty asset', { asset: '' }],
+    ['malformed asset identifier', { asset: 'policyId.assetName' }],
     ['over-policy timeout', { maxTimeoutSeconds: 3601 }],
   ])('rejects misconfigured payment gates with %s before serving requests', (_label, patch) => {
     expect(() =>
@@ -520,7 +521,7 @@ describe('createPaymentGate', () => {
     it('should use custom asset and maxTimeoutSeconds when provided', async () => {
       const customOptions: PaymentGateOptions = {
         ...options,
-        asset: 'policyId.assetName',
+        asset: `${'d'.repeat(56)}.0014df105553444d`,
         maxTimeoutSeconds: 600,
       };
       const handler = createHandler(customOptions);
@@ -531,7 +532,7 @@ describe('createPaymentGate', () => {
       await handler(request, reply, vi.fn());
 
       const verifyCall = (facilitator.verify as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(verifyCall.paymentRequirements.asset).toBe('policyId.assetName');
+      expect(verifyCall.paymentRequirements.asset).toBe(`${'d'.repeat(56)}.0014df105553444d`);
       expect(verifyCall.paymentRequirements.maxTimeoutSeconds).toBe(600);
     });
   });

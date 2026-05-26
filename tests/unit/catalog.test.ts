@@ -73,6 +73,7 @@ describe('ServiceCatalog', () => {
     ['malformed network', { network: 'cardano-mainnet' }],
     ['address with whitespace', { payTo: 'addr1 bad' }],
     ['address with control characters', { payTo: 'addr1abc\n' }],
+    ['malformed asset identifier', { asset: 'policyId.assetName' }],
     ['over-policy timeout', { maxTimeoutSeconds: 3601 }],
     ['path traversal', { path: '/api/../admin' }],
     ['absolute URL path', { path: 'https://attacker.example/x' }],

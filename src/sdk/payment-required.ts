@@ -16,12 +16,23 @@ import type { PaymentAccept, PaymentRequiredResponse, ResourceInfo } from './typ
 
 export const MAX_PAYMENT_REQUIRED_TIMEOUT_SECONDS = 3600;
 
+const AssetIdentifierSchema = z.union([
+  z.literal('lovelace'),
+  z
+    .string()
+    .regex(/^[0-9a-f]{56}\.[0-9a-f]{2,64}$/)
+    .refine((value) => {
+      const assetNameHex = value.split('.')[1];
+      return typeof assetNameHex === 'string' && assetNameHex.length % 2 === 0;
+    }),
+]);
+
 const PaymentRequiredQuoteSchema = z.object({
   scheme: SchemeSchema,
   network: NetworkSchema,
   amount: LovelaceAmountSchema,
   payTo: CardanoAddressSchema,
-  asset: z.string().min(1),
+  asset: AssetIdentifierSchema,
   maxTimeoutSeconds: z.number().int().min(1).max(MAX_PAYMENT_REQUIRED_TIMEOUT_SECONDS),
 });
 

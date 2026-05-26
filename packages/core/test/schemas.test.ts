@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 
 import {
+  AssetIdentifierSchema,
   AssetTransferMethodSchema,
   CardanoAddressSchema,
   LovelaceAmountSchema,
@@ -141,6 +142,28 @@ describe('CardanoAddressSchema', () => {
   });
 });
 
+describe('AssetIdentifierSchema', () => {
+  const policy = 'a'.repeat(56);
+
+  it('accepts lovelace and lowercase policyId.assetNameHex native assets', () => {
+    expect(AssetIdentifierSchema.safeParse('lovelace').success).toBe(true);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.00`).success).toBe(true);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.0014df105553444d`).success).toBe(true);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.${'b'.repeat(64)}`).success).toBe(true);
+  });
+
+  it('rejects malformed, uppercase, concatenated, empty, and odd-length asset names', () => {
+    expect(AssetIdentifierSchema.safeParse('LOVELACE').success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse('').success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(policy).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.`).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.0`).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.zz`).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${'a'.repeat(55)}.00`).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.${'b'.repeat(66)}`).success).toBe(false);
+  });
+});
+
 describe('UtxoRefSchema', () => {
   it('accepts canonical txHash#index', () => {
     expect(UtxoRefSchema.safeParse(`${sampleTxHash}#0`).success).toBe(true);
@@ -194,6 +217,16 @@ describe('PaymentRequirementsSchema', () => {
     ).toBe(false);
     const { payTo: _omit, ...withoutPayTo } = sampleRequirements;
     expect(PaymentRequirementsSchema.safeParse(withoutPayTo).success).toBe(false);
+  });
+
+  it('rejects malformed asset identifiers', () => {
+    expect(PaymentRequirementsSchema.safeParse({ ...sampleRequirements, asset: '' }).success).toBe(
+      false
+    );
+    expect(
+      PaymentRequirementsSchema.safeParse({ ...sampleRequirements, asset: 'policyId.assetName' })
+        .success
+    ).toBe(false);
   });
 });
 
@@ -340,6 +373,13 @@ describe('PaymentAcceptSchema', () => {
     expect(PaymentAcceptSchema.safeParse(withoutNetwork).success).toBe(false);
     expect(PaymentAcceptSchema.safeParse(withoutAmount).success).toBe(false);
     expect(PaymentAcceptSchema.safeParse(withoutPayTo).success).toBe(false);
+  });
+
+  it('rejects malformed asset identifiers', () => {
+    expect(PaymentAcceptSchema.safeParse({ ...sampleAccept, asset: '' }).success).toBe(false);
+    expect(PaymentAcceptSchema.safeParse({ ...sampleAccept, asset: 'bad.asset' }).success).toBe(
+      false
+    );
   });
 });
 

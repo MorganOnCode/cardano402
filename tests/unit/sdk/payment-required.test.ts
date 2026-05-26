@@ -91,10 +91,10 @@ describe('buildPaymentRequired', () => {
   it('should use provided asset instead of default', () => {
     const result = buildPaymentRequired({
       ...defaultOptions,
-      asset: 'c48cbb3d.0014df105553444d',
+      asset: `${'c'.repeat(56)}.0014df105553444d`,
     });
     const decoded = decodePaymentRequired(result);
-    expect(decoded.accepts[0].asset).toBe('c48cbb3d.0014df105553444d');
+    expect(decoded.accepts[0].asset).toBe(`${'c'.repeat(56)}.0014df105553444d`);
   });
 
   it.each([
@@ -106,6 +106,7 @@ describe('buildPaymentRequired', () => {
     ['address with whitespace', { payTo: 'addr_test1 bad' }],
     ['address with control characters', { payTo: `${defaultOptions.payTo}\n` }],
     ['empty asset', { asset: '' }],
+    ['malformed asset identifier', { asset: 'policyId.assetName' }],
     ['over-policy timeout', { maxTimeoutSeconds: 3601 }],
   ])('rejects quotes with %s before encoding Payment-Required', (_label, patch) => {
     expect(() =>
