@@ -463,8 +463,17 @@ requireIncludes(
 );
 
 const packageJson = JSON.parse(read('package.json'));
-if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {
-  fail('Root package prepublishOnly must run pnpm build.');
+const rootPrepublishOnly = String(packageJson.scripts?.prepublishOnly ?? '');
+for (const requiredPublishGate of [
+  'pnpm typecheck',
+  'pnpm test -- --runInBand',
+  'pnpm security:payments',
+  'pnpm security:release',
+  'pnpm build',
+]) {
+  if (!rootPrepublishOnly.includes(requiredPublishGate)) {
+    fail(`Root package prepublishOnly must include ${requiredPublishGate}.`);
+  }
 }
 for (const workspacePackage of ['packages/core/package.json', 'packages/mcp-server/package.json']) {
   const workspace = JSON.parse(read(workspacePackage));

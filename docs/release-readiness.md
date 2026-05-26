@@ -37,6 +37,10 @@ pnpm --filter @cardano402/core test
 pnpm --filter @cardano402/core build
 ```
 
+The root package `prepublishOnly` gate must continue to run typecheck, full
+serial tests, payment invariants, release-readiness invariants, and build before
+any publish attempt.
+
 ## Required GitHub Checks
 
 Protected branches should require these checks before merge:

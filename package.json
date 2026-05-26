@@ -63,7 +63,7 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "prepare": "husky && pnpm --filter @cardano402/core build",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm typecheck && pnpm test -- --runInBand && pnpm security:payments && pnpm security:release && pnpm build"
   },
   "keywords": [
     "x402",
