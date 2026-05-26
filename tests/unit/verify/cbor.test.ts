@@ -6,7 +6,11 @@
 import { CML } from '@lucid-evolution/lucid';
 import { describe, expect, it } from 'vitest';
 
-import { deserializeTransaction } from '../../../src/verify/cbor.js';
+import {
+  MAX_TRANSACTION_CBOR_BASE64_LENGTH,
+  decodeTransactionCborBase64,
+  deserializeTransaction,
+} from '../../../src/verify/cbor.js';
 
 // ---------------------------------------------------------------------------
 // Test fixture helpers
@@ -238,6 +242,17 @@ describe('deserializeTransaction', () => {
   describe('error handling', () => {
     it('throws on invalid base64 input', () => {
       expect(() => deserializeTransaction('not-valid-base64!!!')).toThrow(/base64/i);
+    });
+
+    it('throws on invalid base64 padding', () => {
+      expect(() => deserializeTransaction('AAAA=')).toThrow(/base64/i);
+      expect(() => decodeTransactionCborBase64('abcd=ef')).toThrow(/base64/i);
+    });
+
+    it('throws on oversized base64 input before CBOR parsing', () => {
+      expect(() =>
+        deserializeTransaction('A'.repeat(MAX_TRANSACTION_CBOR_BASE64_LENGTH + 1))
+      ).toThrow(/maximum size/i);
     });
 
     it('throws CML error on valid base64 that is not valid CBOR', () => {

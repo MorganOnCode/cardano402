@@ -19,6 +19,7 @@ import type { CardanoNetwork } from '../chain/types.js';
 import { resolveAssetTransferMethod } from '../sdk/methods.js';
 import { settlePayment } from '../settle/settle-payment.js';
 import { SettleResponseSchema } from '../settle/types.js';
+import { decodeTransactionCborBase64 } from '../verify/cbor.js';
 import { parseNonce } from '../verify/nonce.js';
 import {
   FacilitatorRequestEnvelopeSchema,
@@ -111,7 +112,18 @@ const settleRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       };
 
       // 3. Convert base64 transaction to Uint8Array for submission
-      const cborBytes = Buffer.from(paymentPayload.payload.transaction, 'base64');
+      let cborBytes: Uint8Array;
+      try {
+        cborBytes = decodeTransactionCborBase64(paymentPayload.payload.transaction);
+      } catch (error) {
+        return reply.status(200).send({
+          success: false,
+          transaction: '',
+          network,
+          errorReason: 'invalid_request',
+          errorMessage: error instanceof Error ? error.message : 'Invalid transaction CBOR',
+        });
+      }
 
       // Only the default address-to-address method can be settled today.
       const method = resolveAssetTransferMethod(

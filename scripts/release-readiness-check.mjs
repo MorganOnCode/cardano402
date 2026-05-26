@@ -250,6 +250,21 @@ requireIncludes(
   'malformed paymentHeader before settlement',
   'Settle route tests must prove malformed raw paymentHeader bodies do not reach settlement.'
 );
+requireIncludes(
+  'src/verify/cbor.ts',
+  'MAX_TRANSACTION_CBOR_BASE64_LENGTH',
+  'Transaction CBOR decoding must bound signed transaction payload size.'
+);
+requireIncludes(
+  'src/routes/settle.ts',
+  'decodeTransactionCborBase64(paymentPayload.payload.transaction)',
+  'Settle route must strictly decode transaction CBOR before settlement submission.'
+);
+requireIncludes(
+  'tests/integration/settle-route.test.ts',
+  'malformed transaction base64 before settlement',
+  'Settle route tests must prove malformed transaction CBOR does not reach settlement.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {

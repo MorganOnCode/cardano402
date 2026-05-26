@@ -74,6 +74,8 @@ Before release, verify:
   reject malformed or oversized values before signing.
 - `/verify` and `/settle` strictly decode raw `paymentHeader` request bodies and
   bound their size before verification or settlement work starts.
+- Transaction CBOR payloads are strictly base64-decoded and size-bounded before
+  CBOR parsing or settlement submission.
 - CORS still allows `X-PAYMENT`.
 - Malformed `paymentRequirements.payTo` values return structured verification
   failures rather than public 500s.

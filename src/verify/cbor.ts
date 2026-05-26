@@ -38,8 +38,51 @@ export interface DeserializedTx {
   txHash: string;
 }
 
-// Base64 validation: only contains valid base64 characters
-const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
+// Keep transaction payloads bounded before WASM parsing or Blockfrost
+// submission. The server's JSON body limit is still the outer guard.
+export const MAX_TRANSACTION_CBOR_BASE64_LENGTH = 24 * 1024;
+const BASE64_ALPHABET_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/**
+ * Strictly decode base64-encoded signed transaction CBOR.
+ *
+ * Node's Buffer.from(..., 'base64') is intentionally permissive and silently
+ * accepts malformed input. Public payment paths should reject malformed,
+ * noncanonical, or oversized transaction payloads before CBOR parsing or chain
+ * submission.
+ */
+export function decodeTransactionCborBase64(base64Cbor: string): Uint8Array {
+  const padded = normalizeStrictBase64(base64Cbor);
+  const bytes = Buffer.from(padded, 'base64');
+  const normalizedInput = padded.replace(/=+$/u, '');
+  const normalizedRoundTrip = bytes.toString('base64').replace(/=+$/u, '');
+  if (normalizedInput !== normalizedRoundTrip) {
+    throw new Error('Invalid base64 encoding in transaction payload');
+  }
+  return new Uint8Array(bytes);
+}
+
+function normalizeStrictBase64(base64Cbor: string): string {
+  if (base64Cbor.length === 0) {
+    throw new Error('Invalid base64 encoding in transaction payload');
+  }
+  if (base64Cbor.length > MAX_TRANSACTION_CBOR_BASE64_LENGTH) {
+    throw new Error('Invalid base64 encoding in transaction payload: payload exceeds maximum size');
+  }
+  if (!BASE64_ALPHABET_RE.test(base64Cbor)) {
+    throw new Error('Invalid base64 encoding in transaction payload');
+  }
+  if (base64Cbor.includes('=') && base64Cbor.length % 4 !== 0) {
+    throw new Error('Invalid base64 encoding in transaction payload');
+  }
+
+  const unpadded = base64Cbor.replace(/=+$/u, '');
+  if (unpadded.length % 4 === 1) {
+    throw new Error('Invalid base64 encoding in transaction payload');
+  }
+  const paddedLength = Math.ceil(unpadded.length / 4) * 4;
+  return unpadded.padEnd(paddedLength, '=');
+}
 
 /**
  * Deserialize a base64-encoded signed Cardano transaction CBOR.
@@ -57,13 +100,8 @@ const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
  * @throws CML error on invalid CBOR (propagated directly)
  */
 export function deserializeTransaction(base64Cbor: string): DeserializedTx {
-  // Validate base64 encoding
-  if (!base64Cbor || !BASE64_RE.test(base64Cbor)) {
-    throw new Error('Invalid base64 encoding in transaction payload');
-  }
-
   // Convert base64 to hex
-  const cborHex = Buffer.from(base64Cbor, 'base64').toString('hex');
+  const cborHex = Buffer.from(decodeTransactionCborBase64(base64Cbor)).toString('hex');
 
   // Parse CBOR hex into CML Transaction (throws on invalid CBOR)
   const tx = CML.Transaction.from_cbor_hex(cborHex);
