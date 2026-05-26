@@ -69,6 +69,22 @@ describe('WellKnownX402Schema', () => {
     const parsed = WellKnownX402Schema.parse(withExtra);
     expect((parsed as Record<string, unknown>).someFutureField).toBe('ok');
   });
+
+  it.each([
+    ['non-decimal amount', { amount: '1e6' }],
+    ['negative amount', { amount: '-1' }],
+    ['over-uint64 amount', { amount: '18446744073709551616' }],
+    ['malformed network', { network: 'cardano-mainnet' }],
+    ['address with whitespace', { payTo: 'addr_test1 bad' }],
+    ['address with control characters', { payTo: 'addr_test1abc\n' }],
+    ['over-policy timeout', { maxTimeoutSeconds: 3601 }],
+  ])('rejects catalog endpoints with %s', (_label, patch) => {
+    const bad = {
+      ...VALID_CATALOG,
+      endpoints: [{ ...VALID_CATALOG.endpoints[0], ...patch }],
+    };
+    expect(WellKnownX402Schema.safeParse(bad).success).toBe(false);
+  });
 });
 
 describe('resolveBaseUrl', () => {

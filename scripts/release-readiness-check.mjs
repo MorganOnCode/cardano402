@@ -493,6 +493,26 @@ requireIncludes(
   'MCP clients must bound payment response headers before base64/JSON parsing.'
 );
 requireIncludes(
+  'packages/mcp-server/src/catalog.ts',
+  'amount: LovelaceAmountSchema',
+  'MCP catalog parsing must reject malformed or over-uint64 catalog amounts before tool registration.'
+);
+requireIncludes(
+  'packages/mcp-server/src/catalog.ts',
+  'payTo: CardanoAddressSchema',
+  'MCP catalog parsing must reject malformed recipient addresses before tool registration.'
+);
+requireIncludes(
+  'packages/mcp-server/src/catalog.ts',
+  'MAX_CATALOG_PAYMENT_TIMEOUT_SECONDS',
+  'MCP catalog parsing must bound maxTimeoutSeconds before passing TTLs to the signer.'
+);
+requireIncludes(
+  'packages/mcp-server/test/catalog.test.ts',
+  'rejects catalog endpoints with %s',
+  'MCP catalog tests must prove malformed payment requirements are rejected before tool registration.'
+);
+requireIncludes(
   'packages/mcp-server/test/payment.test.ts',
   'returns null payment for malformed X-Payment-Response header',
   'MCP payment tests must prove malformed payment response headers are not surfaced.'

@@ -77,6 +77,9 @@ Before release, verify:
   verification.
 - MCP clients strictly decode untrusted `Payment-Required` response headers and
   reject malformed or oversized values before signing.
+- MCP clients reject malformed catalog payment terms before tool registration:
+  non-decimal or over-uint64 amounts, malformed CAIP-2 networks, recipient
+  addresses with whitespace/control characters, and TTL windows above 3600s.
 - MCP clients bound and schema-check `X-Payment-Response` / `PAYMENT-RESPONSE`
   headers before surfacing paid-response metadata to agents.
 - MCP HTTP transport bearer tokens are at least 32 characters and are compared

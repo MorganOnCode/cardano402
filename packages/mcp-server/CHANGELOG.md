@@ -8,6 +8,11 @@ Security hardening release on top of `0.1.2`.
 
 ### Fixed (security)
 
+- **Catalog payment terms are validated before tool registration.** The MCP
+  catalog parser now rejects non-decimal or over-uint64 amounts, malformed
+  CAIP-2 networks, recipient addresses with whitespace/control characters, and
+  `maxTimeoutSeconds` values above 3600s before exposing a paid endpoint as an
+  agent tool or passing TTL data to the signer.
 - **Persistent Mainnet spend ledger.** Mainnet now requires
   `--spend-store-path` or `CARDANO402_SPEND_STORE_PATH` so per-call and
   rolling daily spend caps survive MCP server restarts.

@@ -398,6 +398,14 @@ Additional payment-timeout hardening:
   values above the configured verification maximum before verification or
   settlement work starts.
 
+Additional MCP catalog hardening:
+
+- The MCP catalog parser now rejects malformed payment terms before tool
+  registration: non-decimal or over-uint64 amounts, malformed CAIP-2 networks,
+  recipient addresses with whitespace/control characters, and catalog TTL
+  windows above 3600 seconds. This keeps the agent-visible catalog contract
+  aligned with the stricter payment schema before any signer path is reached.
+
 ## Remaining work
 
 1. Apply and verify the documented Cloudflare WAF skip/rate-limit rules on
