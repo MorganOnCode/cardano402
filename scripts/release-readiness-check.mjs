@@ -321,8 +321,8 @@ requireIncludes(
 );
 requireIncludes(
   'config/config.example.json',
-  '"trustProxy": true',
-  'Example production config must trust the documented loopback reverse proxy so rate limits use real client IPs.'
+  '"trustProxy": 2',
+  'Example production config must use a numeric trusted-proxy hop count so rate limits use real client IPs without trusting arbitrary forwarded chains.'
 );
 requireIncludes(
   'config/config.development.example.json',
@@ -331,8 +331,18 @@ requireIncludes(
 );
 requireIncludes(
   'src/server.ts',
-  'trustProxy: config.server.trustProxy === true',
-  'Fastify must wire server.trustProxy into the HTTP server so rate limits/logs use proxy-aware client IPs when configured.'
+  'trustProxy: config.server.trustProxy ?? false',
+  'Fastify must wire numeric server.trustProxy hop counts into the HTTP server so rate limits/logs use proxy-aware client IPs when configured.'
+);
+requireIncludes(
+  'src/config/schema.ts',
+  'server.trustProxy must be a numeric trusted-proxy hop count in production',
+  'Production config must reject boolean trustProxy true so forwarded headers cannot be trusted too broadly.'
+);
+requireIncludes(
+  'tests/unit/config.test.ts',
+  'rejects production env with boolean trustProxy true',
+  'Config tests must prove production rejects broad boolean trustProxy true.'
 );
 requireIncludes(
   'scripts/backup.sh',

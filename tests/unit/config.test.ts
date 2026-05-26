@@ -71,6 +71,20 @@ describe('Config Loading', () => {
     expect(config.logging.level).toBe('debug');
   });
 
+  it('should accept numeric trusted-proxy hop count', () => {
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        server: { trustProxy: 2 },
+        chain: minimalChainConfig,
+      })
+    );
+
+    const config = loadConfig(TEST_CONFIG_PATH);
+
+    expect(config.server.trustProxy).toBe(2);
+  });
+
   it('should throw ConfigMissingError for non-existent file', () => {
     try {
       loadConfig('/nonexistent/path/config.json');
@@ -203,6 +217,34 @@ describe('Config Loading', () => {
   });
 
   describe('Redis password production guardrail', () => {
+    it('rejects production env with boolean trustProxy true', () => {
+      const cfg = {
+        env: 'production',
+        server: { trustProxy: true },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|trustProxy/);
+    });
+
+    it('accepts production env with numeric trustProxy hop count', () => {
+      const cfg = {
+        env: 'production',
+        server: { trustProxy: 2 },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+
     it('rejects production env with no chain.redis.password', () => {
       const cfg = {
         env: 'production',

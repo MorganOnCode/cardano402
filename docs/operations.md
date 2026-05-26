@@ -88,8 +88,9 @@ For routine deploys (no Dockerfile or compose change), `bash deploy.sh` runs the
 
 Copy `config/config.example.json` to `config/config.json` and set:
 - `env` to `"production"`
-- `server.trustProxy` to `true` when deployed behind nginx/Cloudflare on the
-  same host so rate limits and logs use the original client IP
+- `server.trustProxy` to a numeric hop count when deployed behind
+  nginx/Cloudflare on the same host so rate limits and logs use the original
+  client IP without trusting arbitrary forwarded chains
 - `logging.pretty` to `false`
 - `chain.redis.host` to `"redis-prod"` (Docker service name)
 - `chain.redis.password` to your Redis password
@@ -140,9 +141,11 @@ is intentionally `"Mainnet"`, and set the local-file acknowledgement only for
 limited-value hot-wallet operation.
 
 Because the production service binds to loopback and is reached through the
-local reverse proxy, set `server.trustProxy: true`. Do not enable it for a
-deployment that accepts direct public traffic without a trusted proxy boundary,
-because clients could spoof `X-Forwarded-*` headers.
+local reverse proxy, set `server.trustProxy` to a numeric hop count such as `1`
+for nginx only or `2` for Cloudflare plus nginx. Do not use boolean `true` in
+production and do not enable it for a deployment that accepts direct public
+traffic without a trusted proxy boundary, because clients could spoof
+`X-Forwarded-*` headers.
 
 ### 4. Verify deployment
 
@@ -240,7 +243,8 @@ not set the override; implement the remote or hardware-backed signer boundary.
 
 **Symptom:** Clients receive 429 Too Many Requests
 **Fix:** Default limits: 100 req/min global, 20 req/min on `/verify`, `/settle`,
-`/status`, `/upload`, and `/demo/run`. Adjust in config `rateLimit` section.
+`/status`, `/upload`, `/demo/run`, and `/demo/status`. Adjust in config
+`rateLimit` section.
 
 ### Cloudflare challenge blocks x402 clients
 

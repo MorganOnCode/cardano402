@@ -73,8 +73,14 @@ export const ConfigSchema = z
       .object({
         host: z.string().default('0.0.0.0'),
         port: z.number().int().min(1).max(65535).default(3000),
-        /** Trust X-Forwarded-* headers from the deployment reverse proxy. */
-        trustProxy: z.boolean().optional(),
+        /**
+         * Trust X-Forwarded-* headers from the deployment reverse proxy.
+         *
+         * In production, use a numeric hop count instead of boolean `true` so
+         * direct clients cannot spoof arbitrary forwarded chains for rate
+         * limits and logs.
+         */
+        trustProxy: z.union([z.boolean(), z.number().int().min(1).max(3)]).optional(),
       })
       .default(() => ({ host: '0.0.0.0', port: 3000 })),
 
@@ -179,6 +185,14 @@ export const ConfigSchema = z
           message:
             'demo.seedPhraseFile is required when config.env is "production". Keep demo wallet seed material out of config JSON.',
           path: ['demo', 'seedPhraseFile'],
+        });
+      }
+      if (data.server.trustProxy === true) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'server.trustProxy must be a numeric trusted-proxy hop count in production, not true. Use 1 for a single local reverse proxy or 2 for Cloudflare plus nginx.',
+          path: ['server', 'trustProxy'],
         });
       }
     }

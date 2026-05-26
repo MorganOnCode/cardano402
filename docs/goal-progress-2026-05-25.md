@@ -268,8 +268,9 @@ needs admin-side enforcement of the documented required checks.
 - Production facilitator containers now run with a read-only root filesystem,
   an explicit `./data:/app/data` mutable storage mount, and `/tmp` tmpfs.
 - Production config now exposes `server.trustProxy` and enables it in the
-  production template for the documented loopback nginx/Cloudflare deployment,
-  so rate limits and logs use the real client IP.
+  production template with a numeric trusted-proxy hop count for the documented
+  loopback nginx/Cloudflare deployment, so rate limits and logs use the real
+  client IP without trusting arbitrary forwarded chains.
 - Both production Redis Compose paths now use `maxmemory-policy noeviction` so
   settlement dedup keys fail closed under pressure instead of being evicted.
 - Both production Compose paths now pass `NODE_ENV=production` and the
