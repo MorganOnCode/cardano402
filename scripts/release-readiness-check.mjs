@@ -186,6 +186,11 @@ requireIncludes(
   'Production facilitator must pass the MAINNET guardrail env var through Compose.'
 );
 requireIncludes(
+  'docker-compose.yml',
+  'CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=${CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER:-false}',
+  'Production facilitator must pass the Mainnet local-file hot-wallet acknowledgement through Compose.'
+);
+requireIncludes(
   'docker-compose.prod.yml',
   './secrets:/run/secrets:ro',
   'VPS production Compose must mount local signing files read-only at the documented /run/secrets path.'
@@ -209,6 +214,11 @@ requireIncludes(
   'docker-compose.prod.yml',
   'no-new-privileges:true',
   'VPS production containers must opt into no-new-privileges.'
+);
+requireIncludes(
+  'docker-compose.prod.yml',
+  'CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=${CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER:-false}',
+  'VPS production facilitator must pass the Mainnet local-file hot-wallet acknowledgement through Compose.'
 );
 requireIncludes(
   'package.json',
@@ -267,6 +277,11 @@ requireIncludes(
   'src/config/schema.ts',
   'demo.seedPhraseFile is required when config.env is "production"',
   'Production demo configuration must reject inline demo seed material.'
+);
+requireIncludes(
+  'src/chain/config.ts',
+  'CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER',
+  'Mainnet local-file facilitator signing must require explicit hot-wallet acknowledgement.'
 );
 requireIncludes(
   'tests/unit/config.test.ts',

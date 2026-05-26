@@ -36,6 +36,8 @@ services:
       # Mainnet safety guardrail (src/chain/config.ts). Must be "true" when
       # config.json has chain.network = "Mainnet"; "false" otherwise.
       - MAINNET=${MAINNET:-false}
+      # Explicit hot-wallet acknowledgement required for Mainnet local-file signing.
+      - CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=${CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER:-false}
     depends_on:
       redis:
         condition: service_healthy

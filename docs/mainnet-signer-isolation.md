@@ -17,6 +17,9 @@ any transaction can be signed.
 - Mainnet rejects inline `chain.facilitator.seedPhrase` and
   `chain.facilitator.privateKey` unless an explicit unsafe override is set.
 - Mainnet signing material must be loaded from restrictive files by default.
+- Mainnet `local-file` signing requires
+  `CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true` so operators explicitly
+  acknowledge the interim hot-wallet risk.
 - `chain.facilitator.signerMode` is explicit and currently supports only
   `local-file`.
 - `/health` exposes `policy.signer` so operators and monitors can see that the
@@ -123,6 +126,8 @@ Not acceptable for high-value Mainnet use:
 ## Current Recommendation
 
 Until the remote policy signer exists, Mainnet operation should be treated as a
-hot-wallet deployment. Keep only limited operational funds in the facilitator
-wallet, rotate keys after suspected host compromise, keep `config.json` out of
-backups unless encrypted, and prefer Preview/Preprod for public demos.
+hot-wallet deployment and requires the explicit
+`CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true` acknowledgement. Keep only
+limited operational funds in the facilitator wallet, rotate keys after suspected
+host compromise, keep `config.json` out of backups unless encrypted, and prefer
+Preview/Preprod for public demos.

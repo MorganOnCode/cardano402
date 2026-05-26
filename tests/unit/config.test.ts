@@ -427,8 +427,10 @@ describe('Config Loading', () => {
     };
     const originalMainnet = process.env.MAINNET;
     const originalAllow = process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
+    const originalAllowLocalFile = process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
     process.env.MAINNET = 'true';
     delete process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
+    process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = 'true';
 
     writeFileSync(TEST_CONFIG_PATH, JSON.stringify(mainnetConfig));
     try {
@@ -439,10 +441,13 @@ describe('Config Loading', () => {
       if (originalAllow === undefined)
         delete process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
       else process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY = originalAllow;
+      if (originalAllowLocalFile === undefined)
+        delete process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+      else process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = originalAllowLocalFile;
     }
   });
 
-  it('should accept mainnet facilitator seed file', () => {
+  it('should reject mainnet local-file signer without explicit hot-wallet acknowledgement', () => {
     const seedPhraseFile = writeSecretFile();
     const mainnetConfig = {
       chain: {
@@ -451,16 +456,47 @@ describe('Config Loading', () => {
         facilitator: { seedPhraseFile },
       },
     };
-    const original = process.env.MAINNET;
+    const originalMainnet = process.env.MAINNET;
+    const originalAllowLocalFile = process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
     process.env.MAINNET = 'true';
+    delete process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+
+    writeFileSync(TEST_CONFIG_PATH, JSON.stringify(mainnetConfig));
+    try {
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|hot-wallet/);
+    } finally {
+      if (originalMainnet === undefined) delete process.env.MAINNET;
+      else process.env.MAINNET = originalMainnet;
+      if (originalAllowLocalFile === undefined)
+        delete process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+      else process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = originalAllowLocalFile;
+    }
+  });
+
+  it('should accept mainnet facilitator seed file with explicit hot-wallet acknowledgement', () => {
+    const seedPhraseFile = writeSecretFile();
+    const mainnetConfig = {
+      chain: {
+        network: 'Mainnet',
+        blockfrost: { projectId: 'mainnet-key' },
+        facilitator: { seedPhraseFile },
+      },
+    };
+    const originalMainnet = process.env.MAINNET;
+    const originalAllowLocalFile = process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+    process.env.MAINNET = 'true';
+    process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = 'true';
 
     writeFileSync(TEST_CONFIG_PATH, JSON.stringify(mainnetConfig));
     try {
       const config = loadConfig(TEST_CONFIG_PATH);
       expect(config.chain.facilitator.credentialSource).toBe('seedPhraseFile');
     } finally {
-      if (original === undefined) delete process.env.MAINNET;
-      else process.env.MAINNET = original;
+      if (originalMainnet === undefined) delete process.env.MAINNET;
+      else process.env.MAINNET = originalMainnet;
+      if (originalAllowLocalFile === undefined)
+        delete process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+      else process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = originalAllowLocalFile;
     }
   });
 });

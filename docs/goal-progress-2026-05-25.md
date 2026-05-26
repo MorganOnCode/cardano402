@@ -137,6 +137,10 @@ needs admin-side enforcement of the documented required checks.
 - Mainnet now rejects inline `chain.facilitator.seedPhrase` /
   `chain.facilitator.privateKey` in `config.json` unless
   `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true` is explicitly set.
+- Mainnet `local-file` facilitator signing now also requires
+  `CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true`, making the hot-wallet
+  posture an explicit operator acknowledgement until the remote policy signer is
+  implemented.
 - Updated `config/config.example.json` and deployment docs to prefer
   file-based facilitator signing material.
 - Added `docs/mainnet-signer-isolation.md` to define the target remote or
@@ -255,6 +259,9 @@ needs admin-side enforcement of the documented required checks.
   settlement dedup keys fail closed under pressure instead of being evicted.
 - Both production Compose paths now pass `NODE_ENV=production` and the
   `MAINNET` guardrail into the facilitator container.
+- Both production Compose paths now pass the
+  `CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER` hot-wallet acknowledgement into
+  the facilitator container, defaulting to `false`.
 - Docker build context now excludes local `secrets/` signing files and runtime
   `data/` uploads, and `pnpm security:release` guards those exclusions.
 - Docker build stages now activate the pinned `pnpm@10.8.1`

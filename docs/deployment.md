@@ -89,8 +89,11 @@ Without it, attempting to use `"Mainnet"` as the network will cause a startup er
 Mainnet connection requires explicit MAINNET=true environment variable
 ```
 
-File-based Mainnet credentials are still a hot-wallet model. For high-value
-Mainnet operation, use the signer isolation target described in
+File-based Mainnet credentials are still a hot-wallet model. Mainnet
+`local-file` signing also requires
+`CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true` so operators must explicitly
+acknowledge the interim risk. For high-value Mainnet operation, use the signer
+isolation target described in
 [`mainnet-signer-isolation.md`](mainnet-signer-isolation.md); until that remote
 or hardware-backed signer exists, keep only limited operational funds in the
 facilitator wallet.
@@ -177,7 +180,7 @@ pnpm dev
 | `production` | `facilitator` | 127.0.0.1:3000 | Facilitator server |
 | `production` | `redis-prod` | 127.0.0.1:6380 | Production Redis (with auth) |
 
-The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting. Production Compose fails fast when `REDIS_PASSWORD` is unset, passes `NODE_ENV=production` and the `MAINNET` guardrail into the facilitator, runs Redis with AOF and `maxmemory-policy noeviction` for settlement dedup safety, mounts `./secrets` read-only at `/run/secrets`, mounts `./data` for stored files, runs the facilitator with a read-only root filesystem plus `/tmp` tmpfs, and binds ports to loopback for local reverse-proxy access.
+The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting. Production Compose fails fast when `REDIS_PASSWORD` is unset, passes `NODE_ENV=production`, `MAINNET`, and the Mainnet local-file hot-wallet acknowledgement into the facilitator, runs Redis with AOF and `maxmemory-policy noeviction` for settlement dedup safety, mounts `./secrets` read-only at `/run/secrets`, mounts `./data` for stored files, runs the facilitator with a read-only root filesystem plus `/tmp` tmpfs, and binds ports to loopback for local reverse-proxy access.
 
 ### Custom Docker Build
 

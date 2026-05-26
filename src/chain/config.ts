@@ -225,6 +225,18 @@ export const ChainConfigSchema = z
     }
     if (
       data.network === 'Mainnet' &&
+      data.facilitator.signerMode === 'local-file' &&
+      process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER !== 'true'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Mainnet local-file facilitator signing is a hot-wallet mode. Set CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true only if you intentionally accept this interim risk; high-value Mainnet should use the documented remote or hardware-backed signer boundary.',
+        path: ['facilitator', 'signerMode'],
+      });
+    }
+    if (
+      data.network === 'Mainnet' &&
       (data.facilitator.credentialSource === 'seedPhrase' ||
         data.facilitator.credentialSource === 'privateKey') &&
       process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY !== 'true'

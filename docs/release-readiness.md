@@ -104,6 +104,10 @@ Before release, verify:
   Semgrep Cloud / a paid code-review workflow.
 - Mainnet deployments do not use inline signing material unless the explicit
   unsafe override is documented and approved.
+- Mainnet `local-file` signing requires the explicit
+  `CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true` hot-wallet acknowledgement;
+  high-value Mainnet deployments use the remote or hardware-backed signer plan
+  instead of this override.
 - Production deployments with the live demo enabled use `demo.seedPhraseFile`
   for a separate Preview/Preprod demo wallet; inline demo seed material is
   rejected in production.

@@ -33,6 +33,8 @@ policy signer model in
 - keep only operational float in the facilitator wallet;
 - keep signing files out of unencrypted backups;
 - rotate the facilitator wallet after suspected host compromise;
+- set `CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true` only after accepting the
+  local-file hot-wallet risk;
 - avoid enabling `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY`;
 - use Preview or Preprod for public demos and integration testing.
 
@@ -130,9 +132,12 @@ Production Redis uses AOF plus `maxmemory-policy noeviction`. Settlement dedup
 records are part of replay protection; if Redis memory is exhausted, writes
 must fail loudly instead of evicting dedup keys.
 
-Production Compose also passes `NODE_ENV=production` and `MAINNET=${MAINNET:-false}`
+Production Compose also passes `NODE_ENV=production`, `MAINNET=${MAINNET:-false}`,
+and
+`CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=${CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER:-false}`
 into the facilitator. Set `MAINNET=true` in `.env` only when `chain.network`
-is intentionally `"Mainnet"`.
+is intentionally `"Mainnet"`, and set the local-file acknowledgement only for
+limited-value hot-wallet operation.
 
 Because the production service binds to loopback and is reached through the
 local reverse proxy, set `server.trustProxy: true`. Do not enable it for a
@@ -225,6 +230,11 @@ deployment risk signal rather than a failure by itself.
 
 **Symptom:** `Mainnet connection requires explicit MAINNET=true environment variable`
 **Fix:** Set `MAINNET=true` in environment if intentionally connecting to mainnet. This is a safety guardrail.
+
+**Symptom:** `Mainnet local-file facilitator signing is a hot-wallet mode`
+**Fix:** For limited-value local-file Mainnet operation, set
+`CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true`. For high-value Mainnet, do
+not set the override; implement the remote or hardware-backed signer boundary.
 
 ### Rate limiting (429)
 
