@@ -10,6 +10,11 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "UTC"
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     open-pull-requests-limit: 10
     commit-message:
       prefix: "deps"
@@ -47,6 +52,8 @@ updates:
       day: "monday"
       time: "09:15"
       timezone: "UTC"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     commit-message:
       prefix: "deps"
@@ -66,6 +73,8 @@ updates:
       day: "monday"
       time: "09:30"
       timezone: "UTC"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     commit-message:
       prefix: "deps"

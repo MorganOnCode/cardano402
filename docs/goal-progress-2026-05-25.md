@@ -385,6 +385,12 @@ Additional demo route hardening:
 - `/demo/status` now uses the sensitive route limiter and reports
   `configured: false`, `ready: false` when demo wallet configuration is absent.
 
+Additional supply-chain hardening:
+
+- Dependabot version updates now use cooldown windows for npm, GitHub Actions,
+  and Docker update surfaces, with `pnpm security:release` guarding those
+  cooldown settings.
+
 ## Remaining work
 
 1. Apply and verify the documented Cloudflare WAF skip/rate-limit rules on

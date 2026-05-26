@@ -131,6 +131,9 @@ Before release, verify:
   `pnpm@10.8.1` toolchain used by local and Docker builds.
 - Dependabot covers npm, GitHub Actions, and Docker ecosystems so dependency,
   workflow, and image updates are surfaced for review.
+- Dependabot version updates use cooldown windows for npm, GitHub Actions, and
+  Docker so fresh releases have time to settle before routine update PRs;
+  security updates are still created immediately by GitHub.
 - Root, core, and MCP package manifests keep explicit npm `files` allowlists so
   source, scripts, test fixtures, local config, generated data, and secrets are
   not packed accidentally.

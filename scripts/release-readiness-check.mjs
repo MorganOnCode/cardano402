@@ -48,6 +48,30 @@ function requireDependabotEcosystem(ecosystem) {
   );
 }
 
+function getDependabotUpdateBlock(ecosystem) {
+  const text = read('.github/dependabot.yml');
+  const start = text.indexOf(`  - package-ecosystem: "${ecosystem}"`);
+  if (start === -1) return '';
+  const next = text.indexOf('\n  - package-ecosystem:', start + 1);
+  return text.slice(start, next === -1 ? undefined : next);
+}
+
+function requireDependabotCooldown(ecosystem, needles) {
+  const block = getDependabotUpdateBlock(ecosystem);
+  if (block === '') {
+    fail(`Dependabot must cover the ${ecosystem} ecosystem.`);
+    return;
+  }
+  if (!block.includes('cooldown:')) {
+    fail(`Dependabot ${ecosystem} updates must define a cooldown block.`);
+  }
+  for (const needle of needles) {
+    if (!block.includes(needle)) {
+      fail(`Dependabot ${ecosystem} cooldown must include ${needle}.`);
+    }
+  }
+}
+
 function requirePackageFiles(path, expectedFiles) {
   const packageJson = JSON.parse(read(path));
   const actual = packageJson.files;
@@ -79,6 +103,14 @@ requireFile('.github/dependabot.yml');
 requireDependabotEcosystem('npm');
 requireDependabotEcosystem('github-actions');
 requireDependabotEcosystem('docker');
+requireDependabotCooldown('npm', [
+  'default-days: 7',
+  'semver-major-days: 30',
+  'semver-minor-days: 7',
+  'semver-patch-days: 3',
+]);
+requireDependabotCooldown('github-actions', ['default-days: 7']);
+requireDependabotCooldown('docker', ['default-days: 7']);
 
 requireWorkflowPinnedPnpm('.github/workflows/ci.yml');
 requireWorkflowPinnedPnpm('.github/workflows/protocol-monitor.yml');
