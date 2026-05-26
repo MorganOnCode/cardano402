@@ -9,10 +9,12 @@ import {
   Cardano402NetworkError,
   Cardano402ValidationError,
   decodePaymentRequiredHeader,
+  MAX_PAYMENT_HEADER_LENGTH,
   PaymentSignaturePayloadSchema,
   type PaymentAccept,
   type PaymentRequiredResponse,
 } from '@cardano402/core';
+import { z } from 'zod';
 
 import type { CatalogEndpoint } from './catalog.js';
 import type { CardanoSigner, SignedPayment } from './signer.js';
@@ -73,6 +75,41 @@ const X402_HEADER_PRIMARY = 'Payment-Signature';
 const X402_RESPONSE_HEADER_PRIMARY = 'x-payment-response';
 const X402_RESPONSE_HEADER_ALIAS = 'payment-response';
 const X402_REQUIRED_HEADER = 'payment-required';
+const BASE64_ALPHABET_RE = /^[A-Za-z0-9+/]+={0,2}$/u;
+const PaymentResponseHeaderSchema = z.object({
+  transaction: z.string().min(1),
+  network: z.string().min(1),
+  payer: z.string().optional(),
+  extensions: z
+    .object({
+      status: z.string().min(1).optional(),
+    })
+    .passthrough()
+    .optional(),
+});
+
+function normalizeStrictBase64(value: string): string {
+  if (value.length === 0 || value.length > MAX_PAYMENT_HEADER_LENGTH) {
+    throw new Error('invalid base64 length');
+  }
+  if (!BASE64_ALPHABET_RE.test(value) || /=(?=.*[^=])/u.test(value)) {
+    throw new Error('invalid base64 alphabet');
+  }
+
+  const unpadded = value.replace(/=+$/u, '');
+  if (unpadded.length % 4 === 1) {
+    throw new Error('invalid base64 padding');
+  }
+
+  const padded = unpadded.padEnd(Math.ceil(unpadded.length / 4) * 4, '=');
+  const roundTrip = Buffer.from(padded, 'base64')
+    .toString('base64')
+    .replace(/=+$/u, '');
+  if (roundTrip !== unpadded) {
+    throw new Error('non-canonical base64');
+  }
+  return padded;
+}
 
 function joinUrl(base: string, path: string, query?: Record<string, string>): string {
   const normalisedBase = base.replace(/\/+$/, '');
@@ -101,18 +138,15 @@ function decodePaymentRequired(headerValue: string): PaymentRequiredResponse {
 
 function decodePaymentResponseHeader(value: string): PayAndFetchResult['payment'] {
   try {
-    const json = Buffer.from(value, 'base64').toString('utf-8');
-    const parsed = JSON.parse(json) as Record<string, unknown>;
+    const json = Buffer.from(normalizeStrictBase64(value), 'base64').toString('utf-8');
+    const parsed = PaymentResponseHeaderSchema.safeParse(JSON.parse(json));
+    if (!parsed.success) return null;
+    const data = parsed.data;
     return {
-      transaction: String(parsed.transaction ?? ''),
-      network: String(parsed.network ?? ''),
-      payer: typeof parsed.payer === 'string' ? parsed.payer : undefined,
-      status:
-        parsed.extensions && typeof parsed.extensions === 'object'
-          ? String(
-              (parsed.extensions as Record<string, unknown>).status ?? ''
-            ) || undefined
-          : undefined,
+      transaction: data.transaction,
+      network: data.network,
+      payer: data.payer,
+      status: data.extensions?.status,
     };
   } catch {
     return null;

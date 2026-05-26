@@ -141,6 +141,21 @@ requireIncludes(
   'MCP payment tests must prove oversized Payment-Required headers are rejected before signing.'
 );
 requireIncludes(
+  'packages/mcp-server/src/payment.ts',
+  'PaymentResponseHeaderSchema',
+  'MCP clients must schema-check payment response headers before surfacing payment metadata.'
+);
+requireIncludes(
+  'packages/mcp-server/src/payment.ts',
+  'MAX_PAYMENT_HEADER_LENGTH',
+  'MCP clients must bound payment response headers before base64/JSON parsing.'
+);
+requireIncludes(
+  'packages/mcp-server/test/payment.test.ts',
+  'returns null payment for malformed X-Payment-Response header',
+  'MCP payment tests must prove malformed payment response headers are not surfaced.'
+);
+requireIncludes(
   'src/verify/checks.ts',
   'invalid_pay_to',
   'Verification must turn malformed payment recipient addresses into structured invalid_pay_to failures.'
