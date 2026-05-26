@@ -377,9 +377,19 @@ requireIncludes(
   'MCP HTTP transport bearer token checks must use constant-time comparison.'
 );
 requireIncludes(
+  'packages/mcp-server/src/server.ts',
+  'MIN_HTTP_BEARER_TOKEN_LENGTH',
+  'MCP HTTP transport startup must enforce the bearer-token floor even for programmatic callers.'
+);
+requireIncludes(
   'packages/mcp-server/test/config.test.ts',
   'rejects short HTTP bearer tokens',
   'MCP config tests must prove short HTTP bearer tokens are rejected.'
+);
+requireIncludes(
+  'packages/mcp-server/test/http-transport.test.ts',
+  'refuses short bearer tokens even when options bypass config parsing',
+  'MCP HTTP transport tests must prove programmatic short tokens are rejected.'
 );
 requireIncludes(
   'packages/mcp-server/src/payment.ts',
