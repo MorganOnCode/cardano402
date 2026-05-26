@@ -48,6 +48,20 @@ function requireDependabotEcosystem(ecosystem) {
   );
 }
 
+function requirePackageFiles(path, expectedFiles) {
+  const packageJson = JSON.parse(read(path));
+  const actual = packageJson.files;
+  if (!Array.isArray(actual)) {
+    fail(`${path} must define an explicit npm files allowlist.`);
+    return;
+  }
+  const normalizedActual = [...actual].sort();
+  const normalizedExpected = [...expectedFiles].sort();
+  if (JSON.stringify(normalizedActual) !== JSON.stringify(normalizedExpected)) {
+    fail(`${path} npm files allowlist must be exactly: ${normalizedExpected.join(', ')}.`);
+  }
+}
+
 const requiredWorkflows = [
   '.github/workflows/ci.yml',
   '.github/workflows/codeql.yml',
@@ -549,6 +563,20 @@ requireIncludes(
 
 const packageJson = JSON.parse(read('package.json'));
 const rootPrepublishOnly = String(packageJson.scripts?.prepublishOnly ?? '');
+requirePackageFiles('package.json', ['dist/', 'LICENSE', 'README.md']);
+requirePackageFiles('packages/core/package.json', [
+  'dist',
+  'README.md',
+  'CHANGELOG.md',
+  'LICENSE',
+  'SPEC_TRUTH.md',
+]);
+requirePackageFiles('packages/mcp-server/package.json', [
+  'dist',
+  'README.md',
+  'CHANGELOG.md',
+  'LICENSE',
+]);
 for (const requiredPublishGate of [
   'pnpm typecheck',
   'pnpm test -- --runInBand',
@@ -564,6 +592,19 @@ for (const workspacePackage of ['packages/core/package.json', 'packages/mcp-serv
   const workspace = JSON.parse(read(workspacePackage));
   if (!String(workspace.scripts?.prepublishOnly ?? '').includes('pnpm test')) {
     fail(`${workspacePackage} prepublishOnly must include tests.`);
+  }
+}
+for (const scaffoldPackage of [
+  'packages/axios/package.json',
+  'packages/express/package.json',
+  'packages/fastify/package.json',
+  'packages/fetch/package.json',
+  'packages/hono/package.json',
+  'packages/next/package.json',
+]) {
+  const scaffold = JSON.parse(read(scaffoldPackage));
+  if (scaffold.private !== true) {
+    fail(`${scaffoldPackage} must remain private until the adapter is implemented and release-reviewed.`);
   }
 }
 

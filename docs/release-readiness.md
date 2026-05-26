@@ -128,6 +128,11 @@ Before release, verify:
   `pnpm@10.8.1` toolchain used by local and Docker builds.
 - Dependabot covers npm, GitHub Actions, and Docker ecosystems so dependency,
   workflow, and image updates are surfaced for review.
+- Root, core, and MCP package manifests keep explicit npm `files` allowlists so
+  source, scripts, test fixtures, local config, generated data, and secrets are
+  not packed accidentally.
+- Scaffold adapter packages remain `private: true` until they are implemented
+  and separately release-reviewed.
 - Production Compose fails fast without `REDIS_PASSWORD`, binds production
   ports to loopback, and drops unnecessary container privileges.
 - Production Redis uses AOF and `maxmemory-policy noeviction` so settlement

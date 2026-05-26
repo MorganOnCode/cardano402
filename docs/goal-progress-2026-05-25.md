@@ -135,6 +135,9 @@ needs admin-side enforcement of the documented required checks.
 - Dependabot now covers npm, GitHub Actions, and Docker ecosystems, and the
   release-readiness gate fails if any of those ecosystems are removed from the
   automation config.
+- Release-readiness now also checks the root, core, and MCP npm package
+  `files` allowlists, and requires scaffold adapter packages to stay private
+  until they are implemented and separately release-reviewed.
 
 ### Root facilitator signing-key hardening
 
