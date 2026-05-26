@@ -103,6 +103,8 @@ Before release, verify:
 - Production deployments with the live demo enabled use `demo.seedPhraseFile`
   for a separate Preview/Preprod demo wallet; inline demo seed material is
   rejected in production.
+- Public quota- or transaction-consuming routes, including `/demo/run`, use the
+  tighter sensitive route rate limit instead of only the global limiter.
 - High-value Mainnet deployments have an implementation plan for the remote or
   hardware-backed policy signer boundary.
 

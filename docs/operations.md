@@ -201,7 +201,8 @@ deployment risk signal rather than a failure by itself.
 ### Rate limiting (429)
 
 **Symptom:** Clients receive 429 Too Many Requests
-**Fix:** Default limits: 100 req/min global, 20 req/min on /verify, /settle, /status. Adjust in config `rateLimit` section.
+**Fix:** Default limits: 100 req/min global, 20 req/min on `/verify`, `/settle`,
+`/status`, `/upload`, and `/demo/run`. Adjust in config `rateLimit` section.
 
 ### Cloudflare challenge blocks x402 clients
 

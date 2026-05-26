@@ -45,8 +45,7 @@ const demoRoutes: FastifyPluginCallback = (fastify, _options, done) => {
     });
   });
 
-  // POST /demo/run -- SSE stream of the live payment cycle
-  fastify.post('/demo/run', async (req: FastifyRequest, reply: FastifyReply) => {
+  const runDemo = async (_req: FastifyRequest, reply: FastifyReply) => {
     // Guard: one demo at a time
     if (demoRunning) {
       return reply.status(429).send({
@@ -358,7 +357,21 @@ const demoRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       demoRunning = false;
       reply.raw.end();
     }
-  });
+  };
+
+  // POST /demo/run -- SSE stream of the live payment cycle
+  fastify.post(
+    '/demo/run',
+    {
+      config: {
+        rateLimit: {
+          max: fastify.config.rateLimit.sensitive,
+          timeWindow: fastify.config.rateLimit.windowMs,
+        },
+      },
+    },
+    runDemo
+  );
 
   done();
 };

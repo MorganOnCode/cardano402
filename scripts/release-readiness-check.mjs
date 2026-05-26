@@ -106,6 +106,16 @@ requireIncludes(
   'Config tests must prove production demo seed material is file-based.'
 );
 requireIncludes(
+  'src/routes/demo.ts',
+  'max: fastify.config.rateLimit.sensitive',
+  'Live demo route must use the tighter sensitive route rate limit.'
+);
+requireIncludes(
+  'tests/security/controls.test.ts',
+  'should enforce tighter rate limits on /demo/run than global',
+  'Security controls tests must prove the live demo route uses the sensitive limiter.'
+);
+requireIncludes(
   'config/config.example.json',
   'seedPhraseFile',
   'Example config must steer demo wallet seed material to a restrictive file.'

@@ -91,6 +91,14 @@ describe('Security Controls', () => {
     expect(res2.statusCode).toBe(429);
   });
 
+  it('should enforce tighter rate limits on /demo/run than global', async () => {
+    const res1 = await server.inject({ method: 'POST', url: '/demo/run', payload: {} });
+    expect(res1.statusCode).not.toBe(429);
+
+    const res2 = await server.inject({ method: 'POST', url: '/demo/run', payload: {} });
+    expect(res2.statusCode).toBe(429);
+  });
+
   it('should allow /health at global rate limit (not sensitive)', async () => {
     // /health should still work at global rate (10), not sensitive (1)
     const res1 = await server.inject({ method: 'GET', url: '/health' });

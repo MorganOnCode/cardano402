@@ -45,7 +45,7 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 | `logging.pretty` | `false` | Pretty-print logs (enable for development) |
 | `env` | `"development"` | Environment (`development`, `production`) |
 | `rateLimit.global` | `100` | Requests per minute (global) |
-| `rateLimit.sensitive` | `20` | Requests per minute (`/verify`, `/settle`, `/status`) |
+| `rateLimit.sensitive` | `20` | Requests per minute (`/verify`, `/settle`, `/status`, `/upload`, `/demo/run`) |
 | `rateLimit.windowMs` | `60000` | Rate limit window in milliseconds |
 | `metrics.bearerToken` | *(none)* | Bearer token for `GET /metrics` (required in production) |
 | `chain.blockfrost.tier` | `"free"` | Blockfrost plan tier |
