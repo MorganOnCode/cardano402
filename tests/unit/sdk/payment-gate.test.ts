@@ -19,7 +19,7 @@ function createMockFacilitator(overrides: Partial<FacilitatorClient> = {}): Faci
     verify: vi.fn().mockResolvedValue({ isValid: true }),
     settle: vi.fn().mockResolvedValue({
       success: true,
-      transaction: 'abc123def456',
+      transaction: 'abc123def456789012345678901234567890123456789012345678901234abcd',
       network: 'cardano:preview',
       extensions: { status: 'confirmed' },
     }),
@@ -330,7 +330,7 @@ describe('createPaymentGate', () => {
     it('should return 402 when settlement status is mempool', async () => {
       (facilitator.settle as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         success: true,
-        transaction: 'abc123def456',
+        transaction: 'abc123def456789012345678901234567890123456789012345678901234abcd',
         network: 'cardano:preview',
         extensions: { status: 'mempool' },
       });
@@ -352,7 +352,7 @@ describe('createPaymentGate', () => {
     it('should return 402 when successful settlement omits extensions.status', async () => {
       (facilitator.settle as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         success: true,
-        transaction: 'abc123def456',
+        transaction: 'abc123def456789012345678901234567890123456789012345678901234abcd',
         network: 'cardano:preview',
       });
 
@@ -368,6 +368,52 @@ describe('createPaymentGate', () => {
       const headerValue = (reply.header as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
       const decoded = JSON.parse(Buffer.from(headerValue, 'base64').toString('utf-8'));
       expect(decoded.error).toBe('Settlement not confirmed: missing_status');
+    });
+
+    it('should return 402 when settlement metadata has a malformed transaction hash', async () => {
+      (facilitator.settle as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        success: true,
+        transaction: 'not-a-transaction-hash',
+        network: 'cardano:preview',
+        extensions: { status: 'confirmed' },
+      });
+
+      const handler = createHandler(options);
+      const signature = createPaymentSignature();
+      const request = createMockRequest({ 'payment-signature': signature });
+      const reply = createMockReply();
+
+      await handler(request, reply, vi.fn());
+
+      expect(reply.status).toHaveBeenCalledWith(402);
+      expect(reply.sent).toBe(true);
+      expect(reply.sentHeaders['X-Payment-Response']).toBeUndefined();
+      const headerValue = (reply.header as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+      const decoded = JSON.parse(Buffer.from(headerValue, 'base64').toString('utf-8'));
+      expect(decoded.error).toBe('Payment settlement metadata was malformed');
+    });
+
+    it('should return 402 when settlement metadata has a malformed network', async () => {
+      (facilitator.settle as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        success: true,
+        transaction: 'abc123def456789012345678901234567890123456789012345678901234abcd',
+        network: 'cardano-preview',
+        extensions: { status: 'confirmed' },
+      });
+
+      const handler = createHandler(options);
+      const signature = createPaymentSignature();
+      const request = createMockRequest({ 'payment-signature': signature });
+      const reply = createMockReply();
+
+      await handler(request, reply, vi.fn());
+
+      expect(reply.status).toHaveBeenCalledWith(402);
+      expect(reply.sent).toBe(true);
+      expect(reply.sentHeaders['X-Payment-Response']).toBeUndefined();
+      const headerValue = (reply.header as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+      const decoded = JSON.parse(Buffer.from(headerValue, 'base64').toString('utf-8'));
+      expect(decoded.error).toBe('Payment settlement metadata was malformed');
     });
   });
 
@@ -431,7 +477,7 @@ describe('createPaymentGate', () => {
       const augmented = request as FastifyRequest & { x402Settlement?: unknown };
       expect(augmented.x402Settlement).toEqual({
         success: true,
-        transaction: 'abc123def456',
+        transaction: 'abc123def456789012345678901234567890123456789012345678901234abcd',
         network: 'cardano:preview',
         extensions: { status: 'confirmed' },
       });
@@ -456,7 +502,9 @@ describe('createPaymentGate', () => {
       const headerValue = xCall![1] as string;
       const decoded = JSON.parse(Buffer.from(headerValue, 'base64').toString('utf-8'));
       expect(decoded.success).toBe(true);
-      expect(decoded.transaction).toBe('abc123def456');
+      expect(decoded.transaction).toBe(
+        'abc123def456789012345678901234567890123456789012345678901234abcd'
+      );
       expect(decoded.network).toBe('cardano:preview');
       expect(decoded.extensions).toEqual({ status: 'confirmed' });
     });

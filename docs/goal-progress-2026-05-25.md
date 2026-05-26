@@ -416,6 +416,9 @@ Additional MCP catalog hardening:
 - Core now exposes `AssetIdentifierSchema`, and discovery/quote/payment schemas
   use it to restrict assets to `lovelace` or lowercase `policyId.assetNameHex`
   before verification, settlement, MCP catalog, or signer flows consume them.
+- The payment gate now schema-checks settlement metadata before emitting
+  `X-Payment-Response` / `PAYMENT-RESPONSE`, rejecting malformed transaction
+  hashes or networks from a facilitator instead of surfacing them to agents.
 
 ## Remaining work
 

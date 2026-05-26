@@ -10,6 +10,7 @@
 // X-Payment-Response output), which intentionally never includes
 // 'failed' status. Core's wider SettlementStatusSchema is used inbound.
 
+import { CardanoAddressSchema, NetworkSchema } from '@cardano402/core';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
@@ -66,9 +67,11 @@ export const PaymentExtensionsStatusSchema = z.enum(['confirmed', 'mempool']);
 
 export const PaymentResponseHeaderSchema = z.object({
   success: z.boolean(),
-  transaction: z.string(),
-  network: z.string(),
-  payer: z.string().optional(),
+  transaction: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/, 'Transaction hash must be 64 lowercase hex characters'),
+  network: NetworkSchema,
+  payer: CardanoAddressSchema.optional(),
   errorReason: z.string().optional(),
   errorMessage: z.string().optional(),
   extensions: z

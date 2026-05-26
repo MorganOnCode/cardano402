@@ -11,7 +11,7 @@ import type { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastif
 import type { FacilitatorClient } from './facilitator-client.js';
 import { reply402, validatePaymentRequiredOptions } from './payment-required.js';
 import type { PaymentRequiredOptions } from './payment-required.js';
-import type { PaymentResponseHeader } from './types.js';
+import { PaymentResponseHeaderSchema, type PaymentResponseHeader } from './types.js';
 
 export interface PaymentGateOptions {
   /** FacilitatorClient instance for verify/settle calls */
@@ -192,12 +192,25 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
     }
 
     // 6. Attach settlement info to request for downstream handlers
-    const paymentResponse: PaymentResponseHeader = {
+    const paymentResponseParse = PaymentResponseHeaderSchema.safeParse({
       success: true,
       transaction: settleResult.transaction,
       network: settleResult.network,
       extensions: { status: settlementStatus },
-    };
+    });
+    if (!paymentResponseParse.success) {
+      request.log.error(
+        { issues: paymentResponseParse.error.issues },
+        'Payment settlement metadata was malformed'
+      );
+      reply402(reply, {
+        ...paymentRequiredOptions,
+        url: request.url,
+        error: 'Payment settlement metadata was malformed',
+      });
+      return;
+    }
+    const paymentResponse: PaymentResponseHeader = paymentResponseParse.data;
 
     // Store on request for route handlers to access
     (request as FastifyRequest & { x402Settlement?: PaymentResponseHeader }).x402Settlement =

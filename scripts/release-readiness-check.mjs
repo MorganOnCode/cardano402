@@ -428,6 +428,21 @@ requireIncludes(
   'Payment gate must reject mempool or missing settlement status before serving protected routes.'
 );
 requireIncludes(
+  'src/sdk/types.ts',
+  "regex(/^[0-9a-f]{64}$/",
+  'Payment response headers must validate settlement transaction hashes before exposing them to clients.'
+);
+requireIncludes(
+  'src/sdk/payment-gate.ts',
+  'PaymentResponseHeaderSchema.safeParse',
+  'Payment gate must schema-check settlement metadata before emitting X-Payment-Response.'
+);
+requireIncludes(
+  'tests/unit/sdk/payment-gate.test.ts',
+  'settlement metadata has a malformed transaction hash',
+  'Payment gate tests must prove malformed settlement metadata is not emitted as a payment response header.'
+);
+requireIncludes(
   'src/sdk/payment-required.ts',
   'validatePaymentRequiredOptions',
   'Payment-Required quotes must be validated before being emitted to clients.'

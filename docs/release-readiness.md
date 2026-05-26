@@ -78,6 +78,9 @@ Before release, verify:
 - Asset identifiers are validated as either `lovelace` or lowercase
   `policyId.assetNameHex` before discovery, quote, verification, settlement, or
   signer paths consume them.
+- `X-Payment-Response` / `PAYMENT-RESPONSE` metadata is schema-checked before
+  headers are emitted; malformed transaction hashes or networks from a
+  facilitator fail closed instead of being surfaced to agents.
 - `X-PAYMENT` and `Payment-Signature` request headers remain accepted where
   expected.
 - CORS preflight methods remain limited to the public GET/POST API surface.
