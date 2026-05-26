@@ -17,14 +17,16 @@ Yes. The work remains directly aligned with the goal:
 
 The goal is not complete yet. We have made concrete progress, but remaining
 work includes remote signer design, live Cloudflare API accessibility, and
-deeper deployment/operator hardening.
+admin-side branch protection/alerting enforcement.
 
 ## Branch and commit
 
 - Branch: `feat/mcp-0.1.3-hardening`
 - Pull request: `https://github.com/MorganOnCode/cardano402/pull/88`
 - Latest security/code head covered by this report:
-  `d03777f fix(logging): stop logging request bodies`
+  `92c36f1 fix(deploy): align production secret mounts`
+- Previous production runtime hardening head:
+  `c16176b fix(compose): harden production runtime defaults`
 - A docs-only progress refresh was pushed after that code head:
   `a585aee docs: refresh hardening goal progress`
 - Protocol monitor workflow commit: `91b8464 ci: add protocol monitor workflow`
@@ -34,24 +36,22 @@ deeper deployment/operator hardening.
 - PR #88 title updated to `feat(mcp): harden agent payment safety and
   production posture`.
 
-Current local status: clean working tree on `feat/mcp-0.1.3-hardening`,
-tracking `origin/feat/mcp-0.1.3-hardening`.
+Current local status as of the `92c36f1` push: branch
+`feat/mcp-0.1.3-hardening` is pushed to origin and backs PR #88.
 
 ## Pull request status
 
-Observed on 2026-05-25 UTC for PR #88 security/code head
-`d03777fbab54a3d7ca108caf6a540c9ac16d42f3`:
+Observed on 2026-05-26 UTC for PR #88 head
+`92c36f1 fix(deploy): align production secret mounts`:
 
-- CI completed successfully.
-- CI jobs succeeded: Lint & Type Check, Test, Build, Docker Build, Security
-  Audit.
-- CI Security Audit included Dependency audit, Payment security invariants, and
-  Release readiness invariants.
-- CodeQL completed successfully.
-- OSV-Scanner completed successfully.
-- Gitleaks completed successfully.
-- Dependency Review completed successfully.
-- zizmor completed successfully.
+- Local verification for the deployment update completed successfully:
+  `pnpm typecheck`, `pnpm lint`, `pnpm security:payments`,
+  `pnpm security:release`, `bash -n scripts/backup.sh`, `git diff --check`,
+  protected-name scan, production Compose render checks, and empty
+  `REDIS_PASSWORD` failure-path checks.
+- The prior PR head `c16176b` completed successfully on GitHub for CodeQL, CI,
+  Gitleaks, OSV-Scanner, Dependency Review, and zizmor before the `92c36f1`
+  deployment update was pushed.
 - All PR #88 review threads are resolved.
 
 Scorecard is configured as a scheduled security workflow but was not returned
@@ -219,15 +219,34 @@ needs admin-side enforcement of the documented required checks.
   endpoints can be checked without blocking normal PR CI while the Cloudflare
   zone is still being tuned.
 
+### Production deployment and recovery hardening
+
+- Production Compose now mounts local signing files from `./secrets` into the
+  container at `/run/secrets` read-only, matching the documented
+  `seedPhraseFile` paths.
+- Development-only Redis/IPFS services are now behind a `development` profile
+  so `docker compose --profile production up` renders only the production
+  facilitator and authenticated Redis services.
+- `docker-compose.prod.yml`, the VPS-oriented Compose file, now receives the
+  same secret-file mount, fail-fast Redis password interpolation, capability
+  drops, and `no-new-privileges` posture.
+- `config/config.example.json` now points at the production Redis service name,
+  with `docker-compose.prod.yml` providing a `redis-prod` network alias for
+  compatibility.
+- Encrypted restic backups now include local `secrets/` signing files when the
+  directory exists and snapshot both known production Redis volume names.
+- Deployment, operations, VPS, backup/restore, README, and release-readiness
+  docs now describe the executable file-based secret path.
+
 ## Live-site findings
 
-Observed on 2026-05-25 UTC:
+Observed on 2026-05-26 UTC:
 
 - `https://cardano402.com/.well-known/x402.json` returns HTTP 200 JSON.
 - `/health`, `/supported`, `/verify`, and `/settle` are Cloudflare-challenged
   for non-browser clients.
 
-Most recent monitor evidence, 2026-05-25T08:57:47Z:
+Most recent monitor evidence, 2026-05-26T07:39:17Z:
 
 - `/.well-known/x402.json`: HTTP 200 JSON.
 - `/health`: HTTP 403 Cloudflare challenge, `cf-mitigated: challenge`.
@@ -284,6 +303,12 @@ Passing checks:
 
 Current live monitor status:
 
+- On 2026-05-26 at 07:39:17 UTC, `pnpm monitor:protocol -- --base-url
+  https://cardano402.com --min-confirmations 6 --json` failed as expected
+  against the live site with the same external Cloudflare challenge posture.
+  `/.well-known/x402.json` returned HTTP 200 JSON; `/health`, `/supported`,
+  `/verify`, and `/settle` returned HTTP 403 challenge HTML with
+  `cf-mitigated: challenge`.
 - On 2026-05-25 at 07:13:06 UTC, `pnpm monitor:protocol -- --base-url
   https://cardano402.com --json` failed as expected against the live site.
 - `/.well-known/x402.json` returned HTTP 200 JSON.
@@ -315,7 +340,9 @@ Earlier full-suite verification after the same hardening line:
    The design target is now documented; code still uses local Lucid file-backed
    signing material for the root facilitator.
 4. Deployment runbook hardening for Blockfrost quota dashboards, rate-limit
-   tuning, and incident response.
+   tuning, and incident response. The production secret/Compose/backup path is
+   now aligned, but quota dashboards and incident procedures still need an
+   operator-level pass.
 5. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
 6. Repository admin branch protection still needs to require the documented
    checks before merge; the in-repo release readiness gate now makes the desired
