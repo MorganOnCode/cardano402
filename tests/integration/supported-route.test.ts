@@ -163,6 +163,21 @@ describe('GET /supported Route', () => {
     expect(body.error).toBe('Internal Server Error');
   });
 
+  it('should return 500 instead of publishing malformed signer addresses', async () => {
+    vi.spyOn(server.chainProvider, 'getAddress').mockResolvedValueOnce(
+      'addr_test1bad\r\nx-injected: yes'
+    );
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/supported',
+    });
+
+    expect(response.statusCode).toBe(500);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Internal Server Error');
+  });
+
   // ---- Schema validation ----
 
   it('should return a response that validates against SupportedResponseSchema', async () => {

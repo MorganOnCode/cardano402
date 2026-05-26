@@ -419,7 +419,7 @@ requireIncludes(
 );
 requireIncludes(
   'src/sdk/payment-gate.ts',
-  "settleResult.extensions?.status",
+  'settleResult.extensions?.status',
   'Payment gate must inspect settlement confirmation status before serving protected routes.'
 );
 requireIncludes(
@@ -429,13 +429,38 @@ requireIncludes(
 );
 requireIncludes(
   'src/sdk/types.ts',
-  "regex(/^[0-9a-f]{64}$/",
+  'regex(/^[0-9a-f]{64}$/',
   'Payment response headers must validate settlement transaction hashes before exposing them to clients.'
 );
 requireIncludes(
   'packages/core/src/schemas.ts',
   'Successful settle responses must include a 64-character lowercase transaction hash',
   'Core settle response schema must reject malformed transaction hashes on successful settlement responses.'
+);
+requireIncludes(
+  'packages/core/src/schemas.ts',
+  'SignerNetworkPatternSchema',
+  'Supported response schemas must validate signer keys before exposing discovery data to agents.'
+);
+requireIncludes(
+  'packages/core/src/schemas.ts',
+  'signers: z.record(SignerNetworkPatternSchema, z.array(CardanoAddressSchema))',
+  'Supported response schemas must validate signer addresses before exposing discovery data to agents.'
+);
+requireIncludes(
+  'src/sdk/types.ts',
+  'signers: z.record(SignerNetworkPatternSchema, z.array(CardanoAddressSchema))',
+  'Root SDK supported response schema must validate signer addresses before exposing discovery data to agents.'
+);
+requireIncludes(
+  'src/routes/supported.ts',
+  'SupportedResponseSchema.safeParse(response)',
+  'The /supported route must schema-check signer discovery output before publishing it to agents.'
+);
+requireIncludes(
+  'tests/integration/supported-route.test.ts',
+  'publishing malformed signer addresses',
+  'Supported route tests must prove malformed signer addresses are not published to agents.'
 );
 requireIncludes(
   'packages/core/test/schemas.test.ts',
@@ -801,7 +826,9 @@ for (const scaffoldPackage of [
 ]) {
   const scaffold = JSON.parse(read(scaffoldPackage));
   if (scaffold.private !== true) {
-    fail(`${scaffoldPackage} must remain private until the adapter is implemented and release-reviewed.`);
+    fail(
+      `${scaffoldPackage} must remain private until the adapter is implemented and release-reviewed.`
+    );
   }
 }
 

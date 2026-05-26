@@ -249,9 +249,7 @@ describe('PaymentPayloadSchema', () => {
   });
 
   it('rejects x402Version !== 2', () => {
-    expect(
-      PaymentPayloadSchema.safeParse({ ...basePayload, x402Version: 1 }).success
-    ).toBe(false);
+    expect(PaymentPayloadSchema.safeParse({ ...basePayload, x402Version: 1 }).success).toBe(false);
   });
 });
 
@@ -365,6 +363,32 @@ describe('SupportedResponseSchema', () => {
     });
     expect(parsed.success).toBe(true);
   });
+
+  it('rejects unsupported schemes and malformed signer data', () => {
+    expect(
+      SupportedResponseSchema.safeParse({
+        kinds: [{ x402Version: 2, scheme: 'anything', network: 'cardano:preview' }],
+        extensions: [],
+        signers: { 'cardano:preview': ['addr_test1xxx'] },
+      }).success
+    ).toBe(false);
+
+    expect(
+      SupportedResponseSchema.safeParse({
+        kinds: [{ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }],
+        extensions: [],
+        signers: { 'Cardano:*': ['addr_test1xxx'] },
+      }).success
+    ).toBe(false);
+
+    expect(
+      SupportedResponseSchema.safeParse({
+        kinds: [{ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }],
+        extensions: [],
+        signers: { 'cardano:*': ['addr_test1xxx\r\n'] },
+      }).success
+    ).toBe(false);
+  });
 });
 
 // --- 402 envelope (client-side schemas; new in v0.2.0) ---
@@ -446,9 +470,7 @@ describe('PaymentRequiredResponseSchema', () => {
   it('property-based: any well-formed envelope round-trips encode/decode', () => {
     const acceptArb = fc.record({
       network: fc.constantFrom('cardano:preview', 'cardano:preprod', 'cardano:mainnet'),
-      amount: fc
-        .bigInt({ min: 1n, max: 45_000_000_000_000_000n })
-        .map((n: bigint) => n.toString()),
+      amount: fc.bigInt({ min: 1n, max: 45_000_000_000_000_000n }).map((n: bigint) => n.toString()),
       payTo: fc
         .string({ minLength: 10, maxLength: 100 })
         .filter((s: string) => /^[\x21-\x7e]+$/.test(s) && s.length > 0)
@@ -472,9 +494,7 @@ describe('PaymentRequiredResponseSchema', () => {
         }),
         (env) => {
           const parsed = PaymentRequiredResponseSchema.parse(env);
-          const restored = PaymentRequiredResponseSchema.parse(
-            JSON.parse(JSON.stringify(parsed))
-          );
+          const restored = PaymentRequiredResponseSchema.parse(JSON.parse(JSON.stringify(parsed)));
           expect(restored).toEqual(parsed);
         }
       ),

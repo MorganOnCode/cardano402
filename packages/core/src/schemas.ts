@@ -41,12 +41,15 @@ export const AssetIdentifierSchema = z.union([
       /^[0-9a-f]{56}\.[0-9a-f]{2,64}$/,
       'Asset must be "lovelace" or "policyId.assetNameHex" with lowercase hex'
     )
-    .refine((value) => {
-      const assetNameHex = value.split('.')[1];
-      return typeof assetNameHex === 'string' && assetNameHex.length % 2 === 0;
-    }, {
-      message: 'Asset name hex must have an even number of characters',
-    }),
+    .refine(
+      (value) => {
+        const assetNameHex = value.split('.')[1];
+        return typeof assetNameHex === 'string' && assetNameHex.length % 2 === 0;
+      },
+      {
+        message: 'Asset name hex must have an even number of characters',
+      }
+    ),
 ]);
 export type AssetIdentifier = z.infer<typeof AssetIdentifierSchema>;
 
@@ -122,17 +125,15 @@ export const SettleResponseSchema = z
     payer: CardanoAddressSchema.optional(),
     errorReason: z.string().optional(),
     errorMessage: z.string().optional(),
-    extensions: z
-      .object({ status: SettlementStatusSchema.optional() })
-      .passthrough()
-      .optional(),
+    extensions: z.object({ status: SettlementStatusSchema.optional() }).passthrough().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.success && !/^[0-9a-f]{64}$/.test(value.transaction)) {
       ctx.addIssue({
         code: 'custom',
         path: ['transaction'],
-        message: 'Successful settle responses must include a 64-character lowercase transaction hash',
+        message:
+          'Successful settle responses must include a 64-character lowercase transaction hash',
       });
     }
   });
@@ -146,16 +147,24 @@ export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
 export const SupportedKindSchema = z.object({
   x402Version: X402VersionSchema,
-  scheme: z.string(),
+  scheme: SchemeSchema,
   network: NetworkSchema,
   extra: z.record(z.string(), z.unknown()).optional(),
 });
 export type SupportedKind = z.infer<typeof SupportedKindSchema>;
 
+export const SignerNetworkPatternSchema = z
+  .string()
+  .regex(
+    /^[a-z0-9]+:(?:[a-z0-9]+|\*)$/,
+    'Signer keys must be CAIP-2 chain IDs or CAIP family wildcards such as "cardano:*"'
+  );
+export type SignerNetworkPattern = z.infer<typeof SignerNetworkPatternSchema>;
+
 export const SupportedResponseSchema = z.object({
   kinds: z.array(SupportedKindSchema),
   extensions: z.array(z.unknown()),
-  signers: z.record(z.string(), z.array(z.string())),
+  signers: z.record(SignerNetworkPatternSchema, z.array(CardanoAddressSchema)),
 });
 export type SupportedResponse = z.infer<typeof SupportedResponseSchema>;
 

@@ -58,6 +58,9 @@ const statusRequest = {
   paymentRequirements,
 };
 
+const sampleSignerAddress =
+  'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp';
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -237,7 +240,7 @@ describe('FacilitatorClient', () => {
         mockFetchResponse({
           kinds: [{ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }],
           extensions: [],
-          signers: { 'cardano:*': ['addr_test1qz...'] },
+          signers: { 'cardano:*': [sampleSignerAddress] },
         })
       );
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
@@ -254,14 +257,14 @@ describe('FacilitatorClient', () => {
       const expected = {
         kinds: [{ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }],
         extensions: [],
-        signers: { 'cardano:*': ['addr_test1qz...'] },
+        signers: { 'cardano:*': [sampleSignerAddress] },
       };
       fetchSpy.mockResolvedValueOnce(mockFetchResponse(expected));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
       const result = await client.supported();
       expect(result.kinds).toHaveLength(1);
       expect(result.kinds[0].x402Version).toBe(2);
-      expect(result.signers['cardano:*']).toEqual(['addr_test1qz...']);
+      expect(result.signers['cardano:*']).toEqual([sampleSignerAddress]);
     });
 
     it('should throw on invalid response', async () => {

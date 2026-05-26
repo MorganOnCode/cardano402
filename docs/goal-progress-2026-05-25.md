@@ -34,7 +34,7 @@ admin-side branch protection/alerting enforcement.
 - Report commit: `ceb2f4e docs: add goal progress report`
 - Remote: pushed to `origin/feat/mcp-0.1.3-hardening`
 - PR #88 title updated to `feat(mcp): harden agent payment safety and
-  production posture`.
+production posture`.
 
 Current local status as of the `92c36f1` push: branch
 `feat/mcp-0.1.3-hardening` is pushed to origin and backs PR #88.
@@ -356,14 +356,14 @@ Passing checks:
 Current live monitor status:
 
 - On 2026-05-26 at 08:55:07 UTC, `pnpm monitor:protocol -- --base-url
-  https://cardano402.com --min-confirmations 6 --json` failed as expected
+https://cardano402.com --min-confirmations 6 --json` failed as expected
   against the live site with the same external Cloudflare challenge posture.
   `/.well-known/x402.json` returned HTTP 200 JSON; `/health`, `/supported`,
   `/verify`, and `/settle` returned HTTP 403 challenge HTML with
   `cf-mitigated: challenge`.
 - On 2026-05-26 at 07:39:17 UTC, the same monitor produced the same result.
 - On 2026-05-25 at 07:13:06 UTC, `pnpm monitor:protocol -- --base-url
-  https://cardano402.com --json` failed as expected against the live site.
+https://cardano402.com --json` failed as expected against the live site.
 - `/.well-known/x402.json` returned HTTP 200 JSON.
 - `/supported`, `/verify`, and `/settle` returned HTTP 403 Cloudflare
   challenge HTML with `cf-mitigated: challenge`.
@@ -422,6 +422,10 @@ Additional MCP catalog hardening:
 - Core settle-response parsing now also rejects malformed transaction hashes
   when `success: true`, while keeping failure responses with `transaction: ""`
   parse-compatible.
+- `/supported` now validates agent-facing discovery output before publication:
+  only the exact scheme is advertised, signer map keys must be CAIP-style chain
+  IDs or family wildcards, and malformed signer addresses fail closed with a
+  server error instead of being returned to agents.
 
 ## Remaining work
 

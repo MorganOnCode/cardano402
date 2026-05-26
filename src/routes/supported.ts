@@ -66,7 +66,19 @@ const supportedRoutes: FastifyPluginCallback = (fastify, _options, done) => {
         },
       };
 
-      return reply.status(200).send(response);
+      const parsed = SupportedResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        fastify.log.error(
+          { err: parsed.error.message },
+          'Refusing to publish malformed supported response'
+        );
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to derive facilitator address',
+        });
+      }
+
+      return reply.status(200).send(parsed.data);
     }
   );
 

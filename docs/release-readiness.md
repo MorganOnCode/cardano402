@@ -104,6 +104,8 @@ Before release, verify:
 - `/verify` and `/settle` reject `paymentRequirements.maxTimeoutSeconds` values
   above the configured verification maximum before verification or settlement
   work starts.
+- `/supported` schema-checks discovery output before publishing it, including
+  exact-scheme kinds, CAIP/family signer keys, and printable signer addresses.
 - Transaction CBOR payloads are strictly base64-decoded and size-bounded before
   CBOR parsing or settlement submission.
 - CORS still allows `X-PAYMENT`.

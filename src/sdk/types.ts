@@ -10,7 +10,12 @@
 // X-Payment-Response output), which intentionally never includes
 // 'failed' status. Core's wider SettlementStatusSchema is used inbound.
 
-import { CardanoAddressSchema, NetworkSchema } from '@cardano402/core';
+import {
+  CardanoAddressSchema,
+  NetworkSchema,
+  SchemeSchema,
+  X402VersionSchema,
+} from '@cardano402/core';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
@@ -24,8 +29,6 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 export {
-  SupportedKindSchema as SupportedPaymentKindSchema,
-  SupportedResponseSchema,
   UtxoRefSchema as NonceSchema,
   CardanoPayloadSchema as CardanoPaymentPayloadSchema,
   PaymentAcceptSchema,
@@ -35,8 +38,6 @@ export {
 } from '@cardano402/core';
 
 export type {
-  SupportedKind as SupportedPaymentKind,
-  SupportedResponse,
   UtxoRef as Nonce,
   CardanoPayload as CardanoPaymentPayload,
   PaymentAccept,
@@ -44,6 +45,28 @@ export type {
   PaymentRequiredResponse,
   PaymentSignaturePayload,
 } from '@cardano402/core';
+
+export const SignerNetworkPatternSchema = z
+  .string()
+  .regex(
+    /^[a-z0-9]+:(?:[a-z0-9]+|\*)$/,
+    'Signer keys must be CAIP-2 chain IDs or CAIP family wildcards such as "cardano:*"'
+  );
+
+export const SupportedPaymentKindSchema = z.object({
+  x402Version: X402VersionSchema,
+  scheme: SchemeSchema,
+  network: NetworkSchema,
+  extra: z.record(z.string(), z.unknown()).optional(),
+});
+export type SupportedPaymentKind = z.infer<typeof SupportedPaymentKindSchema>;
+
+export const SupportedResponseSchema = z.object({
+  kinds: z.array(SupportedPaymentKindSchema),
+  extensions: z.array(z.unknown()),
+  signers: z.record(SignerNetworkPatternSchema, z.array(CardanoAddressSchema)),
+});
+export type SupportedResponse = z.infer<typeof SupportedResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // X-Payment-Response / PAYMENT-RESPONSE header (resource server -> client).
