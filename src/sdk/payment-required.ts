@@ -3,9 +3,27 @@
 // The resource server sends a 402 response with the Payment-Required header
 // containing base64-encoded JSON that tells the client what payment is needed.
 
+import {
+  CardanoAddressSchema,
+  LovelaceAmountSchema,
+  NetworkSchema,
+  SchemeSchema,
+} from '@cardano402/core';
 import type { FastifyReply } from 'fastify';
+import { z } from 'zod';
 
 import type { PaymentAccept, PaymentRequiredResponse, ResourceInfo } from './types.js';
+
+export const MAX_PAYMENT_REQUIRED_TIMEOUT_SECONDS = 3600;
+
+const PaymentRequiredQuoteSchema = z.object({
+  scheme: SchemeSchema,
+  network: NetworkSchema,
+  amount: LovelaceAmountSchema,
+  payTo: CardanoAddressSchema,
+  asset: z.string().min(1),
+  maxTimeoutSeconds: z.number().int().min(1).max(MAX_PAYMENT_REQUIRED_TIMEOUT_SECONDS),
+});
 
 export interface PaymentRequiredOptions {
   /** CAIP-2 chain ID (e.g. "cardano:preview") */
@@ -15,7 +33,7 @@ export interface PaymentRequiredOptions {
   /** Bech32 recipient address */
   payTo: string;
   /** Payment scheme (default: "exact") */
-  scheme?: string;
+  scheme?: 'exact';
   /** Asset identifier (default: "lovelace") */
   asset?: string;
   /** Max timeout in seconds (default: 300) */
@@ -30,18 +48,38 @@ export interface PaymentRequiredOptions {
   error?: string | null;
 }
 
-/**
- * Build the base64-encoded Payment-Required header value.
- * This is the core function that constructs the x402 V2 402 response payload.
- */
-export function buildPaymentRequired(options: PaymentRequiredOptions): string {
-  const accept: PaymentAccept = {
+export function validatePaymentRequiredOptions(
+  options: PaymentRequiredOptions
+): PaymentRequiredOptions {
+  const quote = PaymentRequiredQuoteSchema.parse({
     scheme: options.scheme ?? 'exact',
     network: options.network,
     amount: options.amount,
     payTo: options.payTo,
     maxTimeoutSeconds: options.maxTimeoutSeconds ?? 300,
     asset: options.asset ?? 'lovelace',
+  });
+
+  return {
+    ...options,
+    ...quote,
+  };
+}
+
+/**
+ * Build the base64-encoded Payment-Required header value.
+ * This is the core function that constructs the x402 V2 402 response payload.
+ */
+export function buildPaymentRequired(options: PaymentRequiredOptions): string {
+  const quote = validatePaymentRequiredOptions(options);
+
+  const accepted: PaymentAccept = {
+    scheme: quote.scheme ?? 'exact',
+    network: quote.network,
+    amount: quote.amount,
+    payTo: quote.payTo,
+    maxTimeoutSeconds: quote.maxTimeoutSeconds ?? 300,
+    asset: quote.asset ?? 'lovelace',
     extra: null,
   };
 
@@ -55,7 +93,7 @@ export function buildPaymentRequired(options: PaymentRequiredOptions): string {
     x402Version: 2,
     error: options.error ?? null,
     resource,
-    accepts: [accept],
+    accepts: [accepted],
   };
 
   return Buffer.from(JSON.stringify(response)).toString('base64');

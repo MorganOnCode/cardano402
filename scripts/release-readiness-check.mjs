@@ -428,6 +428,31 @@ requireIncludes(
   'Payment gate must reject mempool or missing settlement status before serving protected routes.'
 );
 requireIncludes(
+  'src/sdk/payment-required.ts',
+  'validatePaymentRequiredOptions',
+  'Payment-Required quotes must be validated before being emitted to clients.'
+);
+requireIncludes(
+  'src/sdk/payment-required.ts',
+  'MAX_PAYMENT_REQUIRED_TIMEOUT_SECONDS',
+  'Payment-Required quotes must bound maxTimeoutSeconds before clients sign against them.'
+);
+requireIncludes(
+  'src/sdk/payment-gate.ts',
+  'validatePaymentRequiredOptions',
+  'Payment gates must reject misconfigured payment terms before serving requests.'
+);
+requireIncludes(
+  'tests/unit/sdk/payment-required.test.ts',
+  'rejects quotes with %s before encoding Payment-Required',
+  'Payment-Required tests must prove malformed quotes are rejected before encoding.'
+);
+requireIncludes(
+  'tests/unit/sdk/payment-gate.test.ts',
+  'rejects misconfigured payment gates with %s before serving requests',
+  'Payment gate tests must prove malformed payment terms are rejected at gate construction.'
+);
+requireIncludes(
   'packages/core/src/header.ts',
   'MAX_PAYMENT_HEADER_LENGTH',
   'Payment header decoding must bound public header size before base64/JSON parsing.'

@@ -409,6 +409,10 @@ Additional MCP catalog hardening:
   publishing discovery manifests, so malformed paid-route terms or unsafe paths
   fail at startup instead of being advertised through `/.well-known/x402.json`,
   agent-card, ai-agent, or MCP server-card output.
+- The `Payment-Required` builder and payment gate now validate the same quote
+  terms before serving requests, so malformed amounts, networks, recipients,
+  assets, schemes, or over-long TTL windows fail closed before an agent is
+  asked to sign them.
 
 ## Remaining work
 

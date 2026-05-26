@@ -72,6 +72,9 @@ Before release, verify:
 - Paid routes are schema-validated before discovery publication, so
   `/.well-known/x402.json`, agent-card, ai-agent, and MCP server-card manifests
   cannot advertise malformed payment terms or unsafe endpoint paths.
+- `Payment-Required` quotes and payment gates are schema-validated before
+  serving requests, so misconfigured routes fail closed instead of emitting
+  malformed payment terms for agents to sign.
 - `X-PAYMENT` and `Payment-Signature` request headers remain accepted where
   expected.
 - CORS preflight methods remain limited to the public GET/POST API surface.

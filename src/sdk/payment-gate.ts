@@ -9,7 +9,7 @@ import { decodePaymentSignatureHeader, findPaymentHeader } from '@cardano402/cor
 import type { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify';
 
 import type { FacilitatorClient } from './facilitator-client.js';
-import { reply402 } from './payment-required.js';
+import { reply402, validatePaymentRequiredOptions } from './payment-required.js';
 import type { PaymentRequiredOptions } from './payment-required.js';
 import type { PaymentResponseHeader } from './types.js';
 
@@ -45,7 +45,7 @@ export interface PaymentGateOptions {
  * Settlement happens BEFORE the route handler (settle-before-execution per SECU-04).
  */
 export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHandler {
-  const paymentRequiredOptions: PaymentRequiredOptions = {
+  const paymentRequiredOptions: PaymentRequiredOptions = validatePaymentRequiredOptions({
     network: options.network,
     amount: options.amount,
     payTo: options.payTo,
@@ -54,7 +54,7 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
     maxTimeoutSeconds: options.maxTimeoutSeconds ?? 300,
     description: options.description,
     mimeType: options.mimeType ?? 'application/octet-stream',
-  };
+  });
 
   return async function paymentGateHandler(
     request: FastifyRequest,

@@ -117,6 +117,22 @@ describe('createPaymentGate', () => {
     options = { ...DEFAULT_OPTIONS, facilitator };
   });
 
+  it.each([
+    ['malformed network', { network: 'cardano-mainnet' }],
+    ['non-decimal amount', { amount: '1e6' }],
+    ['over-uint64 amount', { amount: '18446744073709551616' }],
+    ['address with whitespace', { payTo: 'addr_test1 bad' }],
+    ['empty asset', { asset: '' }],
+    ['over-policy timeout', { maxTimeoutSeconds: 3601 }],
+  ])('rejects misconfigured payment gates with %s before serving requests', (_label, patch) => {
+    expect(() =>
+      createPaymentGate({
+        ...options,
+        ...patch,
+      })
+    ).toThrow();
+  });
+
   // ---- No payment header ----
 
   describe('no Payment-Signature header', () => {

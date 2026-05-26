@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { buildPaymentRequired } from '../../../src/sdk/payment-required.js';
+import type { PaymentRequiredOptions } from '../../../src/sdk/payment-required.js';
 import type { PaymentRequiredResponse } from '../../../src/sdk/types.js';
 
 // ---------------------------------------------------------------------------
@@ -87,15 +88,6 @@ describe('buildPaymentRequired', () => {
     expect(decoded.resource.mimeType).toBe('text/html');
   });
 
-  it('should use provided scheme instead of default', () => {
-    const result = buildPaymentRequired({
-      ...defaultOptions,
-      scheme: 'custom',
-    });
-    const decoded = decodePaymentRequired(result);
-    expect(decoded.accepts[0].scheme).toBe('custom');
-  });
-
   it('should use provided asset instead of default', () => {
     const result = buildPaymentRequired({
       ...defaultOptions,
@@ -103,5 +95,24 @@ describe('buildPaymentRequired', () => {
     });
     const decoded = decodePaymentRequired(result);
     expect(decoded.accepts[0].asset).toBe('c48cbb3d.0014df105553444d');
+  });
+
+  it.each([
+    ['custom scheme', { scheme: 'custom' }],
+    ['malformed network', { network: 'cardano-mainnet' }],
+    ['non-decimal amount', { amount: '1e6' }],
+    ['negative amount', { amount: '-1' }],
+    ['over-uint64 amount', { amount: '18446744073709551616' }],
+    ['address with whitespace', { payTo: 'addr_test1 bad' }],
+    ['address with control characters', { payTo: `${defaultOptions.payTo}\n` }],
+    ['empty asset', { asset: '' }],
+    ['over-policy timeout', { maxTimeoutSeconds: 3601 }],
+  ])('rejects quotes with %s before encoding Payment-Required', (_label, patch) => {
+    expect(() =>
+      buildPaymentRequired({
+        ...defaultOptions,
+        ...(patch as Partial<PaymentRequiredOptions>),
+      })
+    ).toThrow();
   });
 });
