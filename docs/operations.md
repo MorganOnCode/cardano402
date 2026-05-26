@@ -108,8 +108,11 @@ docker compose --profile production up -d
 ```
 
 This starts:
-- `cardano402` -- the payment facilitator (port 3000)
-- `cardano402-redis-prod` -- Redis with authentication (port 6380)
+- `cardano402` -- the payment facilitator (`127.0.0.1:3000`)
+- `cardano402-redis-prod` -- Redis with authentication (`127.0.0.1:6380`)
+
+Production Compose fails fast if `REDIS_PASSWORD` is unset. The production
+containers also drop ambient Linux capabilities and set `no-new-privileges`.
 
 ### 4. Verify deployment
 

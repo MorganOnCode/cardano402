@@ -107,6 +107,8 @@ Before release, verify:
   tighter sensitive route rate limit instead of only the global limiter.
 - Backup and restore scripts reject loose restic credential-file permissions and
   restore snapshots only into private directories.
+- Production Compose fails fast without `REDIS_PASSWORD`, binds production
+  ports to loopback, and drops unnecessary container privileges.
 - High-value Mainnet deployments have an implementation plan for the remote or
   hardware-backed policy signer boundary.
 

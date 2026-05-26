@@ -111,6 +111,31 @@ requireIncludes(
   'Restore script must force private permissions on restore targets containing secrets.'
 );
 requireIncludes(
+  'docker-compose.yml',
+  '127.0.0.1:3000:3000',
+  'Production facilitator port must bind to loopback for reverse-proxy exposure.'
+);
+requireIncludes(
+  'docker-compose.yml',
+  '127.0.0.1:6380:6379',
+  'Production Redis port must not bind publicly.'
+);
+requireIncludes(
+  'docker-compose.yml',
+  '${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis-prod}',
+  'Production Redis must fail fast when REDIS_PASSWORD is unset.'
+);
+requireIncludes(
+  'docker-compose.yml',
+  'no-new-privileges:true',
+  'Production containers must opt into no-new-privileges.'
+);
+requireIncludes(
+  'docker-compose.yml',
+  'cap_drop:',
+  'Production containers must drop ambient Linux capabilities.'
+);
+requireIncludes(
   'src/config/schema.ts',
   'demo.seedPhraseFile is required when config.env is "production"',
   'Production demo configuration must reject inline demo seed material.'

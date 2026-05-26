@@ -152,10 +152,10 @@ pnpm dev
 |---------|---------|------|-------------|
 | *(default)* | `redis` | 6379 | Dev Redis (no auth) |
 | *(default)* | `ipfs` | 5001, 8080 | IPFS node (API + gateway) |
-| `production` | `facilitator` | 3000 | Facilitator server |
-| `production` | `redis-prod` | 6380 | Production Redis (with auth) |
+| `production` | `facilitator` | 127.0.0.1:3000 | Facilitator server |
+| `production` | `redis-prod` | 127.0.0.1:6380 | Production Redis (with auth) |
 
-The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting.
+The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting. Production Compose fails fast when `REDIS_PASSWORD` is unset and binds ports to loopback for local reverse-proxy access.
 
 ### Custom Docker Build
 

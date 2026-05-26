@@ -120,6 +120,8 @@ bash deploy.sh   # pulls git + rebuilds + restarts
 
 - `config/config.json` is mounted read-only and never in git
 - Redis requires a password in production
+- Production Compose fails fast if `REDIS_PASSWORD` is unset and binds the
+  facilitator and Redis ports to `127.0.0.1` for nginx/local access only
 - The facilitator runs as a non-root user inside the container
 - Demo wallet seed material must use `demo.seedPhraseFile` in production and
   the file must be `0600`

@@ -38,9 +38,13 @@ services:
     profiles:
       - production
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./config/config.json:/app/config/config.json:ro
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       redis-prod:
         condition: service_healthy
@@ -52,12 +56,16 @@ services:
     profiles:
       - production
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - redis_prod_data:/data
-    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-changeme}"
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis-prod}"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis-prod}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
