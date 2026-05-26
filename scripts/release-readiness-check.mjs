@@ -31,6 +31,15 @@ function requireDockerignoreEntry(entry, message) {
   if (!entries.includes(entry)) fail(message);
 }
 
+function requireWorkflowPinnedPnpm(path) {
+  const text = read(path);
+  const actionUses = text.match(/pnpm\/action-setup@/g)?.length ?? 0;
+  const pinnedVersions = text.match(/version: 10\.8\.1/g)?.length ?? 0;
+  if (actionUses !== pinnedVersions) {
+    fail(`${path} must pin every pnpm/action-setup invocation to pnpm 10.8.1.`);
+  }
+}
+
 const requiredWorkflows = [
   '.github/workflows/ci.yml',
   '.github/workflows/codeql.yml',
@@ -43,6 +52,9 @@ const requiredWorkflows = [
 ];
 
 for (const workflow of requiredWorkflows) requireFile(workflow);
+
+requireWorkflowPinnedPnpm('.github/workflows/ci.yml');
+requireWorkflowPinnedPnpm('.github/workflows/protocol-monitor.yml');
 
 requireIncludes(
   '.github/workflows/ci.yml',

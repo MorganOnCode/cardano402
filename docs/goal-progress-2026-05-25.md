@@ -260,6 +260,9 @@ needs admin-side enforcement of the documented required checks.
 - Docker build stages now activate the pinned `pnpm@10.8.1`
   package-manager version declared in `package.json`, and
   `pnpm security:release` guards that reproducibility invariant.
+- CI and protocol-monitor workflows now pin `pnpm/action-setup` to the same
+  `pnpm@10.8.1` toolchain, and `pnpm security:release` guards that workflow
+  reproducibility invariant.
 - The root package publish gate now runs typecheck, full serial tests, payment
   security invariants, release-readiness invariants, and build before any
   publish attempt; `pnpm security:release` guards that gate.

@@ -115,6 +115,8 @@ Before release, verify:
   `data/` uploads.
 - Docker build stages activate the pinned `pnpm@10.8.1` package-manager version
   declared in `package.json`.
+- CI and protocol-monitor workflows pin `pnpm/action-setup` to the same
+  `pnpm@10.8.1` toolchain used by local and Docker builds.
 - Production Compose fails fast without `REDIS_PASSWORD`, binds production
   ports to loopback, and drops unnecessary container privileges.
 - Production Redis uses AOF and `maxmemory-policy noeviction` so settlement
