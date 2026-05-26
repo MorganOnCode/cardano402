@@ -15,6 +15,7 @@ import {
   PAYMENT_RESPONSE_HEADER_NAMES,
   MAX_PAYMENT_HEADER_LENGTH,
   decodePaymentHeader,
+  decodePaymentRequiredHeader,
   decodePaymentSignatureHeader,
   encodePaymentHeader,
   findPaymentHeader,
@@ -77,6 +78,25 @@ describe('encode/decode round-trip', () => {
     expect(decoded.payload.transaction).toBe('tx-bytes');
     expect(decoded.resource.url).toBe('https://example.test/paid');
   });
+
+  it('decodes the Payment-Required response envelope through the strict codec', () => {
+    const paymentRequired = {
+      x402Version: 2,
+      error: null,
+      resource: {
+        description: 'Test resource',
+        mimeType: 'application/json',
+        url: 'https://example.test/paid',
+      },
+      accepts: [{ ...sampleRequirements, extra: null }],
+    };
+    const encoded = Buffer.from(JSON.stringify(paymentRequired)).toString('base64');
+    const decoded = decodePaymentRequiredHeader(encoded);
+
+    expect(decoded.x402Version).toBe(2);
+    expect(decoded.accepts[0].payTo).toBe('addr_test1abc');
+    expect(decoded.resource.url).toBe('https://example.test/paid');
+  });
 });
 
 describe('encodePaymentHeader errors', () => {
@@ -110,6 +130,15 @@ describe('decodePaymentHeader errors', () => {
   it('throws Cardano402DecodeError on oversized payment headers', () => {
     const oversized = 'A'.repeat(MAX_PAYMENT_HEADER_LENGTH + 1);
     expect(() => decodePaymentHeader(oversized)).toThrow(Cardano402DecodeError);
+  });
+
+  it('applies strict base64 checks to Payment-Required headers', () => {
+    expect(() => decodePaymentRequiredHeader('!!!not-base64!!!')).toThrow(
+      Cardano402DecodeError
+    );
+    expect(() => decodePaymentRequiredHeader('A'.repeat(MAX_PAYMENT_HEADER_LENGTH + 1))).toThrow(
+      Cardano402DecodeError
+    );
   });
 
   it('throws Cardano402DecodeError on base64 of invalid JSON', () => {

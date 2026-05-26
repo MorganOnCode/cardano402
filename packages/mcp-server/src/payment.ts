@@ -8,7 +8,7 @@ import {
   Cardano402HttpError,
   Cardano402NetworkError,
   Cardano402ValidationError,
-  PaymentRequiredResponseSchema,
+  decodePaymentRequiredHeader,
   PaymentSignaturePayloadSchema,
   type PaymentAccept,
   type PaymentRequiredResponse,
@@ -85,32 +85,18 @@ function joinUrl(base: string, path: string, query?: Record<string, string>): st
 }
 
 function decodePaymentRequired(headerValue: string): PaymentRequiredResponse {
-  let json: string;
   try {
-    json = Buffer.from(headerValue, 'base64').toString('utf-8');
+    return decodePaymentRequiredHeader(headerValue);
   } catch (err) {
-    throw new Cardano402NetworkError(
-      `Payment-Required header was not valid base64: ${(err as Error).message}`,
-      { cause: err }
-    );
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch (err) {
-    throw new Cardano402NetworkError(
-      `Payment-Required header was not valid JSON: ${(err as Error).message}`,
-      { cause: err }
-    );
-  }
-  const result = PaymentRequiredResponseSchema.safeParse(parsed);
-  if (!result.success) {
+    if (err instanceof Cardano402ValidationError) {
+      throw err;
+    }
     throw new Cardano402ValidationError(
       'Payment-Required header did not match the expected schema',
-      result.error.issues
+      [],
+      { cause: err }
     );
   }
-  return result.data;
 }
 
 function decodePaymentResponseHeader(value: string): PayAndFetchResult['payment'] {

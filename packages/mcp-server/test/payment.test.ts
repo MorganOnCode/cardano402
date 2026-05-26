@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { Cardano402ValidationError } from '@cardano402/core';
+import { Cardano402ValidationError, MAX_PAYMENT_HEADER_LENGTH } from '@cardano402/core';
 
 import type { CatalogEndpoint } from '../src/catalog.js';
 import { payAndFetch } from '../src/payment.js';
@@ -183,6 +183,48 @@ describe('payAndFetch', () => {
             ],
           }),
         },
+      })
+    );
+
+    await expect(
+      payAndFetch({
+        baseUrl: 'https://api.example.com',
+        endpoint: STUB_ENDPOINT,
+        body: { foo: 'bar' },
+        signer,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      })
+    ).rejects.toBeInstanceOf(Cardano402ValidationError);
+    expect(signPayment).not.toHaveBeenCalled();
+  });
+
+  it('refuses malformed Payment-Required headers before signing', async () => {
+    const { signer, signPayment } = makeStubSigner();
+    const fetchImpl = vi.fn(async () =>
+      new Response(null, {
+        status: 402,
+        headers: { 'payment-required': '!!!not-base64!!!' },
+      })
+    );
+
+    await expect(
+      payAndFetch({
+        baseUrl: 'https://api.example.com',
+        endpoint: STUB_ENDPOINT,
+        body: { foo: 'bar' },
+        signer,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      })
+    ).rejects.toBeInstanceOf(Cardano402ValidationError);
+    expect(signPayment).not.toHaveBeenCalled();
+  });
+
+  it('refuses oversized Payment-Required headers before signing', async () => {
+    const { signer, signPayment } = makeStubSigner();
+    const fetchImpl = vi.fn(async () =>
+      new Response(null, {
+        status: 402,
+        headers: { 'payment-required': 'A'.repeat(MAX_PAYMENT_HEADER_LENGTH + 1) },
       })
     );
 

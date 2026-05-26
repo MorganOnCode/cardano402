@@ -131,6 +131,16 @@ requireIncludes(
   'Payment gate tests must prove oversized payment headers are rejected before facilitator verification.'
 );
 requireIncludes(
+  'packages/mcp-server/src/payment.ts',
+  'decodePaymentRequiredHeader(headerValue)',
+  'MCP clients must strictly decode untrusted Payment-Required headers before signing.'
+);
+requireIncludes(
+  'packages/mcp-server/test/payment.test.ts',
+  'refuses oversized Payment-Required headers before signing',
+  'MCP payment tests must prove oversized Payment-Required headers are rejected before signing.'
+);
+requireIncludes(
   'src/verify/checks.ts',
   'invalid_pay_to',
   'Verification must turn malformed payment recipient addresses into structured invalid_pay_to failures.'

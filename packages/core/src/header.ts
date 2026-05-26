@@ -1,7 +1,9 @@
 import {
   PaymentPayloadSchema,
+  PaymentRequiredResponseSchema,
   PaymentSignaturePayloadSchema,
   type PaymentPayload,
+  type PaymentRequiredResponse,
   type PaymentSignaturePayload,
 } from './schemas.js';
 import {
@@ -67,6 +69,18 @@ export function decodePaymentSignatureHeader(headerValue: string): PaymentSignat
   if (!result.success) {
     throw new Cardano402ValidationError(
       'Decoded payment signature header did not match PaymentSignaturePayloadSchema',
+      result.error.issues
+    );
+  }
+  return result.data;
+}
+
+export function decodePaymentRequiredHeader(headerValue: string): PaymentRequiredResponse {
+  const parsedJson = decodePaymentHeaderJson(headerValue);
+  const result = PaymentRequiredResponseSchema.safeParse(parsedJson);
+  if (!result.success) {
+    throw new Cardano402ValidationError(
+      'Decoded Payment-Required header did not match PaymentRequiredResponseSchema',
       result.error.issues
     );
   }

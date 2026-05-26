@@ -70,6 +70,8 @@ Before release, verify:
 - Payment headers are decoded through the shared strict codec, have a bounded
   maximum length, and malformed or oversized values fail before facilitator
   verification.
+- MCP clients strictly decode untrusted `Payment-Required` response headers and
+  reject malformed or oversized values before signing.
 - CORS still allows `X-PAYMENT`.
 - Malformed `paymentRequirements.payTo` values return structured verification
   failures rather than public 500s.
