@@ -1,8 +1,8 @@
 # Stage 1: Build
 FROM node:20-alpine AS build
 
-# Enable corepack for pnpm
-RUN corepack enable
+# Enable the exact pnpm release declared in package.json for reproducible builds.
+RUN corepack enable && corepack prepare pnpm@10.8.1 --activate
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ RUN pnpm build
 # Stage 2: Production
 FROM node:20-alpine AS production
 
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.8.1 --activate
 
 WORKDIR /app
 

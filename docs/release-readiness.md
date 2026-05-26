@@ -109,6 +109,8 @@ Before release, verify:
   restore snapshots only into private directories.
 - Docker build context excludes local `secrets/` signing material and runtime
   `data/` uploads.
+- Docker build stages activate the pinned `pnpm@10.8.1` package-manager version
+  declared in `package.json`.
 - Production Compose fails fast without `REDIS_PASSWORD`, binds production
   ports to loopback, and drops unnecessary container privileges.
 - Production Redis uses AOF and `maxmemory-policy noeviction` so settlement

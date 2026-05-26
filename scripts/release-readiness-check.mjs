@@ -247,6 +247,11 @@ requireDockerignoreEntry(
   'Docker build context must exclude runtime uploaded data from data/.'
 );
 requireIncludes(
+  'Dockerfile',
+  'corepack prepare pnpm@10.8.1 --activate',
+  'Docker builds must activate the pinned packageManager pnpm version instead of Corepack defaults.'
+);
+requireIncludes(
   'src/config/schema.ts',
   'demo.seedPhraseFile is required when config.env is "production"',
   'Production demo configuration must reject inline demo seed material.'

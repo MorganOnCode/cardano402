@@ -23,8 +23,8 @@ admin-side branch protection/alerting enforcement.
 
 - Branch: `feat/mcp-0.1.3-hardening`
 - Pull request: `https://github.com/MorganOnCode/cardano402/pull/88`
-- Latest security/code head covered by this report:
-  `c2ec1ea fix(compose): pass production guard env`
+- Latest security/code change covered by this report:
+  Docker image builds now activate the pinned `pnpm@10.8.1` toolchain.
 - Previous production runtime hardening head:
   `c16176b fix(compose): harden production runtime defaults`
 - A docs-only progress refresh was pushed after that code head:
@@ -41,8 +41,7 @@ Current local status as of the `92c36f1` push: branch
 
 ## Pull request status
 
-Observed on 2026-05-26 UTC for PR #88 head
-`c2ec1ea fix(compose): pass production guard env`:
+Observed on 2026-05-26 UTC for the PR #88 Docker image-build hardening update:
 
 - Local verification for the deployment update completed successfully:
   `pnpm typecheck`, `pnpm lint`, `pnpm security:payments`,
@@ -53,8 +52,11 @@ Observed on 2026-05-26 UTC for PR #88 head
   JSON parse checks for both config templates, `pnpm typecheck`,
   `pnpm security:release`, development and production Compose service renders,
   `git diff --check`, and protected-name scan.
-- The current PR head `c2ec1ea` completed successfully on GitHub for CodeQL,
+- The previous PR head `0f0f478` completed successfully on GitHub for CodeQL,
   CI, Gitleaks, OSV-Scanner, Dependency Review, and zizmor.
+- The Docker image-build hardening update passed local `pnpm typecheck`,
+  `pnpm security:payments`, `pnpm security:release`, `git diff --check`, and
+  the protected-name scan before push.
 - All PR #88 review threads are resolved.
 
 Scorecard is configured as a scheduled security workflow but was not returned
@@ -255,6 +257,9 @@ needs admin-side enforcement of the documented required checks.
   `MAINNET` guardrail into the facilitator container.
 - Docker build context now excludes local `secrets/` signing files and runtime
   `data/` uploads, and `pnpm security:release` guards those exclusions.
+- Docker build stages now activate the pinned `pnpm@10.8.1`
+  package-manager version declared in `package.json`, and
+  `pnpm security:release` guards that reproducibility invariant.
 
 ## Live-site findings
 
@@ -264,7 +269,7 @@ Observed on 2026-05-26 UTC:
 - `/health`, `/supported`, `/verify`, and `/settle` are Cloudflare-challenged
   for non-browser clients.
 
-Most recent monitor evidence, 2026-05-26T07:39:17Z:
+Most recent monitor evidence, 2026-05-26T08:55:07Z:
 
 - `/.well-known/x402.json`: HTTP 200 JSON.
 - `/health`: HTTP 403 Cloudflare challenge, `cf-mitigated: challenge`.
@@ -321,12 +326,13 @@ Passing checks:
 
 Current live monitor status:
 
-- On 2026-05-26 at 07:39:17 UTC, `pnpm monitor:protocol -- --base-url
+- On 2026-05-26 at 08:55:07 UTC, `pnpm monitor:protocol -- --base-url
   https://cardano402.com --min-confirmations 6 --json` failed as expected
   against the live site with the same external Cloudflare challenge posture.
   `/.well-known/x402.json` returned HTTP 200 JSON; `/health`, `/supported`,
   `/verify`, and `/settle` returned HTTP 403 challenge HTML with
   `cf-mitigated: challenge`.
+- On 2026-05-26 at 07:39:17 UTC, the same monitor produced the same result.
 - On 2026-05-25 at 07:13:06 UTC, `pnpm monitor:protocol -- --base-url
   https://cardano402.com --json` failed as expected against the live site.
 - `/.well-known/x402.json` returned HTTP 200 JSON.
