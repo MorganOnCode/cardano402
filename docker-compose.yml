@@ -50,6 +50,11 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    environment:
+      - NODE_ENV=production
+      # Mainnet safety guardrail (src/chain/config.ts). Must be "true" when
+      # config.json has chain.network = "Mainnet"; "false" otherwise.
+      - MAINNET=${MAINNET:-false}
     cap_drop:
       - ALL
     security_opt:

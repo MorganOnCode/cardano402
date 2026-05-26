@@ -156,6 +156,16 @@ requireIncludes(
   'Production facilitator must write uploaded files only through an explicit data mount.'
 );
 requireIncludes(
+  'docker-compose.yml',
+  'NODE_ENV=production',
+  'Production facilitator must run with NODE_ENV=production.'
+);
+requireIncludes(
+  'docker-compose.yml',
+  'MAINNET=${MAINNET:-false}',
+  'Production facilitator must pass the MAINNET guardrail env var through Compose.'
+);
+requireIncludes(
   'docker-compose.prod.yml',
   './secrets:/run/secrets:ro',
   'VPS production Compose must mount local signing files read-only at the documented /run/secrets path.'

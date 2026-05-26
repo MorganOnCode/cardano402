@@ -252,6 +252,8 @@ needs admin-side enforcement of the documented required checks.
   so rate limits and logs use the real client IP.
 - Both production Redis Compose paths now use `maxmemory-policy noeviction` so
   settlement dedup keys fail closed under pressure instead of being evicted.
+- Both production Compose paths now pass `NODE_ENV=production` and the
+  `MAINNET` guardrail into the facilitator container.
 
 ## Live-site findings
 
