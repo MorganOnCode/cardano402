@@ -282,6 +282,21 @@ describe('POST /verify Route', () => {
     expect(body.invalidReason).toBe('invalid_request');
   });
 
+  it('should return invalid_request for over-uint64 payment amounts before verification', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/verify',
+      headers: { 'content-type': 'application/json' },
+      payload: createTestVerifyRequest({ amount: '18446744073709551616' }),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.isValid).toBe(false);
+    expect(body.invalidReason).toBe('invalid_request');
+    expect(mockVerifyPayment).not.toHaveBeenCalled();
+  });
+
   // ---- Unexpected errors ----
 
   it('should return HTTP 500 when verifyPayment throws unexpectedly', async () => {

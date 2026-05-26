@@ -180,6 +180,21 @@ requireIncludes(
   'returns internal_error when a dedup record has a malformed txHash',
   'Settlement tests must cover malformed txHash dedup records.'
 );
+requireIncludes(
+  'packages/core/src/schemas.ts',
+  'Lovelace amount must fit in uint64',
+  'Lovelace amount schema must bound public payment amounts before BigInt conversion.'
+);
+requireIncludes(
+  'tests/integration/verify-route.test.ts',
+  'over-uint64 payment amounts before verification',
+  'Verify route tests must prove oversized payment amounts are rejected before verification.'
+);
+requireIncludes(
+  'tests/integration/settle-route.test.ts',
+  'over-uint64 payment amounts before settlement',
+  'Settle route tests must prove oversized payment amounts are rejected before settlement.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {

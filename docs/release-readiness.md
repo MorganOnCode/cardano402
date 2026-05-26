@@ -78,6 +78,8 @@ Before release, verify:
   inheriting the smaller global JSON body limit or storing oversized files.
 - Settlement dedup records fail closed and structured when Redis contains
   corrupt JSON or malformed transaction hashes.
+- Public `paymentRequirements.amount` values are bounded before route-level
+  `BigInt` conversion.
 - `/health` exposes non-secret `policy.confirmation` and `policy.signer`.
 - `pnpm monitor:protocol -- --base-url https://cardano402.com --min-confirmations 6 --json`
   passes after Cloudflare machine-route rules are applied.

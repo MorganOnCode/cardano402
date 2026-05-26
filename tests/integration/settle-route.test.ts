@@ -266,6 +266,22 @@ describe('POST /settle Route', () => {
     expect(body.errorReason).toBe('invalid_request');
   });
 
+  it('should return invalid_request for over-uint64 payment amounts before settlement', async () => {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/settle',
+      headers: { 'content-type': 'application/json' },
+      payload: createTestSettleRequest({ amount: '18446744073709551616' }),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(false);
+    expect(body.network).toBe('cardano:preview');
+    expect(body.errorReason).toBe('invalid_request');
+    expect(mockSettlePayment).not.toHaveBeenCalled();
+  });
+
   // ---- VerifyContext assembly ----
 
   it('should pass VerifyContext and cborBytes to settlePayment with correct fields', async () => {
