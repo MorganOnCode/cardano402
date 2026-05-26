@@ -72,6 +72,8 @@ Before release, verify:
   verification.
 - MCP clients strictly decode untrusted `Payment-Required` response headers and
   reject malformed or oversized values before signing.
+- `/verify` and `/settle` strictly decode raw `paymentHeader` request bodies and
+  bound their size before verification or settlement work starts.
 - CORS still allows `X-PAYMENT`.
 - Malformed `paymentRequirements.payTo` values return structured verification
   failures rather than public 500s.

@@ -1,3 +1,4 @@
+import { MAX_PAYMENT_HEADER_LENGTH } from '@cardano402/core';
 import type { FastifyInstance } from 'fastify';
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 
@@ -272,6 +273,48 @@ describe('POST /settle Route', () => {
       url: '/settle',
       headers: { 'content-type': 'application/json' },
       payload: createTestSettleRequest({ amount: '18446744073709551616' }),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(false);
+    expect(body.network).toBe('cardano:preview');
+    expect(body.errorReason).toBe('invalid_request');
+    expect(mockSettlePayment).not.toHaveBeenCalled();
+  });
+
+  it('should return invalid_request for malformed paymentHeader before settlement', async () => {
+    const base = createTestSettleRequest();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/settle',
+      headers: { 'content-type': 'application/json' },
+      payload: {
+        x402Version: 2,
+        paymentHeader: '!!!not-base64!!!',
+        paymentRequirements: base.paymentRequirements,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(false);
+    expect(body.network).toBe('cardano:preview');
+    expect(body.errorReason).toBe('invalid_request');
+    expect(mockSettlePayment).not.toHaveBeenCalled();
+  });
+
+  it('should return invalid_request for oversized paymentHeader before settlement', async () => {
+    const base = createTestSettleRequest();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/settle',
+      headers: { 'content-type': 'application/json' },
+      payload: {
+        x402Version: 2,
+        paymentHeader: 'A'.repeat(MAX_PAYMENT_HEADER_LENGTH + 1),
+        paymentRequirements: base.paymentRequirements,
+      },
     });
 
     expect(response.statusCode).toBe(200);

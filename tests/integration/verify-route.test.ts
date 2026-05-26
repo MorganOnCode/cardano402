@@ -1,3 +1,4 @@
+import { MAX_PAYMENT_HEADER_LENGTH } from '@cardano402/core';
 import type { FastifyInstance } from 'fastify';
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 
@@ -288,6 +289,47 @@ describe('POST /verify Route', () => {
       url: '/verify',
       headers: { 'content-type': 'application/json' },
       payload: createTestVerifyRequest({ amount: '18446744073709551616' }),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.isValid).toBe(false);
+    expect(body.invalidReason).toBe('invalid_request');
+    expect(mockVerifyPayment).not.toHaveBeenCalled();
+  });
+
+  it('should return invalid_request for malformed paymentHeader before verification', async () => {
+    const base = createTestVerifyRequest();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/verify',
+      headers: { 'content-type': 'application/json' },
+      payload: {
+        x402Version: 2,
+        paymentHeader: '!!!not-base64!!!',
+        paymentRequirements: base.paymentRequirements,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.isValid).toBe(false);
+    expect(body.invalidReason).toBe('invalid_request');
+    expect(body.extensions.errorKind).toBe('invalid_base64');
+    expect(mockVerifyPayment).not.toHaveBeenCalled();
+  });
+
+  it('should return invalid_request for oversized paymentHeader before verification', async () => {
+    const base = createTestVerifyRequest();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/verify',
+      headers: { 'content-type': 'application/json' },
+      payload: {
+        x402Version: 2,
+        paymentHeader: 'A'.repeat(MAX_PAYMENT_HEADER_LENGTH + 1),
+        paymentRequirements: base.paymentRequirements,
+      },
     });
 
     expect(response.statusCode).toBe(200);

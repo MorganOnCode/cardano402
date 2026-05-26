@@ -225,6 +225,31 @@ requireIncludes(
   'over-uint64 payment amounts before settlement',
   'Settle route tests must prove oversized payment amounts are rejected before settlement.'
 );
+requireIncludes(
+  'src/verify/request-shape.ts',
+  'decodePaymentHeader(envelope.paymentHeader)',
+  'Verify/settle request normalisation must strictly decode raw paymentHeader bodies.'
+);
+requireIncludes(
+  'src/verify/request-shape.ts',
+  'paymentHeader: z.string().max(MAX_PAYMENT_HEADER_LENGTH)',
+  'Verify/settle request envelopes must bound raw paymentHeader bodies before normalisation.'
+);
+requireIncludes(
+  'tests/unit/verify/request-shape.test.ts',
+  'returns invalid_base64 when paymentHeader exceeds the strict header limit',
+  'Request-shape tests must prove oversized raw paymentHeader bodies are rejected.'
+);
+requireIncludes(
+  'tests/integration/verify-route.test.ts',
+  'malformed paymentHeader before verification',
+  'Verify route tests must prove malformed raw paymentHeader bodies do not reach verification.'
+);
+requireIncludes(
+  'tests/integration/settle-route.test.ts',
+  'malformed paymentHeader before settlement',
+  'Settle route tests must prove malformed raw paymentHeader bodies do not reach settlement.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {

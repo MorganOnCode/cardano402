@@ -2,6 +2,7 @@
 // either the cardano402-native paymentPayload shape or the base x402
 // paymentHeader (base64) shape.
 
+import { MAX_PAYMENT_HEADER_LENGTH } from '@cardano402/core';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -48,6 +49,15 @@ describe('FacilitatorRequestEnvelopeSchema', () => {
       paymentRequirements: samplePaymentRequirements,
     });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects oversized paymentHeader body fields at the envelope boundary', () => {
+    const result = FacilitatorRequestEnvelopeSchema.safeParse({
+      x402Version: 2,
+      paymentHeader: 'A'.repeat(MAX_PAYMENT_HEADER_LENGTH + 1),
+      paymentRequirements: samplePaymentRequirements,
+    });
+    expect(result.success).toBe(false);
   });
 
   it('rejects missing x402Version', () => {
@@ -106,6 +116,30 @@ describe('normaliseFacilitatorRequest', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('invalid_json');
+    }
+  });
+
+  it('returns invalid_base64 when paymentHeader contains invalid base64', () => {
+    const result = normaliseFacilitatorRequest({
+      x402Version: 2,
+      paymentHeader: '!!!not-base64!!!',
+      paymentRequirements: samplePaymentRequirements,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_base64');
+    }
+  });
+
+  it('returns invalid_base64 when paymentHeader exceeds the strict header limit', () => {
+    const result = normaliseFacilitatorRequest({
+      x402Version: 2,
+      paymentHeader: 'A'.repeat(MAX_PAYMENT_HEADER_LENGTH + 1),
+      paymentRequirements: samplePaymentRequirements,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid_base64');
     }
   });
 

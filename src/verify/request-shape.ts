@@ -9,6 +9,12 @@
 // existing clients, this module accepts either shape and normalises to the
 // internal `{ x402Version, paymentPayload, paymentRequirements }` form.
 
+import {
+  Cardano402DecodeError,
+  Cardano402ValidationError,
+  MAX_PAYMENT_HEADER_LENGTH,
+  decodePaymentHeader,
+} from '@cardano402/core';
 import { z } from 'zod';
 
 import { PaymentPayloadSchema, PaymentRequirementsSchema } from './types.js';
@@ -24,7 +30,7 @@ export const FacilitatorRequestEnvelopeSchema = z.object({
   x402Version: z.literal(2),
   paymentRequirements: PaymentRequirementsSchema,
   paymentPayload: z.unknown().optional(),
-  paymentHeader: z.string().optional(),
+  paymentHeader: z.string().max(MAX_PAYMENT_HEADER_LENGTH).optional(),
 });
 
 export type FacilitatorRequestEnvelope = z.infer<typeof FacilitatorRequestEnvelopeSchema>;
@@ -55,9 +61,7 @@ export type NormaliseResult =
  *  3. If only `paymentHeader` is present: base64-decode -> JSON -> Zod parse.
  *  4. If neither: return `missing_payload`.
  */
-export function normaliseFacilitatorRequest(
-  envelope: FacilitatorRequestEnvelope
-): NormaliseResult {
+export function normaliseFacilitatorRequest(envelope: FacilitatorRequestEnvelope): NormaliseResult {
   if (envelope.paymentPayload !== undefined) {
     const parsed = PaymentPayloadSchema.safeParse(envelope.paymentPayload);
     if (!parsed.success) {
@@ -81,54 +85,45 @@ export function normaliseFacilitatorRequest(
   }
 
   if (envelope.paymentHeader !== undefined) {
-    let json: string;
     try {
-      json = Buffer.from(envelope.paymentHeader, 'base64').toString('utf-8');
+      const decoded = decodePaymentHeader(envelope.paymentHeader);
+      return {
+        ok: true,
+        data: {
+          x402Version: 2,
+          paymentPayload: decoded,
+          paymentRequirements: envelope.paymentRequirements,
+        },
+      };
     } catch (error) {
+      if (error instanceof Cardano402DecodeError) {
+        const message = error.message;
+        return {
+          ok: false,
+          error: {
+            kind: message.startsWith('Invalid JSON') ? 'invalid_json' : 'invalid_base64',
+            message,
+          },
+        };
+      }
+      if (error instanceof Cardano402ValidationError) {
+        return {
+          ok: false,
+          error: {
+            kind: 'invalid_payload',
+            message: 'Decoded paymentHeader did not match the PaymentPayload schema',
+            issues: error.issues,
+          },
+        };
+      }
       return {
         ok: false,
         error: {
           kind: 'invalid_base64',
-          message:
-            error instanceof Error ? error.message : 'paymentHeader was not valid base64',
+          message: error instanceof Error ? error.message : 'paymentHeader was not valid base64',
         },
       };
     }
-
-    let value: unknown;
-    try {
-      value = JSON.parse(json);
-    } catch (error) {
-      return {
-        ok: false,
-        error: {
-          kind: 'invalid_json',
-          message:
-            error instanceof Error ? error.message : 'paymentHeader did not decode to JSON',
-        },
-      };
-    }
-
-    const parsed = PaymentPayloadSchema.safeParse(value);
-    if (!parsed.success) {
-      return {
-        ok: false,
-        error: {
-          kind: 'invalid_payload',
-          message: 'Decoded paymentHeader did not match the PaymentPayload schema',
-          issues: parsed.error.issues,
-        },
-      };
-    }
-
-    return {
-      ok: true,
-      data: {
-        x402Version: 2,
-        paymentPayload: parsed.data,
-        paymentRequirements: envelope.paymentRequirements,
-      },
-    };
   }
 
   return {
