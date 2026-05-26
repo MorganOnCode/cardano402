@@ -176,6 +176,10 @@ needs admin-side enforcement of the documented required checks.
 - `/status` now rejects non-hex transaction identifiers before they reach the
   Blockfrost client, preserving the existing `not_found` response for malformed
   polling input while avoiding provider work and avoidable 500s.
+- Resource-server payment gates now require
+  `settleResult.extensions.status === "confirmed"` before protected route
+  execution. Mempool success or missing settlement status returns a 402 instead
+  of serving the paid resource.
 
 ### Release readiness gate
 
@@ -263,6 +267,8 @@ Passing checks:
   - 33 tests passed
 - `pnpm test tests/unit/plugins/request-logger.test.ts -- --runInBand` - 2
   tests passed
+- `pnpm test tests/unit/sdk/payment-gate.test.ts -- --runInBand` - 21 tests
+  passed
 - `pnpm test tests/unit/verify/checks.test.ts tests/unit/verify/verify-payment.test.ts -- --runInBand`
   - 92 tests passed
 - `pnpm test packages/core/test/schemas.test.ts tests/integration/status-route.test.ts -- --runInBand`

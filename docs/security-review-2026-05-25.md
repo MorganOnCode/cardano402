@@ -255,7 +255,30 @@ Evidence:
 - `src/routes/settle.ts`
 - `tests/integration/settle-route.test.ts`
 
-### F6c - Sentry extra scrub was shallow
+### F6c - Resource payment gate trusted `success` without confirmed status
+
+Previous risk: `createPaymentGate` allowed protected route execution whenever
+the facilitator returned `success: true` from `/settle`, then emitted
+`extensions.status: "confirmed"` itself. If an operator configured settlement
+to allow mempool success, or if an external facilitator omitted
+`extensions.status`, the resource server could serve a paid resource before
+confirmed settlement while telling the client the payment was confirmed.
+
+Change:
+
+- The payment gate now requires `settleResult.extensions.status ===
+  "confirmed"` before allowing the protected handler to run.
+- Mempool or missing settlement status returns a 402 and does not execute the
+  paid route.
+- The response payment header now reflects the confirmed status returned by the
+  facilitator instead of inventing it.
+
+Evidence:
+
+- `src/sdk/payment-gate.ts`
+- `tests/unit/sdk/payment-gate.test.ts`
+
+### F6d - Sentry extra scrub was shallow
 
 Previous risk: request bodies and payment headers were redacted before Sentry
 events left the process, but `event.extra` redaction only checked top-level
@@ -275,7 +298,7 @@ Evidence:
 - `src/instrument.ts`
 - `tests/unit/instrument.test.ts`
 
-### F6d - Sentry environment config was ignored
+### F6e - Sentry environment config was ignored
 
 Previous risk: `config.sentry.environment` existed in the schema and deployment
 docs, but startup initialized Sentry with the broader `config.env` value. That
@@ -294,7 +317,7 @@ Evidence:
 - `src/index.ts`
 - `scripts/release-readiness-check.mjs`
 
-### F6e - Raw URL query strings reached logs, Sentry context, and metrics labels
+### F6f - Raw URL query strings reached logs, Sentry context, and metrics labels
 
 Previous risk: `request.url` includes query strings. Request logging, Sentry
 error context, 404 messages, and unmatched-route metrics could therefore carry
@@ -321,7 +344,7 @@ Evidence:
 - `tests/unit/plugins/error-handler.test.ts`
 - `tests/unit/routes/metrics.test.ts`
 
-### F6f - Development request logging could attach payment bodies
+### F6g - Development request logging could attach payment bodies
 
 Previous risk: the request logger had a development-mode branch that attached
 `request.body` to log records. Even though production did not use it, signed
@@ -341,7 +364,7 @@ Evidence:
 - `tests/unit/plugins/request-logger.test.ts`
 - `scripts/release-readiness-check.mjs`
 
-### F6g - Malformed `payTo` could escape as a public verification 500
+### F6h - Malformed `payTo` could escape as a public verification 500
 
 Previous risk: `/verify` and `/settle` receive caller-supplied
 `paymentRequirements`. The schemas ensure `payTo` is printable text, but the
@@ -365,7 +388,7 @@ Evidence:
 - `tests/unit/verify/checks.test.ts`
 - `tests/unit/verify/verify-payment.test.ts`
 
-### F6h - `/status` accepted non-hex transaction identifiers
+### F6i - `/status` accepted non-hex transaction identifiers
 
 Previous risk: `POST /status` validated transaction identifiers by length only.
 A 64-character non-hex string could reach the Blockfrost client and turn a

@@ -20,6 +20,7 @@ function createMockFacilitator(overrides: Partial<FacilitatorClient> = {}): Faci
       success: true,
       transaction: 'abc123def456',
       network: 'cardano:preview',
+      extensions: { status: 'confirmed' },
     }),
     status: vi.fn(),
     supported: vi.fn(),
@@ -276,6 +277,49 @@ describe('createPaymentGate', () => {
 
       expect(reply.status).toHaveBeenCalledWith(402);
       expect(reply.sent).toBe(true);
+    });
+
+    it('should return 402 when settlement status is mempool', async () => {
+      (facilitator.settle as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        success: true,
+        transaction: 'abc123def456',
+        network: 'cardano:preview',
+        extensions: { status: 'mempool' },
+      });
+
+      const handler = createHandler(options);
+      const signature = createPaymentSignature();
+      const request = createMockRequest({ 'payment-signature': signature });
+      const reply = createMockReply();
+
+      await handler(request, reply, vi.fn());
+
+      expect(reply.status).toHaveBeenCalledWith(402);
+      expect(reply.sent).toBe(true);
+      const headerValue = (reply.header as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+      const decoded = JSON.parse(Buffer.from(headerValue, 'base64').toString('utf-8'));
+      expect(decoded.error).toBe('Settlement not confirmed: mempool');
+    });
+
+    it('should return 402 when successful settlement omits extensions.status', async () => {
+      (facilitator.settle as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        success: true,
+        transaction: 'abc123def456',
+        network: 'cardano:preview',
+      });
+
+      const handler = createHandler(options);
+      const signature = createPaymentSignature();
+      const request = createMockRequest({ 'payment-signature': signature });
+      const reply = createMockReply();
+
+      await handler(request, reply, vi.fn());
+
+      expect(reply.status).toHaveBeenCalledWith(402);
+      expect(reply.sent).toBe(true);
+      const headerValue = (reply.header as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+      const decoded = JSON.parse(Buffer.from(headerValue, 'base64').toString('utf-8'));
+      expect(decoded.error).toBe('Settlement not confirmed: missing_status');
     });
   });
 

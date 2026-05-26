@@ -202,14 +202,22 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
       return;
     }
 
+    const settlementStatus = settleResult.extensions?.status;
+    if (settlementStatus !== 'confirmed') {
+      reply402(reply, {
+        ...paymentRequiredOptions,
+        url: request.url,
+        error: `Settlement not confirmed: ${settlementStatus ?? 'missing_status'}`,
+      });
+      return;
+    }
+
     // 6. Attach settlement info to request for downstream handlers
     const paymentResponse: PaymentResponseHeader = {
       success: true,
       transaction: settleResult.transaction,
       network: settleResult.network,
-      // Settlement only proceeds past the gate after on-chain confirmation,
-      // so we annotate the response with the spec-required extensions.status.
-      extensions: { status: 'confirmed' },
+      extensions: { status: settlementStatus },
     };
 
     // Store on request for route handlers to access
