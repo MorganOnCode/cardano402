@@ -341,6 +341,30 @@ Evidence:
 - `tests/unit/plugins/request-logger.test.ts`
 - `scripts/release-readiness-check.mjs`
 
+### F6g - Malformed `payTo` could escape as a public verification 500
+
+Previous risk: `/verify` and `/settle` receive caller-supplied
+`paymentRequirements`. The schemas ensure `payTo` is printable text, but the
+recipient canonicalization step parsed it as a Cardano address later in the
+verification pipeline. A malformed recipient address could throw from that
+parser and turn untrusted public input into an unexpected HTTP 500 instead of a
+structured invalid-payment response.
+
+Change:
+
+- `checkRecipient` now catches recipient address parse failures and returns
+  `invalid_pay_to`.
+- The verification failure mapper now exposes a human-readable message for that
+  reason.
+- Added regression coverage for malformed `payTo`.
+
+Evidence:
+
+- `src/verify/checks.ts`
+- `src/verify/verify-payment.ts`
+- `tests/unit/verify/checks.test.ts`
+- `tests/unit/verify/verify-payment.test.ts`
+
 ### F7 - Root facilitator config allowed inline Mainnet signing keys
 
 Previous risk: the hosted/resource-server facilitator config accepted inline

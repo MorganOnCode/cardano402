@@ -170,6 +170,9 @@ needs admin-side enforcement of the documented required checks.
   release readiness gate now fails if body logging or Fastify automatic request
   logging is reintroduced. This keeps signed payment payloads, raw transaction
   CBOR, nonces, and test credentials out of normal logs.
+- Malformed `paymentRequirements.payTo` values now return a structured
+  `invalid_pay_to` verification failure instead of escaping as a public 500
+  during Cardano address canonicalization.
 
 ### Release readiness gate
 
@@ -257,6 +260,8 @@ Passing checks:
   - 33 tests passed
 - `pnpm test tests/unit/plugins/request-logger.test.ts -- --runInBand` - 2
   tests passed
+- `pnpm test tests/unit/verify/checks.test.ts tests/unit/verify/verify-payment.test.ts -- --runInBand`
+  - 92 tests passed
 - `pnpm test tests/unit/sdk/payment-gate.test.ts tests/integration/server.test.ts -- --runInBand`
 - `pnpm security:payments`
 - `pnpm security:release`
