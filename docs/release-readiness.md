@@ -116,8 +116,11 @@ Before release, verify:
 - Production deployments with the live demo enabled use `demo.seedPhraseFile`
   for a separate Preview/Preprod demo wallet; inline demo seed material is
   rejected in production.
-- Public quota- or transaction-consuming routes, including `/demo/run`, use the
-  tighter sensitive route rate limit instead of only the global limiter.
+- Public quota- or transaction-consuming routes, including `/demo/run` and
+  `/demo/status`, use the tighter sensitive route rate limit instead of only
+  the global limiter.
+- `/demo/status` reports `configured: false` and `ready: false` when demo
+  wallet configuration is absent.
 - Backup and restore scripts reject loose restic credential-file permissions and
   restore snapshots only into private directories.
 - Docker build context excludes local `secrets/` signing material and runtime

@@ -380,6 +380,11 @@ Earlier full-suite verification after the same hardening line:
 
 - `pnpm test -- --runInBand` - 462 tests passed
 
+Additional demo route hardening:
+
+- `/demo/status` now uses the sensitive route limiter and reports
+  `configured: false`, `ready: false` when demo wallet configuration is absent.
+
 ## Remaining work
 
 1. Apply and verify the documented Cloudflare WAF skip/rate-limit rules on

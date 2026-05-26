@@ -35,15 +35,28 @@ function emit(reply: FastifyReply, event: string, data: unknown): void {
 
 const demoRoutes: FastifyPluginCallback = (fastify, _options, done) => {
   // GET /demo/status -- poll before starting
-  fastify.get('/demo/status', async (_req: FastifyRequest, reply: FastifyReply) => {
-    const cooldownRemaining =
-      lastRunAt !== null ? Math.max(0, DEMO_COOLDOWN_MS - (Date.now() - lastRunAt)) : 0;
-    return reply.send({
-      running: demoRunning,
-      cooldownRemainingMs: cooldownRemaining,
-      ready: !demoRunning && cooldownRemaining === 0,
-    });
-  });
+  fastify.get(
+    '/demo/status',
+    {
+      config: {
+        rateLimit: {
+          max: fastify.config.rateLimit.sensitive,
+          timeWindow: fastify.config.rateLimit.windowMs,
+        },
+      },
+    },
+    async (_req: FastifyRequest, reply: FastifyReply) => {
+      const configured = Boolean(fastify.config.demo);
+      const cooldownRemaining =
+        lastRunAt !== null ? Math.max(0, DEMO_COOLDOWN_MS - (Date.now() - lastRunAt)) : 0;
+      return reply.send({
+        configured,
+        running: demoRunning,
+        cooldownRemainingMs: cooldownRemaining,
+        ready: configured && !demoRunning && cooldownRemaining === 0,
+      });
+    }
+  );
 
   const runDemo = async (_req: FastifyRequest, reply: FastifyReply) => {
     // Guard: one demo at a time

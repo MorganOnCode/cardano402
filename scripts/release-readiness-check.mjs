@@ -341,9 +341,29 @@ requireIncludes(
   'Live demo route must use the tighter sensitive route rate limit.'
 );
 requireIncludes(
+  'src/routes/demo.ts',
+  'const configured = Boolean(fastify.config.demo)',
+  'Live demo status must not report readiness when demo configuration is absent.'
+);
+requireIncludes(
+  'src/routes/demo.ts',
+  'ready: configured && !demoRunning && cooldownRemaining === 0',
+  'Live demo status readiness must depend on configuration, concurrency, and cooldown state.'
+);
+requireIncludes(
   'tests/security/controls.test.ts',
   'should enforce tighter rate limits on /demo/run than global',
   'Security controls tests must prove the live demo route uses the sensitive limiter.'
+);
+requireIncludes(
+  'tests/security/controls.test.ts',
+  'should report demo status as not ready when demo config is absent',
+  'Security controls tests must prove demo status is not ready without demo configuration.'
+);
+requireIncludes(
+  'tests/security/controls.test.ts',
+  'should enforce tighter rate limits on /demo/status than global',
+  'Security controls tests must prove demo status uses the sensitive limiter.'
 );
 requireIncludes(
   'config/config.example.json',

@@ -99,6 +99,26 @@ describe('Security Controls', () => {
     expect(res2.statusCode).toBe(429);
   });
 
+  it('should report demo status as not ready when demo config is absent', async () => {
+    const res = await server.inject({ method: 'GET', url: '/demo/status' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      configured: false,
+      running: false,
+      cooldownRemainingMs: 0,
+      ready: false,
+    });
+  });
+
+  it('should enforce tighter rate limits on /demo/status than global', async () => {
+    const res1 = await server.inject({ method: 'GET', url: '/demo/status' });
+    expect(res1.statusCode).toBe(200);
+
+    const res2 = await server.inject({ method: 'GET', url: '/demo/status' });
+    expect(res2.statusCode).toBe(429);
+  });
+
   it('should allow /health at global rate limit (not sensitive)', async () => {
     // /health should still work at global rate (10), not sensitive (1)
     const res1 = await server.inject({ method: 'GET', url: '/health' });
