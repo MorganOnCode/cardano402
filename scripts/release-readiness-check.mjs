@@ -130,6 +130,16 @@ requireIncludes(
   'not.toHaveBeenCalled()',
   'Status route tests must prove invalid transaction hashes do not query Blockfrost.'
 );
+requireIncludes(
+  'src/routes/download.ts',
+  'isSupportedContentId',
+  'Download route must validate content identifiers before storage backend lookup.'
+);
+requireIncludes(
+  'tests/integration/download-route.test.ts',
+  'should reject malformed content identifiers before storage lookup',
+  'Download route tests must prove malformed content identifiers do not reach storage.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {

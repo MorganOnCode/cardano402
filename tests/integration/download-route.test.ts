@@ -3,6 +3,10 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vites
 
 import type { Config } from '../../src/config/index.js';
 
+const VALID_SHA256_CID = 'a'.repeat(64);
+const MISSING_SHA256_CID = 'b'.repeat(64);
+const VALID_IPFS_CID_V0 = 'QmYwAPJzv5CZsnAzt8auVTLU7nD6ETg2Lk6jrgLgGjif7K';
+
 // Mock Lucid Evolution packages to prevent native module loading (libsodium)
 vi.mock('@lucid-evolution/lucid', () => ({
   Lucid: vi.fn().mockResolvedValue({
@@ -107,7 +111,7 @@ describe('GET /files/:cid Route', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/files/abc123def456',
+        url: `/files/${VALID_SHA256_CID}`,
       });
 
       expect(response.statusCode).toBe(200);
@@ -121,7 +125,7 @@ describe('GET /files/:cid Route', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/files/abc123def456',
+        url: `/files/${VALID_SHA256_CID}`,
       });
 
       expect(response.statusCode).toBe(200);
@@ -138,7 +142,7 @@ describe('GET /files/:cid Route', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/files/nonexistent123',
+        url: `/files/${MISSING_SHA256_CID}`,
       });
 
       expect(response.statusCode).toBe(404);
@@ -149,7 +153,7 @@ describe('GET /files/:cid Route', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/files/nonexistent123',
+        url: `/files/${MISSING_SHA256_CID}`,
       });
 
       const body = JSON.parse(response.body);
@@ -169,7 +173,7 @@ describe('GET /files/:cid Route', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/files/abc123def456',
+        url: `/files/${VALID_SHA256_CID}`,
       });
 
       expect(response.statusCode).toBe(500);
@@ -186,12 +190,49 @@ describe('GET /files/:cid Route', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/files/abc123def456',
+        url: `/files/${VALID_SHA256_CID}`,
         // Intentionally no Payment-Signature header
       });
 
       expect(response.statusCode).not.toBe(402);
       expect(response.statusCode).toBe(200);
+    });
+
+    it('should allow IPFS CIDv0 identifiers through route validation', async () => {
+      (server.storage.has as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+      (server.storage.get as ReturnType<typeof vi.fn>).mockResolvedValue(Buffer.from('ipfs'));
+
+      const response = await server.inject({
+        method: 'GET',
+        url: `/files/${VALID_IPFS_CID_V0}`,
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(server.storage.has).toHaveBeenCalledWith(VALID_IPFS_CID_V0);
+    });
+
+    it('should reject malformed content identifiers before storage lookup', async () => {
+      const response = await server.inject({
+        method: 'GET',
+        url: '/files/not-a-cid',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.message).toBe('Content identifier is invalid');
+      expect(server.storage.has).not.toHaveBeenCalled();
+      expect(server.storage.get).not.toHaveBeenCalled();
+    });
+
+    it('should reject oversized content identifiers before storage lookup', async () => {
+      const response = await server.inject({
+        method: 'GET',
+        url: `/files/Qm${'1'.repeat(45)}`,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(server.storage.has).not.toHaveBeenCalled();
+      expect(server.storage.get).not.toHaveBeenCalled();
     });
   });
 });

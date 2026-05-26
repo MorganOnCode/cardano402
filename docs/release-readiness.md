@@ -72,6 +72,8 @@ Before release, verify:
   failures rather than public 500s.
 - `/status` transaction hashes are validated as 64-character lowercase hex
   before any chain-provider lookup.
+- `/files/:cid` validates content identifiers before backend lookup, so
+  malformed or oversized values do not reach filesystem/IPFS storage backends.
 - `/health` exposes non-secret `policy.confirmation` and `policy.signer`.
 - `pnpm monitor:protocol -- --base-url https://cardano402.com --min-confirmations 6 --json`
   passes after Cloudflare machine-route rules are applied.
