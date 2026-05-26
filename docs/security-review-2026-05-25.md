@@ -272,10 +272,13 @@ Change:
   paid route.
 - The response payment header now reflects the confirmed status returned by the
   facilitator instead of inventing it.
+- Release readiness now asserts the payment gate continues to inspect and
+  require confirmed settlement status.
 
 Evidence:
 
 - `src/sdk/payment-gate.ts`
+- `scripts/release-readiness-check.mjs`
 - `tests/unit/sdk/payment-gate.test.ts`
 
 ### F6d - Sentry extra scrub was shallow

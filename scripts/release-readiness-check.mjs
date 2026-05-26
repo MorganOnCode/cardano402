@@ -100,6 +100,16 @@ requireIncludes(
   'boundedRouteLabel(request.routeOptions?.url)',
   'Metrics route labels must use bounded route patterns instead of raw request URLs.'
 );
+requireIncludes(
+  'src/sdk/payment-gate.ts',
+  "settleResult.extensions?.status",
+  'Payment gate must inspect settlement confirmation status before serving protected routes.'
+);
+requireIncludes(
+  'src/sdk/payment-gate.ts',
+  "settlementStatus !== 'confirmed'",
+  'Payment gate must reject mempool or missing settlement status before serving protected routes.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {
