@@ -41,7 +41,7 @@ Flags:
 | `--pay-to-allowlist <a,b,c>`      | none          | Refuse to sign to addresses outside this comma-separated list                                     |
 | `--mainnet-confirmed-tools <a,b,c>` | none        | Required to register any tool whose catalog `network` is `cardano:mainnet`                        |
 | `--elicitation-threshold <lovelace>` | per-call cap | Amount above which an MCP `elicitation/create` confirmation is requested before signing       |
-| `--http-bearer-token <token>`     | none          | Require `Authorization: Bearer <token>` on every HTTP transport request                           |
+| `--http-bearer-token <token>`     | none          | Require `Authorization: Bearer <token>` on every HTTP transport request; minimum 32 characters    |
 | `--http-origin-allowlist <a,b,c>` | loopback only | Additional `Origin` header values to accept                                                       |
 | `-h`, `--help`                    |               | Print usage                                                                                       |
 
@@ -57,7 +57,7 @@ Environment:
 | `CARDANO402_ALLOW_INSECURE`           | `true` to permit non-HTTPS catalog URLs + private-CIDR base URLs        |
 | `MAINNET`                             | `true` is required to opt into a `Mainnet` connection                   |
 | `CARDANO402_LISTEN_HOST`              | Alternative to `--listen-host`                                          |
-| `MCP_HTTP_BEARER_TOKEN`               | Alternative to `--http-bearer-token`                                    |
+| `MCP_HTTP_BEARER_TOKEN`               | Alternative to `--http-bearer-token`; minimum 32 characters             |
 | `MCP_HTTP_ORIGIN_ALLOWLIST`           | Alternative to `--http-origin-allowlist`                                |
 | `CARDANO402_MAX_AMOUNT_PER_CALL`      | Alternative to `--max-amount-per-call`                                  |
 | `CARDANO402_MAX_AMOUNT_PER_DAY`       | Alternative to `--max-amount-per-day`                                   |
@@ -133,9 +133,9 @@ cased method, underscore, sanitised path. For example, a catalog entry
 - **HTTP transport defaults to loopback.** `--transport http` binds
   `127.0.0.1` by default. Anything else requires `--http-bearer-token`
   (so a wallet RPC is never exposed on a LAN/WAN without auth). The
-  transport also checks the `Origin` header (loopback +
-  `--http-origin-allowlist` only) and the bearer token on every
-  request.
+  bearer token must be at least 32 characters and is checked on every
+  request using constant-time comparison. The transport also checks the
+  `Origin` header (loopback + `--http-origin-allowlist` only).
 - **Mainnet tools are opt-in per-tool.** Catalog endpoints whose
   `network` is `cardano:mainnet` are dropped at register-time unless
   the operator names the derived tool in `--mainnet-confirmed-tools`.

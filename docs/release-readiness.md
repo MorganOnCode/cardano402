@@ -78,6 +78,8 @@ Before release, verify:
   reject malformed or oversized values before signing.
 - MCP clients bound and schema-check `X-Payment-Response` / `PAYMENT-RESPONSE`
   headers before surfacing paid-response metadata to agents.
+- MCP HTTP transport bearer tokens are at least 32 characters and are compared
+  in constant time when configured.
 - `/verify` and `/settle` strictly decode raw `paymentHeader` request bodies and
   bound their size before verification or settlement work starts.
 - Transaction CBOR payloads are strictly base64-decoded and size-bounded before

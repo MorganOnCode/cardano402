@@ -1,7 +1,7 @@
 // Orchestrate the MCP server: load catalog -> build signer -> register tools
 // -> connect to the chosen transport.
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer } from 'node:http';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -80,6 +80,14 @@ function readBearer(req: IncomingMessage): string | null {
   if (sep !== 0x20 && sep !== 0x09 && sep !== 0x0d && sep !== 0x0a) return null;
   const token = value.slice(7).trim();
   return token.length > 0 ? token : null;
+}
+
+function bearerMatches(presented: string | null, expected: string): boolean {
+  if (presented === null) return false;
+  const presentedBytes = Buffer.from(presented, 'utf8');
+  const expectedBytes = Buffer.from(expected, 'utf8');
+  if (presentedBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(presentedBytes, expectedBytes);
 }
 
 /**
@@ -232,7 +240,7 @@ export async function startCardano402Mcp(
         // ---- Bearer token (if configured) ----
         if (options.httpBearerToken) {
           const presented = readBearer(req);
-          if (presented !== options.httpBearerToken) {
+          if (!bearerMatches(presented, options.httpBearerToken)) {
             res.statusCode = 401;
             res.setHeader('content-type', 'application/json');
             res.setHeader('www-authenticate', 'Bearer realm="cardano402-mcp"');

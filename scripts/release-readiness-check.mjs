@@ -367,6 +367,21 @@ requireIncludes(
   'MCP clients must schema-check payment response headers before surfacing payment metadata.'
 );
 requireIncludes(
+  'packages/mcp-server/src/config.ts',
+  'httpBearerToken: z.string().min(32).optional()',
+  'MCP HTTP transport bearer tokens must require at least 32 characters.'
+);
+requireIncludes(
+  'packages/mcp-server/src/server.ts',
+  'timingSafeEqual',
+  'MCP HTTP transport bearer token checks must use constant-time comparison.'
+);
+requireIncludes(
+  'packages/mcp-server/test/config.test.ts',
+  'rejects short HTTP bearer tokens',
+  'MCP config tests must prove short HTTP bearer tokens are rejected.'
+);
+requireIncludes(
   'packages/mcp-server/src/payment.ts',
   'MAX_PAYMENT_HEADER_LENGTH',
   'MCP clients must bound payment response headers before base64/JSON parsing.'

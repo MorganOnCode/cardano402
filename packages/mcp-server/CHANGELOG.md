@@ -71,7 +71,8 @@ especially for any consumer running with `--transport http` or on Mainnet.
     that is not in `--http-origin-allowlist` are rejected with 403.
   - **Bearer token check.** When `--http-bearer-token` is configured,
     every request must echo it via `Authorization: Bearer <token>`;
-    otherwise 401 with a `WWW-Authenticate: Bearer` header.
+    otherwise 401 with a `WWW-Authenticate: Bearer` header. Tokens must
+    be at least 32 characters and are compared in constant time.
 - **Mainnet tool registration is opt-in per tool.** Endpoints whose
   catalog `network` is `cardano:mainnet` are dropped at register-time
   unless the operator named the derived tool in

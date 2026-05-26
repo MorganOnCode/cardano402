@@ -51,7 +51,7 @@ export const McpServerConfigSchema = z.object({
   /** Network interface for the HTTP transport. Defaults to loopback. */
   listenHost: z.string().default('127.0.0.1'),
   /** Optional bearer token required on every HTTP transport request. */
-  httpBearerToken: z.string().min(8).optional(),
+  httpBearerToken: z.string().min(32).optional(),
   /** Optional Origin allowlist for HTTP transport. Empty/undefined → loopback only. */
   httpOriginAllowlist: z.array(z.string()).default([]),
   network: LucidNetworkSchema.default('Preview'),
@@ -355,7 +355,7 @@ export function helpText(): string {
     '  --pay-to-allowlist <a,b,c>     Refuse to sign to addresses outside this comma-separated list',
     '  --mainnet-confirmed-tools <a,b,c>',
     '                                 Only register these tools when the catalog network is cardano:mainnet',
-    '  --http-bearer-token <token>    Require Authorization: Bearer <token> on every HTTP transport request',
+    '  --http-bearer-token <token>    Require Authorization: Bearer <token> on every HTTP transport request (min 32 chars)',
     '  --http-origin-allowlist <a,b,c>',
     '                                 Additional Origin header values to accept (loopback is always allowed)',
     '  --elicitation-threshold <lovelace>',

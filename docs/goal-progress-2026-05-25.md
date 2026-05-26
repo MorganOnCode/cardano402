@@ -119,6 +119,9 @@ needs admin-side enforcement of the documented required checks.
 - Added optional Semgrep payment-security rules at
   `semgrep/payment-security.yml` and exposed them as `pnpm security:semgrep`
   for teams that want AST-aware local or paid-review enforcement.
+- MCP HTTP transport bearer tokens now require at least 32 characters and are
+  checked with constant-time comparison when configured, with release-readiness
+  guards to prevent weakening the agent wallet RPC boundary.
 
 ### Dependency and audit posture
 

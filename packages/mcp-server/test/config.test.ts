@@ -258,6 +258,37 @@ describe('loadConfig', () => {
     expect(config.spendStorePath).toBe('/tmp/cardano402-spend.json');
   });
 
+  it('rejects short HTTP bearer tokens', () => {
+    expect(() =>
+      loadConfig({
+        argv: [
+          '--catalog',
+          'https://api.example.com/.well-known/x402.json',
+          '--transport',
+          'http',
+          '--http-bearer-token',
+          'short-token',
+        ],
+        env: VALID_ENV,
+      })
+    ).toThrow(/32|String must contain/);
+  });
+
+  it('accepts strong HTTP bearer tokens', () => {
+    const config = loadConfig({
+      argv: [
+        '--catalog',
+        'https://api.example.com/.well-known/x402.json',
+        '--transport',
+        'http',
+        '--http-bearer-token',
+        '0123456789abcdef0123456789abcdef',
+      ],
+      env: VALID_ENV,
+    });
+    expect(config.httpBearerToken).toBe('0123456789abcdef0123456789abcdef');
+  });
+
   it('CLI flag overrides CARDANO402_NETWORK env', () => {
     const config = loadConfig({
       argv: [
