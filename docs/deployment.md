@@ -41,6 +41,7 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 |-------|---------|-------------|
 | `server.port` | `3000` | HTTP listen port |
 | `server.host` | `"0.0.0.0"` | HTTP listen address |
+| `server.trustProxy` | `true` for production reverse-proxy deployments | Trust `X-Forwarded-*` headers from nginx/Cloudflare so rate limits and logs use the client IP |
 | `logging.level` | `"info"` | Log level (`debug`, `info`, `warn`, `error`) |
 | `logging.pretty` | `false` | Pretty-print logs (enable for development) |
 | `env` | `"development"` | Environment (`development`, `production`) |
@@ -126,6 +127,8 @@ pnpm dev
 
    Copy `config/config.example.json` to `config/config.json` and set:
    - `env` to `"production"`
+   - `server.trustProxy` to `true` when deployed behind nginx/Cloudflare on
+     the same host
    - `logging.pretty` to `false`
    - `chain.redis.host` to `"redis-prod"` (Docker Compose service name)
    - `chain.redis.password` to your Redis password

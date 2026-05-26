@@ -64,6 +64,9 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
     genReqId: () => randomUUID(),
     // Disable default request logging (we use custom plugin)
     disableRequestLogging: true,
+    // Production deployments bind to loopback and sit behind nginx/Cloudflare.
+    // When enabled, Fastify/rate-limit use the proxy-provided client IP.
+    trustProxy: config.server.trustProxy === true,
     // Security: Strict body limit (50KB) to prevent memory exhaustion
     bodyLimit: 51200,
   });

@@ -50,6 +50,7 @@ Set these fields:
 - `chain.redis.password` → same value as `REDIS_PASSWORD` in `.env`
 - `logging.level` → `"info"` (not `"debug"` in production)
 - `logging.pretty` → `false`
+- `server.trustProxy` → `true` when nginx/Cloudflare is the only public path
 - `env` → `"production"`
 
 Production Compose mounts `./secrets` read-only at `/run/secrets`. Create the
@@ -139,6 +140,9 @@ bash deploy.sh   # pulls git + rebuilds + restarts
 - The facilitator root filesystem is read-only in production; mutable uploaded
   file storage is limited to the explicit `./data:/app/data` mount and `/tmp`
   tmpfs
+- `server.trustProxy` should stay enabled only behind the loopback
+  nginx/Cloudflare path so rate limits use real client IPs without trusting
+  arbitrary direct traffic headers
 - The facilitator runs as a non-root user inside the container
 - Demo wallet seed material must use `demo.seedPhraseFile` in production and
   the file must be `0600`

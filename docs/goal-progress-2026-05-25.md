@@ -247,6 +247,9 @@ needs admin-side enforcement of the documented required checks.
   quickstart.
 - Production facilitator containers now run with a read-only root filesystem,
   an explicit `./data:/app/data` mutable storage mount, and `/tmp` tmpfs.
+- Production config now exposes `server.trustProxy` and enables it in the
+  production template for the documented loopback nginx/Cloudflare deployment,
+  so rate limits and logs use the real client IP.
 
 ## Live-site findings
 

@@ -73,6 +73,8 @@ export const ConfigSchema = z
       .object({
         host: z.string().default('0.0.0.0'),
         port: z.number().int().min(1).max(65535).default(3000),
+        /** Trust X-Forwarded-* headers from the deployment reverse proxy. */
+        trustProxy: z.boolean().optional(),
       })
       .default(() => ({ host: '0.0.0.0', port: 3000 })),
 

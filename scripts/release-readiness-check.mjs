@@ -191,6 +191,21 @@ requireIncludes(
   'Example production config must point at the production Redis service name.'
 );
 requireIncludes(
+  'config/config.example.json',
+  '"trustProxy": true',
+  'Example production config must trust the documented loopback reverse proxy so rate limits use real client IPs.'
+);
+requireIncludes(
+  'config/config.development.example.json',
+  '"trustProxy": false',
+  'Development config template must not trust spoofable forwarded headers.'
+);
+requireIncludes(
+  'src/server.ts',
+  'trustProxy: config.server.trustProxy === true',
+  'Fastify must wire server.trustProxy into the HTTP server so rate limits/logs use proxy-aware client IPs when configured.'
+);
+requireIncludes(
   'scripts/backup.sh',
   '$REPO_ROOT/secrets',
   'Encrypted backups must include local signing files from the production secrets directory when present.'

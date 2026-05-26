@@ -86,6 +86,8 @@ For routine deploys (no Dockerfile or compose change), `bash deploy.sh` runs the
 
 Copy `config/config.example.json` to `config/config.json` and set:
 - `env` to `"production"`
+- `server.trustProxy` to `true` when deployed behind nginx/Cloudflare on the
+  same host so rate limits and logs use the original client IP
 - `logging.pretty` to `false`
 - `chain.redis.host` to `"redis-prod"` (Docker service name)
 - `chain.redis.password` to your Redis password
@@ -123,6 +125,11 @@ facilitator with a read-only root filesystem plus `/tmp` tmpfs, and keeps
 development-only Redis/IPFS services out of the production profile. The
 production containers also drop ambient Linux capabilities and set
 `no-new-privileges`.
+
+Because the production service binds to loopback and is reached through the
+local reverse proxy, set `server.trustProxy: true`. Do not enable it for a
+deployment that accepts direct public traffic without a trusted proxy boundary,
+because clients could spoof `X-Forwarded-*` headers.
 
 ### 4. Verify deployment
 

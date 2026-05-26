@@ -58,7 +58,7 @@ describe('Config Loading', () => {
 
   it('should override defaults with provided values', () => {
     const customConfig = {
-      server: { port: 8080 },
+      server: { port: 8080, trustProxy: true },
       logging: { level: 'debug' },
       chain: minimalChainConfig,
     };
@@ -66,6 +66,7 @@ describe('Config Loading', () => {
     const config = loadConfig(TEST_CONFIG_PATH);
 
     expect(config.server.port).toBe(8080);
+    expect(config.server.trustProxy).toBe(true);
     expect(config.logging.level).toBe('debug');
   });
 
