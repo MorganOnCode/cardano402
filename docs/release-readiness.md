@@ -71,6 +71,7 @@ Before release, verify:
   client input.
 - `X-PAYMENT` and `Payment-Signature` request headers remain accepted where
   expected.
+- CORS preflight methods remain limited to the public GET/POST API surface.
 - Payment headers are decoded through the shared strict codec, have a bounded
   maximum length, and malformed or oversized values fail before facilitator
   verification.

@@ -116,7 +116,7 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   // CORS - permissive in dev, restrictive in prod
   await server.register(cors, {
     origin: isDev ? true : false,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
       'Authorization',

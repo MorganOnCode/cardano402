@@ -95,6 +95,8 @@ needs admin-side enforcement of the documented required checks.
 
 - `createPaymentGate` now accepts both `Payment-Signature` and `X-PAYMENT`.
 - CORS now allows `X-PAYMENT`.
+- CORS preflight methods are limited to the public GET/POST API surface instead
+  of advertising unused mutation verbs.
 - Added regression coverage for the `X-PAYMENT` alias, including a real
   Fastify request through the actual payment gate pre-handler.
 - `createPaymentGate` now keeps the nested verify `accepted.network`

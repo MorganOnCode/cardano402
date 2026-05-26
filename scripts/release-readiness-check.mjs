@@ -144,6 +144,11 @@ requireIncludes(
   'Fastify automatic request logging must stay disabled so URL redaction is controlled by request-logger.'
 );
 requireIncludes(
+  'src/server.ts',
+  "methods: ['GET', 'POST', 'OPTIONS']",
+  'CORS preflight methods must stay limited to the public GET/POST API surface.'
+);
+requireIncludes(
   'scripts/backup.sh',
   'require_private_file "$ENV_FILE" "restic env file"',
   'Backup script must reject loose permissions on the restic credential env file.'
