@@ -1,3 +1,4 @@
+import { MAX_PAYMENT_HEADER_LENGTH } from '@cardano402/core';
 import fastify from 'fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -28,7 +29,7 @@ function createMockFacilitator(overrides: Partial<FacilitatorClient> = {}): Faci
   } as unknown as FacilitatorClient;
 }
 
-function createMockRequest(headers: Record<string, string> = {}): FastifyRequest {
+function createMockRequest(headers: Record<string, string | string[]> = {}): FastifyRequest {
   return {
     headers,
     url: '/test',
@@ -160,6 +161,36 @@ describe('createPaymentGate', () => {
 
       expect(reply.status).toHaveBeenCalledWith(402);
       expect(reply.sent).toBe(true);
+      expect(facilitator.verify).not.toHaveBeenCalled();
+      expect(facilitator.settle).not.toHaveBeenCalled();
+    });
+
+    it('should return 402 for oversized payment headers before verification', async () => {
+      const handler = createHandler(options);
+      const request = createMockRequest({
+        'payment-signature': 'A'.repeat(MAX_PAYMENT_HEADER_LENGTH + 1),
+      });
+      const reply = createMockReply();
+
+      await handler(request, reply, vi.fn());
+
+      expect(reply.status).toHaveBeenCalledWith(402);
+      expect(reply.sent).toBe(true);
+      expect(facilitator.verify).not.toHaveBeenCalled();
+      expect(facilitator.settle).not.toHaveBeenCalled();
+    });
+
+    it('should use the first Node-style array payment header value', async () => {
+      const handler = createHandler(options);
+      const signature = createPaymentSignature();
+      const request = createMockRequest({ 'payment-signature': [signature, '!!!not-base64!!!'] });
+      const reply = createMockReply();
+
+      await handler(request, reply, vi.fn());
+
+      expect(reply.sent).toBe(false);
+      expect(facilitator.verify).toHaveBeenCalledTimes(1);
+      expect(facilitator.settle).toHaveBeenCalledTimes(1);
     });
 
     it('should return 402 for valid base64 but invalid JSON', async () => {

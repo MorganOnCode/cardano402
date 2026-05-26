@@ -67,6 +67,9 @@ Before release, verify:
   client input.
 - `X-PAYMENT` and `Payment-Signature` request headers remain accepted where
   expected.
+- Payment headers are decoded through the shared strict codec, have a bounded
+  maximum length, and malformed or oversized values fail before facilitator
+  verification.
 - CORS still allows `X-PAYMENT`.
 - Malformed `paymentRequirements.payTo` values return structured verification
   failures rather than public 500s.

@@ -5,12 +5,12 @@
 // Implements settle-before-execution (SECU-04): payment is confirmed on-chain
 // BEFORE the route handler runs.
 
+import { decodePaymentSignatureHeader, findPaymentHeader } from '@cardano402/core';
 import type { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify';
 
 import type { FacilitatorClient } from './facilitator-client.js';
 import { reply402 } from './payment-required.js';
 import type { PaymentRequiredOptions } from './payment-required.js';
-import { PaymentSignaturePayloadSchema } from './types.js';
 import type { PaymentResponseHeader } from './types.js';
 
 export interface PaymentGateOptions {
@@ -30,24 +30,6 @@ export interface PaymentGateOptions {
   description?: string;
   /** Resource MIME type (default: "application/octet-stream") */
   mimeType?: string;
-}
-
-/**
- * Decode the Payment-Signature/X-PAYMENT header from a request.
- * Returns the parsed payload or null if invalid.
- */
-function decodePaymentSignature(
-  headerValue: string
-): ReturnType<typeof PaymentSignaturePayloadSchema.safeParse> {
-  try {
-    const json = Buffer.from(headerValue, 'base64').toString('utf-8');
-    const parsed = JSON.parse(json) as unknown;
-    return PaymentSignaturePayloadSchema.safeParse(parsed);
-  } catch {
-    return { success: false, error: { message: 'Invalid base64 or JSON' } } as ReturnType<
-      typeof PaymentSignaturePayloadSchema.safeParse
-    >;
-  }
 }
 
 /**
@@ -79,9 +61,7 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
     reply: FastifyReply
   ): Promise<void> {
     // 1. Check for Payment-Signature header and the base-x402 X-PAYMENT alias.
-    const paymentHeader = (request.headers['payment-signature'] ?? request.headers['x-payment']) as
-      | string
-      | undefined;
+    const paymentHeader = findPaymentHeader(request.headers);
 
     if (!paymentHeader) {
       // Return 402 with payment requirements
@@ -90,9 +70,10 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
     }
 
     // 2. Decode and validate payment payload
-    const decoded = decodePaymentSignature(paymentHeader);
-
-    if (!decoded.success) {
+    let payload;
+    try {
+      payload = decodePaymentSignatureHeader(paymentHeader);
+    } catch {
       reply402(reply, {
         ...paymentRequiredOptions,
         url: request.url,
@@ -100,8 +81,6 @@ export function createPaymentGate(options: PaymentGateOptions): preHandlerHookHa
       });
       return;
     }
-
-    const payload = decoded.data;
 
     // 3. Build verify request from the payment payload
     const verifyRequest = {

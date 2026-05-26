@@ -38,8 +38,10 @@ function readRelative(path) {
 
 function checkPaymentGateAlias() {
   const source = readRelative('src/sdk/payment-gate.ts');
-  if (!source.includes("request.headers['x-payment']")) {
-    fail('src/sdk/payment-gate.ts must accept the base x402 X-PAYMENT request header alias.');
+  if (!source.includes('findPaymentHeader(request.headers)')) {
+    fail(
+      'src/sdk/payment-gate.ts must use shared payment header lookup so the base x402 X-PAYMENT request header alias remains accepted.'
+    );
   }
 
   const tests = readRelative('tests/unit/sdk/payment-gate.test.ts');

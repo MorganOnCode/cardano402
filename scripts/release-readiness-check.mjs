@@ -111,6 +111,26 @@ requireIncludes(
   'Payment gate must reject mempool or missing settlement status before serving protected routes.'
 );
 requireIncludes(
+  'packages/core/src/header.ts',
+  'MAX_PAYMENT_HEADER_LENGTH',
+  'Payment header decoding must bound public header size before base64/JSON parsing.'
+);
+requireIncludes(
+  'src/sdk/payment-gate.ts',
+  'findPaymentHeader(request.headers)',
+  'Payment gate must use shared payment header lookup for casing and Node-style array handling.'
+);
+requireIncludes(
+  'src/sdk/payment-gate.ts',
+  'decodePaymentSignatureHeader(paymentHeader)',
+  'Payment gate must use shared strict payment signature decoding instead of permissive Buffer base64 decoding.'
+);
+requireIncludes(
+  'tests/unit/sdk/payment-gate.test.ts',
+  'oversized payment headers before verification',
+  'Payment gate tests must prove oversized payment headers are rejected before facilitator verification.'
+);
+requireIncludes(
   'src/verify/checks.ts',
   'invalid_pay_to',
   'Verification must turn malformed payment recipient addresses into structured invalid_pay_to failures.'
