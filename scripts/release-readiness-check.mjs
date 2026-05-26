@@ -160,6 +160,26 @@ requireIncludes(
   'should reject files over the upload limit before storage write',
   'Upload tests must prove oversized files are rejected before storage writes.'
 );
+requireIncludes(
+  'src/settle/settle-payment.ts',
+  'function isTxHash',
+  'Settlement dedup handling must validate transaction hashes before Redis keys or chain lookups.'
+);
+requireIncludes(
+  'src/settle/settle-payment.ts',
+  'Settlement dedup record is not valid JSON',
+  'Settlement dedup handling must turn corrupt Redis JSON into a structured failure.'
+);
+requireIncludes(
+  'tests/unit/settle/settle-payment.test.ts',
+  'returns internal_error when a dedup record is not valid JSON',
+  'Settlement tests must cover corrupt Redis JSON dedup records.'
+);
+requireIncludes(
+  'tests/unit/settle/settle-payment.test.ts',
+  'returns internal_error when a dedup record has a malformed txHash',
+  'Settlement tests must cover malformed txHash dedup records.'
+);
 
 const packageJson = JSON.parse(read('package.json'));
 if (packageJson.scripts?.prepublishOnly !== 'pnpm build') {
