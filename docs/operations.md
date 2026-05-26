@@ -126,6 +126,10 @@ development-only Redis/IPFS services out of the production profile. The
 production containers also drop ambient Linux capabilities and set
 `no-new-privileges`.
 
+Production Redis uses AOF plus `maxmemory-policy noeviction`. Settlement dedup
+records are part of replay protection; if Redis memory is exhausted, writes
+must fail loudly instead of evicting dedup keys.
+
 Because the production service binds to loopback and is reached through the
 local reverse proxy, set `server.trustProxy: true`. Do not enable it for a
 deployment that accepts direct public traffic without a trusted proxy boundary,

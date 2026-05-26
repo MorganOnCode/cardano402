@@ -250,6 +250,8 @@ needs admin-side enforcement of the documented required checks.
 - Production config now exposes `server.trustProxy` and enables it in the
   production template for the documented loopback nginx/Cloudflare deployment,
   so rate limits and logs use the real client IP.
+- Both production Redis Compose paths now use `maxmemory-policy noeviction` so
+  settlement dedup keys fail closed under pressure instead of being evicted.
 
 ## Live-site findings
 

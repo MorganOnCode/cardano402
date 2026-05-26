@@ -68,7 +68,14 @@ services:
       - "127.0.0.1:6380:6379"
     volumes:
       - redis_prod_data:/data
-    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis-prod}"
+    # noeviction is required for fund-safety: settlement dedup keys are part
+    # of replay protection and must fail loudly under pressure, not disappear.
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis-prod}"
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
     cap_drop:
       - ALL
     security_opt:

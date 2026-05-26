@@ -109,6 +109,8 @@ Before release, verify:
   restore snapshots only into private directories.
 - Production Compose fails fast without `REDIS_PASSWORD`, binds production
   ports to loopback, and drops unnecessary container privileges.
+- Production Redis uses AOF and `maxmemory-policy noeviction` so settlement
+  dedup keys are not silently evicted under memory pressure.
 - Production config sets `server.trustProxy` only for the documented
   loopback reverse-proxy deployment so rate limits/logs use real client IPs.
 - High-value Mainnet deployments have an implementation plan for the remote or

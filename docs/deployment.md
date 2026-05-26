@@ -177,7 +177,7 @@ pnpm dev
 | `production` | `facilitator` | 127.0.0.1:3000 | Facilitator server |
 | `production` | `redis-prod` | 127.0.0.1:6380 | Production Redis (with auth) |
 
-The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting. Production Compose fails fast when `REDIS_PASSWORD` is unset, mounts `./secrets` read-only at `/run/secrets`, mounts `./data` for stored files, runs the facilitator with a read-only root filesystem plus `/tmp` tmpfs, and binds ports to loopback for local reverse-proxy access.
+The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting. Production Compose fails fast when `REDIS_PASSWORD` is unset, runs Redis with AOF and `maxmemory-policy noeviction` for settlement dedup safety, mounts `./secrets` read-only at `/run/secrets`, mounts `./data` for stored files, runs the facilitator with a read-only root filesystem plus `/tmp` tmpfs, and binds ports to loopback for local reverse-proxy access.
 
 ### Custom Docker Build
 

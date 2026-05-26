@@ -127,6 +127,11 @@ requireIncludes(
 );
 requireIncludes(
   'docker-compose.yml',
+  '--maxmemory-policy noeviction',
+  'Production Redis must use noeviction so settlement dedup keys are not silently evicted.'
+);
+requireIncludes(
+  'docker-compose.yml',
   'no-new-privileges:true',
   'Production containers must opt into no-new-privileges.'
 );
@@ -164,6 +169,11 @@ requireIncludes(
   'docker-compose.prod.yml',
   '${REDIS_PASSWORD:?REDIS_PASSWORD is required for redis}',
   'VPS production Redis must fail fast when REDIS_PASSWORD is unset.'
+);
+requireIncludes(
+  'docker-compose.prod.yml',
+  '--maxmemory-policy noeviction',
+  'VPS production Redis must use noeviction so settlement dedup keys are not silently evicted.'
 );
 requireIncludes(
   'docker-compose.prod.yml',
