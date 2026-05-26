@@ -46,6 +46,10 @@ services:
     volumes:
       - ./config/config.json:/app/config/config.json:ro
       - ./secrets:/run/secrets:ro
+      - ./data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
     cap_drop:
       - ALL
     security_opt:

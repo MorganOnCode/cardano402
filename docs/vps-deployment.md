@@ -136,6 +136,9 @@ bash deploy.sh   # pulls git + rebuilds + restarts
 - Redis requires a password in production
 - Production Compose fails fast if `REDIS_PASSWORD` is unset and binds the
   facilitator and Redis ports to `127.0.0.1` for nginx/local access only
+- The facilitator root filesystem is read-only in production; mutable uploaded
+  file storage is limited to the explicit `./data:/app/data` mount and `/tmp`
+  tmpfs
 - The facilitator runs as a non-root user inside the container
 - Demo wallet seed material must use `demo.seedPhraseFile` in production and
   the file must be `0600`

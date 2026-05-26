@@ -245,6 +245,8 @@ needs admin-side enforcement of the documented required checks.
   `pnpm dev` usage so the production-shaped config template can keep
   `redis-prod` and `/run/secrets` defaults without breaking the development
   quickstart.
+- Production facilitator containers now run with a read-only root filesystem,
+  an explicit `./data:/app/data` mutable storage mount, and `/tmp` tmpfs.
 
 ## Live-site findings
 

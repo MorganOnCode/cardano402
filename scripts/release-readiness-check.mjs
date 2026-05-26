@@ -141,9 +141,24 @@ requireIncludes(
   'Production facilitator must mount local signing files read-only at the documented /run/secrets path.'
 );
 requireIncludes(
+  'docker-compose.yml',
+  'read_only: true',
+  'Production facilitator must run with a read-only root filesystem.'
+);
+requireIncludes(
+  'docker-compose.yml',
+  './data:/app/data',
+  'Production facilitator must write uploaded files only through an explicit data mount.'
+);
+requireIncludes(
   'docker-compose.prod.yml',
   './secrets:/run/secrets:ro',
   'VPS production Compose must mount local signing files read-only at the documented /run/secrets path.'
+);
+requireIncludes(
+  'docker-compose.prod.yml',
+  'read_only: true',
+  'VPS production facilitator must run with a read-only root filesystem.'
 );
 requireIncludes(
   'docker-compose.prod.yml',

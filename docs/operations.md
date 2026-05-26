@@ -118,9 +118,11 @@ This starts:
 - `cardano402-redis-prod` -- Redis with authentication (`127.0.0.1:6380`)
 
 Production Compose fails fast if `REDIS_PASSWORD` is unset, mounts `./secrets`
-read-only at `/run/secrets`, and keeps development-only Redis/IPFS services out
-of the production profile. The production containers also drop ambient Linux
-capabilities and set `no-new-privileges`.
+read-only at `/run/secrets`, mounts `./data` for stored files, runs the
+facilitator with a read-only root filesystem plus `/tmp` tmpfs, and keeps
+development-only Redis/IPFS services out of the production profile. The
+production containers also drop ambient Linux capabilities and set
+`no-new-privileges`.
 
 ### 4. Verify deployment
 
