@@ -102,7 +102,7 @@
     "@fastify/swagger": "^9.7.0",
     "@fastify/swagger-ui": "^5.2.6",
     "@lucid-evolution/lucid": "0.4.29",
-    "@lucid-evolution/provider": "0.1.90",
+    "@lucid-evolution/provider": "0.1.94",
     "@sentry/node": "^10.53.1",
     "fastify": "^5.8.5",
     "fastify-plugin": "^5.1.0",
