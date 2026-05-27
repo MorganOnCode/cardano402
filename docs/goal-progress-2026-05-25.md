@@ -60,8 +60,10 @@ Observed on 2026-05-26 UTC for the PR #88 Docker image-build hardening update:
 - All PR #88 review threads are resolved.
 
 Scorecard is configured as a scheduled security workflow but was not returned
-for this PR head in the workflow-run lookup. Repository branch protection still
-needs admin-side enforcement of the documented required checks.
+for this PR head in the workflow-run lookup. Repository branch protection now
+requires strict status checks for CI jobs plus CodeQL, secret scanning,
+Dependency Review, OSV PR scanning, and workflow static analysis before merging
+to `master`.
 
 ## In-scope changes made
 
@@ -438,6 +440,10 @@ Additional MCP catalog hardening:
   only the exact scheme is advertised, signer map keys must be CAIP-style chain
   IDs or family wildcards, and malformed signer addresses fail closed with a
   server error instead of being returned to agents.
+- Repository branch protection now requires the documented merge checks:
+  `Lint & Type Check`, `Test`, `Build`, `Docker Build`, `Security Audit`,
+  `CodeQL`, `Scan for secrets`, `Dependency Review`, `scan-pr / osv-scan`, and
+  `zizmor (workflow static analysis)`, with strict branch freshness enabled.
 
 ## Remaining work
 
@@ -455,9 +461,6 @@ Additional MCP catalog hardening:
    now aligned, but quota dashboards and incident procedures still need an
    operator-level pass.
 5. Optional Semgrep rules for richer AST-aware payment anti-pattern detection.
-6. Repository admin branch protection still needs to require the documented
-   checks before merge; the in-repo release readiness gate now makes the desired
-   check set explicit and CI-enforced.
 
 ## Current summary
 
