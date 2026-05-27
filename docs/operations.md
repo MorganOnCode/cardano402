@@ -261,6 +261,7 @@ without JavaScript or cookies.
 - `/.well-known/agent-card.json`
 - `/.well-known/ai-agent.json`
 - `/.well-known/mcp/server-card.json`
+- `/health`
 - `/supported`
 - `/verify`
 - `/settle`
