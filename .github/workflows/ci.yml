@@ -102,6 +102,10 @@ jobs:
       - name: Verify image runs
         run: |
           docker run --rm cardano402:ci node -e "console.log('Container starts OK')"
+      - name: Smoke test production Compose
+        run: |
+          docker tag cardano402:ci cardano402:latest
+          bash scripts/prod-compose-smoke.sh
 
   security:
     name: Security Audit

@@ -130,6 +130,21 @@ requireIncludes(
   'pnpm security:release',
   'CI security job must run release readiness invariants.'
 );
+requireIncludes(
+  '.github/workflows/ci.yml',
+  'bash scripts/prod-compose-smoke.sh',
+  'CI Docker job must boot the production Compose stack and verify /health.'
+);
+requireIncludes(
+  'deploy.sh',
+  'git rev-parse --abbrev-ref HEAD',
+  'deploy.sh must assert the current branch before pulling or building.'
+);
+requireIncludes(
+  'deploy.sh',
+  'deploy.sh must be run from the master branch',
+  'deploy.sh must refuse to deploy feature branches.'
+);
 requireFile('semgrep/payment-security.yml');
 requireIncludes(
   'package.json',
@@ -231,6 +246,11 @@ requireIncludes(
 );
 requireIncludes(
   'docker-compose.yml',
+  'user: "999:1000"',
+  'Redis containers must run as the redis UID/GID directly so cap_drop: ALL does not break AOF directory access.'
+);
+requireIncludes(
+  'docker-compose.yml',
   'no-new-privileges:true',
   'Production containers must opt into no-new-privileges.'
 );
@@ -288,6 +308,11 @@ requireIncludes(
   'docker-compose.prod.yml',
   '--maxmemory-policy noeviction',
   'VPS production Redis must use noeviction so settlement dedup keys are not silently evicted.'
+);
+requireIncludes(
+  'docker-compose.prod.yml',
+  'user: "999:1000"',
+  'VPS production Redis must run as the redis UID/GID directly so cap_drop: ALL does not break AOF directory access.'
 );
 requireIncludes(
   'docker-compose.prod.yml',

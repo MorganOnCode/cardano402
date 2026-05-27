@@ -67,6 +67,7 @@ services:
     image: redis:7-alpine
     container_name: cardano402-redis
     restart: unless-stopped
+    user: "999:1000"
     # noeviction is required for fund-safety: the settle/* dedup records
     # (24h TTL) are what makes /settle idempotent against witness-mutation
     # replay. allkeys-lru would let those keys be evicted under memory

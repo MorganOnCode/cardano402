@@ -25,6 +25,7 @@ services:
     container_name: cardano402-redis
     profiles:
       - development
+    user: "999:1000"
     ports:
       - "6379:6379"
     volumes:
@@ -71,6 +72,7 @@ services:
     container_name: cardano402-redis-prod
     profiles:
       - production
+    user: "999:1000"
     ports:
       - "127.0.0.1:6380:6379"
     volumes:

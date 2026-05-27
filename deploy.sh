@@ -12,6 +12,13 @@
 
 set -euo pipefail
 
+branch="$(git rev-parse --abbrev-ref HEAD)"
+if [ "$branch" != "master" ]; then
+  echo "ERROR: deploy.sh must be run from the master branch, not '$branch'." >&2
+  echo "Run: git switch master && git pull origin master && bash deploy.sh" >&2
+  exit 1
+fi
+
 echo "==> Pulling latest code..."
 git pull origin master
 
