@@ -468,13 +468,15 @@ Additional MCP catalog hardening:
 
 1. Apply and verify the documented Cloudflare WAF skip/rate-limit rules on
    the live zone. The runbook and monitor now exist; the external Cloudflare
-   state still needs to be changed.
+   state still needs to be changed. Tracked as
+   <https://github.com/MorganOnCode/cardano402/issues/94>.
 2. After the Cloudflare changes are applied, run the new protocol monitor
    workflow manually against `https://cardano402.com` and require it as an
    operational check for the live service.
 3. Implement the remote signer / external policy signer design for Mainnet.
    The design target is now documented; code still uses local Lucid file-backed
-   signing material for the root facilitator.
+   signing material for the root facilitator. Tracked as
+   <https://github.com/MorganOnCode/cardano402/issues/95>.
 4. Deployment runbook hardening for Blockfrost quota dashboards, rate-limit
    tuning, and incident response. The production secret/Compose/backup path is
    now aligned, but quota dashboards and incident procedures still need an
