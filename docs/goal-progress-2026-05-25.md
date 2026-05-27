@@ -41,7 +41,22 @@ Current local status as of the `92c36f1` push: branch
 
 ## Pull request status
 
-Observed on 2026-05-26 UTC for the PR #88 Docker image-build hardening update:
+Observed on 2026-05-27 UTC for PR #88 head `f7be24b`:
+
+- PR #88 is current with `master` after merging the already-landed Cloudflare
+  WAF docs, agent adoption proposal, and React types Dependabot updates.
+- GitHub reports PR #88 as mergeable with `mergeable_state: clean`.
+- Required GitHub checks passed on `f7be24b`: `Lint & Type Check`, `Test`,
+  `Build`, `Docker Build`, `Security Audit`, `CodeQL`, `Scan for secrets`,
+  `Dependency Review`, `scan-pr / osv-scan`, and
+  `zizmor (workflow static analysis)`.
+- Local verification after merging `master`: `pnpm typecheck`,
+  `pnpm test:coverage` (35 files, 551 tests), `pnpm security:payments`,
+  `pnpm security:release`, `git diff --check`, and protected-name scan.
+- All PR #88 review threads are resolved.
+
+Earlier observed on 2026-05-26 UTC for the PR #88 Docker image-build hardening
+update:
 
 - Local verification for the deployment update completed successfully:
   `pnpm typecheck`, `pnpm lint`, `pnpm security:payments`,
@@ -57,8 +72,6 @@ Observed on 2026-05-26 UTC for the PR #88 Docker image-build hardening update:
 - The Docker image-build hardening update passed local `pnpm typecheck`,
   `pnpm security:payments`, `pnpm security:release`, `git diff --check`, and
   the protected-name scan before push.
-- All PR #88 review threads are resolved.
-
 Scorecard is configured as a scheduled security workflow but was not returned
 for this PR head in the workflow-run lookup. Repository branch protection now
 requires strict status checks for CI jobs plus CodeQL, secret scanning,
@@ -357,6 +370,12 @@ Passing checks:
 
 Current live monitor status:
 
+- On 2026-05-27 at 06:56:54 UTC, `pnpm monitor:protocol -- --base-url
+  https://cardano402.com --min-confirmations 6 --json` still failed against
+  the live site with the same external Cloudflare challenge posture.
+  `/.well-known/x402.json` returned HTTP 200 JSON; `/health`, `/supported`,
+  `/verify`, and `/settle` returned HTTP 403 challenge HTML with
+  `cf-mitigated: challenge`.
 - On 2026-05-27 at 06:36:44 UTC, `pnpm monitor:protocol -- --base-url
   https://cardano402.com --min-confirmations 6 --json` still failed against
   the live site with the same external Cloudflare challenge posture.
