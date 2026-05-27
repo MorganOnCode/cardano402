@@ -60,6 +60,7 @@ const statusRequest = {
 
 const sampleSignerAddress =
   'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp';
+const sampleTxHash = 'a'.repeat(64);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -174,7 +175,7 @@ describe('FacilitatorClient', () => {
   describe('settle()', () => {
     it('should send POST to /settle with correct body', async () => {
       fetchSpy.mockResolvedValueOnce(
-        mockFetchResponse({ success: true, transaction: 'abc123', network: 'cardano:preview' })
+        mockFetchResponse({ success: true, transaction: sampleTxHash, network: 'cardano:preview' })
       );
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
       await client.settle(settleRequest);
@@ -188,12 +189,12 @@ describe('FacilitatorClient', () => {
     });
 
     it('should return parsed SettleResponse on success', async () => {
-      const expected = { success: true, transaction: 'abc123', network: 'cardano:preview' };
+      const expected = { success: true, transaction: sampleTxHash, network: 'cardano:preview' };
       fetchSpy.mockResolvedValueOnce(mockFetchResponse(expected));
       const client = new FacilitatorClient({ baseUrl: 'http://localhost:3000' });
       const result = await client.settle(settleRequest);
       expect(result.success).toBe(true);
-      expect(result.transaction).toBe('abc123');
+      expect(result.transaction).toBe(sampleTxHash);
     });
 
     it('should throw on facilitator error', async () => {

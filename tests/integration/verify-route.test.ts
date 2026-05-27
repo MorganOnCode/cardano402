@@ -464,7 +464,7 @@ describe('POST /verify Route', () => {
       url: '/verify',
       headers: { 'content-type': 'application/json' },
       payload: createTestVerifyRequest({
-        asset: 'deadbeef00000000000000000000000000000000000000000000000000.cafe',
+        asset: `${'d'.repeat(56)}.cafe`,
       }),
     });
 
