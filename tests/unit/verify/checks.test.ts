@@ -299,6 +299,18 @@ describe('checkRecipient', () => {
     expect(result.reason).toBe('recipient_mismatch');
   });
 
+  it('fails instead of throwing when payTo is not a valid Cardano address', () => {
+    const ctx = makeCtx({ payTo: 'not-a-cardano-address' });
+    ctx._parsedTx = makeParsedTx();
+
+    const result = checkRecipient(ctx);
+
+    expect(result.check).toBe('recipient');
+    expect(result.passed).toBe(false);
+    expect(result.reason).toBe('invalid_pay_to');
+    expect(result.details).toMatchObject({ payTo: 'not-a-cardano-address' });
+  });
+
   it('finds matching output in multi-output transaction', () => {
     const ctx = makeCtx({
       payTo:
