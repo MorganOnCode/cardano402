@@ -43,6 +43,7 @@ function pollTimeoutMs(minConfirmations: number): number {
 
 /** Dedup record TTL in Redis (seconds). 24 hours. */
 const DEDUP_TTL_SECONDS = 86_400;
+const TX_HASH_HEX = /^[0-9a-f]{64}$/u;
 
 // ---------------------------------------------------------------------------
 // Redis interface (minimal subset of ioredis)
@@ -67,6 +68,10 @@ export interface RedisLike {
  */
 export function computeDedupKey(txHash: string): string {
   return `settle:${txHash}`;
+}
+
+function isTxHash(value: unknown): value is string {
+  return typeof value === 'string' && TX_HASH_HEX.test(value);
 }
 
 /**
@@ -213,7 +218,7 @@ export async function settlePayment(
   // mutates CBOR but never the on-chain tx hash, so raw-bytes keying would
   // let trivially-mutated CBOR variants bypass dedup.
   const verifiedTxHash = verifyResult.extensions?.txHash;
-  if (typeof verifiedTxHash !== 'string' || verifiedTxHash.length === 0) {
+  if (!isTxHash(verifiedTxHash)) {
     logger.error(
       { extensions: verifyResult.extensions },
       'Settlement aborted: verifyPayment returned isValid but no txHash'
@@ -414,7 +419,23 @@ async function handleExistingRecord(
     };
   }
 
-  const record = JSON.parse(raw) as SettlementRecord;
+  let record: SettlementRecord;
+  try {
+    record = JSON.parse(raw) as SettlementRecord;
+  } catch (error) {
+    logger.error(
+      { err: error instanceof Error ? error.message : String(error), dedupKey },
+      'Settlement dedup record is not valid JSON'
+    );
+    return {
+      success: false,
+      transaction: '',
+      network,
+      payer,
+      errorReason: 'internal_error',
+      errorMessage: 'Settlement record is corrupt',
+    };
+  }
 
   // Safety net for the audit-C6 transition: records written by the pre-fix
   // code path could land here with an empty txHash. Without this branch a
@@ -439,6 +460,18 @@ async function handleExistingRecord(
       payer,
       errorReason: 'internal_error',
       errorMessage: 'Settlement is in flight; please retry shortly',
+    };
+  }
+
+  if (!isTxHash(record.txHash)) {
+    logger.error({ dedupKey, status: record.status }, 'Settlement dedup record has invalid txHash');
+    return {
+      success: false,
+      transaction: '',
+      network,
+      payer,
+      errorReason: 'internal_error',
+      errorMessage: 'Settlement record is corrupt',
     };
   }
 
