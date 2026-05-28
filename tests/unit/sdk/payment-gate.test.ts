@@ -353,6 +353,31 @@ describe('createPaymentGate', () => {
       expect(verifyCall.paymentRequirements.scheme).toBe('exact');
     });
 
+    it('should use server-owned network in verify accepted payload', async () => {
+      const handler = createHandler(options);
+      const signature = createPaymentSignature({
+        accepted: {
+          scheme: 'exact',
+          network: 'cardano:mainnet',
+          amount: '1',
+          payTo: 'addr_test1qz_attacker',
+          maxTimeoutSeconds: 1,
+          asset: 'lovelace',
+          extra: null,
+        },
+      });
+      const request = createMockRequest({ 'payment-signature': signature });
+      const reply = createMockReply();
+
+      await handler(request, reply, vi.fn());
+
+      const verifyCall = (facilitator.verify as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(verifyCall.paymentPayload.accepted.network).toBe('cardano:preview');
+      expect(verifyCall.paymentPayload.accepted.amount).toBe('2000000');
+      expect(verifyCall.paymentPayload.accepted.payTo).toBe('addr_test1qz_recipient');
+      expect(verifyCall.paymentPayload.accepted.maxTimeoutSeconds).toBe(300);
+    });
+
     it('should pass transaction to settle request', async () => {
       const handler = createHandler(options);
       const signature = createPaymentSignature();

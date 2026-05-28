@@ -16,7 +16,11 @@ export type Network = z.infer<typeof NetworkSchema>;
 export const LovelaceAmountSchema = z
   .string()
   .regex(/^[0-9]+$/, 'Lovelace amount must be a base-10 digit string')
-  .min(1);
+  .min(1)
+  .max(20, 'Lovelace amount must fit in uint64')
+  .refine((value) => !/^[0-9]+$/.test(value) || BigInt(value) <= 18_446_744_073_709_551_615n, {
+    message: 'Lovelace amount must fit in uint64',
+  });
 export type LovelaceAmount = z.infer<typeof LovelaceAmountSchema>;
 
 export const CardanoAddressSchema = z
