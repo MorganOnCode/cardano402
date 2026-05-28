@@ -538,6 +538,27 @@ describe('settlePayment', () => {
     expect(blockfrost.submitTransaction).not.toHaveBeenCalled();
   });
 
+  it('returns internal_error when verifyPayment returns a malformed txHash', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: 'not-a-hash' } });
+    redis.set.mockResolvedValue('OK');
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      errorReason: 'internal_error',
+    });
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(blockfrost.submitTransaction).not.toHaveBeenCalled();
+  });
+
   // Test 12: Dedup hit - timeout record, now confirmed
   it('returns success when dedup record is timeout but tx is now confirmed', async () => {
     mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
@@ -781,6 +802,56 @@ describe('settlePayment', () => {
     expect(result.transaction).toBe('');
     // Must NOT query Blockfrost for an empty string.
     expect(blockfrost.getTransaction).not.toHaveBeenCalledWith('');
+  });
+
+  it('returns internal_error when a dedup record is not valid JSON', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue(null);
+    redis.get.mockResolvedValue('{not-json');
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      errorReason: 'internal_error',
+      transaction: '',
+    });
+    expect(blockfrost.getTransaction).not.toHaveBeenCalled();
+  });
+
+  it('returns internal_error when a dedup record has a malformed txHash', async () => {
+    mockVerifyPayment.mockResolvedValue({ isValid: true, extensions: { txHash: TX_HASH } });
+    redis.set.mockResolvedValue(null);
+    const malformedRecord: SettlementRecord = {
+      txHash: 'not-a-hash',
+      status: 'confirmed',
+      submittedAt: Date.now(),
+      confirmedAt: Date.now(),
+    };
+    redis.get.mockResolvedValue(JSON.stringify(malformedRecord));
+
+    const result = await settlePayment(
+      ctx,
+      CBOR_BYTES,
+      blockfrost as unknown as BlockfrostClient,
+      redis,
+      NETWORK,
+      logger
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      errorReason: 'internal_error',
+      transaction: '',
+    });
+    expect(blockfrost.getTransaction).not.toHaveBeenCalled();
   });
 
   // Test 20: Defense — if Blockfrost returns a different txHash than what
