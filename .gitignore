@@ -15,6 +15,10 @@ config/cmds.bash
 .env.*
 !.env.example
 
+# Signing material — file-based seeds/keys mounted into the facilitator
+# container at /run/secrets. These are live wallet secrets; never commit them.
+secrets/
+
 # Coverage
 coverage/
 
