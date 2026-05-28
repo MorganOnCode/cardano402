@@ -187,7 +187,9 @@ export const SettleRequestSchema = VerifyRequestSchema;
 export type SettleRequest = z.infer<typeof SettleRequestSchema>;
 
 export const StatusRequestSchema = z.object({
-  transaction: z.string().length(64),
+  transaction: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/, 'Transaction hash must be 64 lowercase hex characters'),
   paymentRequirements: PaymentRequirementsSchema,
 });
 export type StatusRequest = z.infer<typeof StatusRequestSchema>;

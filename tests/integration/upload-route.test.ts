@@ -4,6 +4,8 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vites
 import type { Config } from '../../src/config/index.js';
 import type { PaymentResponseHeader } from '../../src/sdk/types.js';
 
+const UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
+
 // Mock Lucid Evolution packages to prevent native module loading (libsodium)
 vi.mock('@lucid-evolution/lucid', () => ({
   Lucid: vi.fn().mockResolvedValue({
@@ -296,6 +298,45 @@ describe('POST /upload Route', () => {
           `some text\r\n` +
           `--${boundary}--\r\n`
       );
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/upload',
+        headers: {
+          'content-type': `multipart/form-data; boundary=${boundary}`,
+          'payment-signature': 'valid-payment-token',
+        },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(400);
+      const responseBody = JSON.parse(response.body);
+      expect(responseBody.error).toBe('Bad Request');
+    });
+
+    it('should accept files larger than the global JSON body limit when under upload limit', async () => {
+      const fileContent = Buffer.alloc(60 * 1024, 0x61);
+      const { body, boundary } = createMultipartBody('under-upload-limit.bin', fileContent);
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/upload',
+        headers: {
+          'content-type': `multipart/form-data; boundary=${boundary}`,
+          'payment-signature': 'valid-payment-token',
+        },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseBody = JSON.parse(response.body);
+      expect(responseBody.size).toBe(fileContent.length);
+      expect(server.storage.put).toHaveBeenCalledOnce();
+    });
+
+    it('should reject files over the upload limit before storage write', async () => {
+      const fileContent = Buffer.alloc(UPLOAD_LIMIT_BYTES + 1, 0x61);
+      const { body, boundary } = createMultipartBody('too-large.bin', fileContent);
 
       const response = await server.inject({
         method: 'POST',

@@ -167,9 +167,25 @@ export function checkRecipient(ctx: VerifyContext): CheckResult {
     return { check: 'recipient', passed: false, reason: 'cbor_required' };
   }
 
-  // Convert recipient bech32 to canonical hex for comparison
-  const recipientAddr = CML.Address.from_bech32(ctx.payTo);
-  const recipientHex = recipientAddr.to_hex();
+  // Convert recipient bech32 to canonical hex for comparison. `payTo` comes
+  // from caller-supplied paymentRequirements, so malformed addresses must be
+  // reported as verification failures instead of escaping as public 500s.
+  let recipientAddr: CML.Address;
+  let recipientHex: string;
+  try {
+    recipientAddr = CML.Address.from_bech32(ctx.payTo);
+    recipientHex = recipientAddr.to_hex();
+  } catch (error) {
+    return {
+      check: 'recipient',
+      passed: false,
+      reason: 'invalid_pay_to',
+      details: {
+        payTo: ctx.payTo,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
   recipientAddr.free();
 
   const outputs = ctx._parsedTx.body.outputs;

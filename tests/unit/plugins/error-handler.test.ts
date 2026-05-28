@@ -199,6 +199,24 @@ describe('Error Handler Plugin', () => {
       });
     });
 
+    it('redacts query strings before sending URL context to Sentry', async () => {
+      await server.inject({
+        method: 'POST',
+        url: '/test-error?paymentHeader=secret&token=abc',
+        payload: {
+          statusCode: 500,
+          code: 'INTERNAL_ERROR',
+          message: 'Something broke',
+        },
+      });
+
+      expect(mockCaptureException).toHaveBeenCalledOnce();
+      const [, capturedContext] = mockCaptureException.mock.calls[0];
+      expect(capturedContext.extra).toMatchObject({
+        url: '/test-error?[REDACTED]',
+      });
+    });
+
     it('should NOT capture 400-level errors in Sentry', async () => {
       const response = await server.inject({
         method: 'POST',
@@ -300,6 +318,18 @@ describe('Error Handler Plugin', () => {
       expect(body.requestId).toBe('test-req-404');
       expect(body.timestamp).toBeDefined();
       expect(new Date(body.timestamp).getTime()).not.toBeNaN();
+    });
+
+    it('redacts query strings from 404 response messages', async () => {
+      const response = await server.inject({
+        method: 'GET',
+        url: '/missing-route?paymentHeader=secret',
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = response.json();
+      expect(body.error.message).toContain('/missing-route?[REDACTED]');
+      expect(body.error.message).not.toContain('paymentHeader=secret');
     });
   });
 

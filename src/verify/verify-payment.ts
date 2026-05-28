@@ -23,6 +23,7 @@ const FAILURE_MESSAGES: Record<string, string> = {
   invalid_cbor: 'Transaction CBOR could not be parsed',
   unsupported_scheme: 'Payment scheme is not supported',
   network_mismatch: 'Transaction targets the wrong network',
+  invalid_pay_to: 'Payment requirements contain an invalid recipient address',
   recipient_mismatch: 'No output pays to the required recipient',
   amount_insufficient: 'Payment amount is less than required',
   missing_witness: 'Transaction has no signatures',

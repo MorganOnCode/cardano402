@@ -1,26 +1,23 @@
 import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';
 
+import { redactUrlQuery } from './safe-url.js';
+
 interface RequestLoggerOptions {
   isDev: boolean;
 }
 
 const requestLogger: FastifyPluginCallback<RequestLoggerOptions> = (fastify, options, done) => {
-  const { isDev } = options;
+  void options;
 
   // Log incoming requests
   fastify.addHook('onRequest', async (request) => {
     const logData: Record<string, unknown> = {
       method: request.method,
-      url: request.url,
+      url: redactUrlQuery(request.url),
       requestId: request.id,
       userAgent: request.headers['user-agent'],
     };
-
-    // Full body in dev, metadata only in prod (per CONTEXT.md)
-    if (isDev && request.body) {
-      logData.body = request.body;
-    }
 
     request.log.info(logData, 'Incoming request');
   });
@@ -29,7 +26,7 @@ const requestLogger: FastifyPluginCallback<RequestLoggerOptions> = (fastify, opt
   fastify.addHook('onResponse', async (request, reply) => {
     const logData: Record<string, unknown> = {
       method: request.method,
-      url: request.url,
+      url: redactUrlQuery(request.url),
       statusCode: reply.statusCode,
       responseTime: reply.elapsedTime,
       requestId: request.id,

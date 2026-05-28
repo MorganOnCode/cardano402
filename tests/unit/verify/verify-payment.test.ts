@@ -133,6 +133,17 @@ describe('describeFailure', () => {
     expect(describeFailure(result)).toBe('No output pays to the required recipient');
   });
 
+  it('maps invalid_pay_to to human-readable message', () => {
+    const result: CheckResult = {
+      check: 'recipient',
+      passed: false,
+      reason: 'invalid_pay_to',
+    };
+    expect(describeFailure(result)).toBe(
+      'Payment requirements contain an invalid recipient address'
+    );
+  });
+
   it('maps amount_insufficient to human-readable message', () => {
     const result: CheckResult = {
       check: 'amount',
