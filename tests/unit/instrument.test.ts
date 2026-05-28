@@ -119,6 +119,46 @@ describe('scrubSentryEvent', () => {
     expect(event.extra?.userPassword).toBe(REDACTED);
   });
 
+  it('redacts nested extra values whose names suggest secrets or payment payloads', () => {
+    const event = makeEvent({
+      extra: {
+        config: {
+          chain: {
+            facilitator: {
+              seedPhrase: 'seed words',
+              privateKeyFile: '/run/secrets/facilitator.skey',
+            },
+            blockfrost: {
+              projectId: 'project-secret',
+            },
+          },
+        },
+        payment: {
+          paymentHeader: 'base64-payment',
+          transactionCbor: 'base64-cbor',
+        },
+        attempts: [{ apiKey: 'api-secret' }, { safe: 'value' }],
+      },
+    });
+
+    scrubSentryEvent(event);
+
+    const extra = event.extra as Record<string, unknown>;
+    const config = extra.config as {
+      chain: { facilitator: Record<string, unknown>; blockfrost: Record<string, unknown> };
+    };
+    const payment = extra.payment as Record<string, unknown>;
+    const attempts = extra.attempts as Record<string, unknown>[];
+
+    expect(config.chain.facilitator.seedPhrase).toBe(REDACTED);
+    expect(config.chain.facilitator.privateKeyFile).toBe(REDACTED);
+    expect(config.chain.blockfrost.projectId).toBe(REDACTED);
+    expect(payment.paymentHeader).toBe(REDACTED);
+    expect(payment.transactionCbor).toBe(REDACTED);
+    expect(attempts[0].apiKey).toBe(REDACTED);
+    expect(attempts[1].safe).toBe('value');
+  });
+
   it('is a no-op when request and extra are absent', () => {
     const event = makeEvent({});
     const before = JSON.stringify(event);

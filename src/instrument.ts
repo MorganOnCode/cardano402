@@ -26,10 +26,36 @@ const SENSITIVE_HEADER_KEYS = new Set([
   'set-cookie',
 ]);
 
-// Top-level event keys that an accidental `extra: { ... }` could ship the
-// world. If a future error-handler refactor stuffs the config or chain
-// secrets into Sentry.captureException's extras, this catches it.
-const SENSITIVE_EXTRA_KEYS = /seed|mnemonic|private[_-]?key|password|projectid|api[_-]?key|secret/i;
+// Event keys that an accidental `extra: { ... }` could ship to Sentry. If a
+// future error-handler refactor stuffs config, payment payloads, or chain
+// secrets into Sentry.captureException's extras, this catches nested values too.
+const SENSITIVE_EXTRA_KEYS =
+  /seed|mnemonic|private[_-]?key|password|projectid|api[_-]?key|secret|authorization|payment[_-]?header|payment[_-]?payload|payment[_-]?signature|transaction[_-]?cbor/i;
+
+function scrubValue(value: unknown, seen: WeakSet<object>): unknown {
+  if (!value || typeof value !== 'object') return value;
+
+  if (seen.has(value)) return value;
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      value[i] = scrubValue(value[i], seen);
+    }
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (SENSITIVE_EXTRA_KEYS.test(key)) {
+      record[key] = REDACTED;
+    } else {
+      record[key] = scrubValue(record[key], seen);
+    }
+  }
+
+  return value;
+}
 
 /**
  * Pure scrubber exposed for testing. Removes request bodies, sensitive
@@ -66,13 +92,9 @@ export function scrubSentryEvent<T extends Sentry.Event>(event: T): T {
   }
 
   // Defensive extras scrub: catches a future `Sentry.captureException(err,
-  // { extra: { config } })` mistake before it ships seed material.
+  // { extra: { config } })` mistake before it ships nested seed material.
   if (event.extra && typeof event.extra === 'object') {
-    for (const key of Object.keys(event.extra)) {
-      if (SENSITIVE_EXTRA_KEYS.test(key)) {
-        (event.extra as Record<string, unknown>)[key] = REDACTED;
-      }
-    }
+    scrubValue(event.extra, new WeakSet<object>());
   }
 
   return event;
