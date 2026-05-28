@@ -1,6 +1,7 @@
 import type { FastifyPluginCallback, FastifyError } from 'fastify';
 import fp from 'fastify-plugin';
 
+import { redactUrlQuery } from './safe-url.js';
 import { Sentry } from '../instrument.js';
 
 interface ErrorHandlerOptions {
@@ -25,6 +26,7 @@ const errorHandler: FastifyPluginCallback<ErrorHandlerOptions> = (fastify, optio
   fastify.setErrorHandler((error: FastifyError, request, reply) => {
     const statusCode = error.statusCode ?? 500;
     const code = error.code ?? 'INTERNAL_ERROR';
+    const safeUrl = redactUrlQuery(request.url);
 
     // Log the error
     request.log.error(
@@ -41,7 +43,7 @@ const errorHandler: FastifyPluginCallback<ErrorHandlerOptions> = (fastify, optio
       Sentry.captureException(error, {
         extra: {
           requestId: request.id,
-          url: request.url,
+          url: safeUrl,
           method: request.method,
         },
       });
@@ -64,10 +66,11 @@ const errorHandler: FastifyPluginCallback<ErrorHandlerOptions> = (fastify, optio
 
   // Handle 404 not found with consistent format
   fastify.setNotFoundHandler((request, reply) => {
+    const safeUrl = redactUrlQuery(request.url);
     const response: ErrorResponse = {
       error: {
         code: 'NOT_FOUND',
-        message: `Route ${request.method}:${request.url} not found`,
+        message: `Route ${request.method}:${safeUrl} not found`,
         statusCode: 404,
       },
       requestId: request.id,
@@ -77,7 +80,7 @@ const errorHandler: FastifyPluginCallback<ErrorHandlerOptions> = (fastify, optio
     request.log.warn(
       {
         method: request.method,
-        url: request.url,
+        url: safeUrl,
         requestId: request.id,
       },
       'Route not found'
