@@ -8,11 +8,83 @@
 // former to avoid recursive accounting, the latter to keep liveness-probe
 // noise out of latency percentiles.
 
+import { timingSafeEqual } from 'node:crypto';
+
 import type { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';
 import { Counter, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 
+import { boundedRouteLabel } from '../plugins/safe-url.js';
+
 const SKIP_ROUTES = new Set(['/metrics', '/health']);
+const PAYMENT_ROUTES = new Set(['/verify', '/settle', '/status']);
+
+function bearerToken(headers: Record<string, unknown>): string | undefined {
+  const value = headers.authorization;
+  if (typeof value !== 'string') return undefined;
+  if (value.length < 7 || value.length > 8192) return undefined;
+  if (value.slice(0, 6).toLowerCase() !== 'bearer') return undefined;
+  const sep = value.charCodeAt(6);
+  if (sep !== 0x20 && sep !== 0x09) return undefined;
+  const token = value.slice(7);
+  if (!token || /[\s]/u.test(token)) return undefined;
+  return token;
+}
+
+function tokenMatches(presented: string | undefined, expected: string): boolean {
+  if (presented === undefined) return false;
+  const presentedBytes = Buffer.from(presented, 'utf8');
+  const expectedBytes = Buffer.from(expected, 'utf8');
+  if (presentedBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(presentedBytes, expectedBytes);
+}
+
+function parseJsonPayload(payload: unknown): unknown {
+  if (typeof payload === 'string') {
+    try {
+      return JSON.parse(payload) as unknown;
+    } catch {
+      return undefined;
+    }
+  }
+  if (Buffer.isBuffer(payload)) {
+    try {
+      return JSON.parse(payload.toString('utf8')) as unknown;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function boundedReason(value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '') return 'none';
+  const normalized = value.trim();
+  return /^[a-z0-9_:-]{1,80}$/u.test(normalized) ? normalized : 'other';
+}
+
+function classifyPaymentResult(route: string, body: unknown): { result: string; reason: string } {
+  if (body === null || typeof body !== 'object') {
+    return { result: 'unparseable', reason: 'non_json_response' };
+  }
+
+  const record = body as Record<string, unknown>;
+  if (route === '/verify') {
+    return record.isValid === true
+      ? { result: 'valid', reason: 'none' }
+      : { result: 'invalid', reason: boundedReason(record.invalidReason) };
+  }
+  if (route === '/settle') {
+    return record.success === true
+      ? { result: 'success', reason: 'none' }
+      : { result: 'failure', reason: boundedReason(record.errorReason) };
+  }
+  if (route === '/status') {
+    return { result: boundedReason(record.status), reason: 'none' };
+  }
+
+  return { result: 'unknown', reason: 'unknown_route' };
+}
 
 const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
   const registry = new Registry();
@@ -35,10 +107,27 @@ const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
     registers: [registry],
   });
 
+  const paymentResultTotal = new Counter({
+    name: 'facilitator_payment_results_total',
+    help: 'Payment protocol results for facilitator endpoints, labeled by endpoint, result, and bounded reason',
+    labelNames: ['endpoint', 'result', 'reason'],
+    registers: [registry],
+  });
+
+  fastify.addHook('onSend', async (request, _reply, payload) => {
+    const route = boundedRouteLabel(request.routeOptions?.url);
+    if (!PAYMENT_ROUTES.has(route)) return payload;
+
+    const parsed = parseJsonPayload(payload);
+    const { result, reason } = classifyPaymentResult(route, parsed);
+    paymentResultTotal.labels(route, result, reason).inc();
+    return payload;
+  });
+
   fastify.addHook('onResponse', async (request, reply) => {
     // Prefer the route pattern (e.g. "/files/:cid") over the raw URL so
-    // cardinality stays bounded. Falls back to raw URL for unmatched paths.
-    const route = request.routeOptions?.url ?? request.url;
+    // cardinality stays bounded. Unmatched paths collapse to one label.
+    const route = boundedRouteLabel(request.routeOptions?.url);
     if (SKIP_ROUTES.has(route)) return;
     const method = request.method;
     const statusCode = String(reply.statusCode);
@@ -47,7 +136,12 @@ const metricsPlugin: FastifyPluginCallback = (fastify, _options, done) => {
     httpTotal.labels(method, route, statusCode).inc();
   });
 
-  fastify.get('/metrics', async (_req, reply) => {
+  fastify.get('/metrics', async (req, reply) => {
+    const expectedToken = fastify.config?.metrics?.bearerToken;
+    if (expectedToken && !tokenMatches(bearerToken(req.headers), expectedToken)) {
+      return reply.status(401).send('Unauthorized\n');
+    }
+
     const body = await registry.metrics();
     return reply.type(registry.contentType).status(200).send(body);
   });

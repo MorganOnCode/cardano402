@@ -2,7 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import type { Config } from '../../../src/config/index.js';
 import { metricsRoutesPlugin } from '../../../src/routes/metrics.js';
+
+const STRONG_METRICS_TOKEN = '0123456789abcdef0123456789abcdef';
 
 describe('Metrics routes', () => {
   let server: FastifyInstance;
@@ -14,6 +17,19 @@ describe('Metrics routes', () => {
     server.get('/sample', async () => ({ ok: true }));
     server.get('/files/:cid', async (req) => ({ cid: (req.params as { cid: string }).cid }));
     server.get('/health', async () => ({ status: 'ok' }));
+    server.post('/verify', async (req) => {
+      const body = req.body as Record<string, unknown> | undefined;
+      return body?.valid
+        ? { isValid: true }
+        : { isValid: false, invalidReason: body?.reason ?? 'invalid_request' };
+    });
+    server.post('/settle', async (req) => {
+      const body = req.body as Record<string, unknown> | undefined;
+      return body?.success
+        ? { success: true, transaction: 'tx1', network: 'cardano:preview' }
+        : { success: false, errorReason: body?.reason ?? 'invalid_request' };
+    });
+    server.post('/status', async () => ({ status: 'confirmed', transaction: 'tx1' }));
     await server.ready();
   });
 
@@ -46,6 +62,63 @@ describe('Metrics routes', () => {
       const res = await server.inject({ method: 'GET', url: '/metrics' });
       expect(res.body).toMatch(/service="cardano402"/);
     });
+
+    it('rejects requests without the configured bearer token', async () => {
+      const protectedServer = fastify({ logger: false });
+      protectedServer.decorate('config', {
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+      } as Partial<Config> as Config);
+      await protectedServer.register(metricsRoutesPlugin);
+      await protectedServer.ready();
+
+      try {
+        const res = await protectedServer.inject({ method: 'GET', url: '/metrics' });
+        expect(res.statusCode).toBe(401);
+      } finally {
+        await protectedServer.close();
+      }
+    });
+
+    it('returns metrics with the configured bearer token', async () => {
+      const protectedServer = fastify({ logger: false });
+      protectedServer.decorate('config', {
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+      } as Partial<Config> as Config);
+      await protectedServer.register(metricsRoutesPlugin);
+      await protectedServer.ready();
+
+      try {
+        const res = await protectedServer.inject({
+          method: 'GET',
+          url: '/metrics',
+          headers: { authorization: `Bearer ${STRONG_METRICS_TOKEN}` },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toMatch(/# HELP process_cpu_user_seconds_total/);
+      } finally {
+        await protectedServer.close();
+      }
+    });
+
+    it('rejects bearer headers with extra whitespace in the token value', async () => {
+      const protectedServer = fastify({ logger: false });
+      protectedServer.decorate('config', {
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+      } as Partial<Config> as Config);
+      await protectedServer.register(metricsRoutesPlugin);
+      await protectedServer.ready();
+
+      try {
+        const res = await protectedServer.inject({
+          method: 'GET',
+          url: '/metrics',
+          headers: { authorization: `Bearer ${STRONG_METRICS_TOKEN} extra` },
+        });
+        expect(res.statusCode).toBe(401);
+      } finally {
+        await protectedServer.close();
+      }
+    });
   });
 
   describe('HTTP request tracking', () => {
@@ -70,11 +143,73 @@ describe('Metrics routes', () => {
       expect(res.body).not.toMatch(/route="\/files\/xyz789"/);
     });
 
+    it('collapses unmatched paths instead of labeling raw URLs or query strings', async () => {
+      await server.inject({ method: 'GET', url: '/unknown-a?token=secret' });
+      await server.inject({ method: 'GET', url: '/unknown-b?paymentHeader=secret' });
+
+      const res = await server.inject({ method: 'GET', url: '/metrics' });
+      expect(res.body).toMatch(/http_requests_total\{[^}]*route="__unmatched__"[^}]*\}\s+2/);
+      expect(res.body).not.toContain('/unknown-a');
+      expect(res.body).not.toContain('/unknown-b');
+      expect(res.body).not.toContain('paymentHeader=secret');
+      expect(res.body).not.toContain('token=secret');
+    });
+
     it('labels by method and status_code', async () => {
       await server.inject({ method: 'GET', url: '/sample' });
       const res = await server.inject({ method: 'GET', url: '/metrics' });
       expect(res.body).toMatch(/method="GET"/);
       expect(res.body).toMatch(/status_code="200"/);
+    });
+  });
+
+  describe('Payment protocol result tracking', () => {
+    it('counts verify valid and invalid outcomes with bounded reasons', async () => {
+      await server.inject({ method: 'POST', url: '/verify', payload: { valid: true } });
+      await server.inject({
+        method: 'POST',
+        url: '/verify',
+        payload: { reason: 'nonce_lookup_failed' },
+      });
+
+      const res = await server.inject({ method: 'GET', url: '/metrics' });
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/verify"[^}]*result="valid"[^}]*reason="none"[^}]*\}\s+1/
+      );
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/verify"[^}]*result="invalid"[^}]*reason="nonce_lookup_failed"[^}]*\}\s+1/
+      );
+    });
+
+    it('counts settle failures and status outcomes', async () => {
+      await server.inject({
+        method: 'POST',
+        url: '/settle',
+        payload: { reason: 'settlement_timeout' },
+      });
+      await server.inject({ method: 'POST', url: '/status', payload: { transaction: 'tx1' } });
+
+      const res = await server.inject({ method: 'GET', url: '/metrics' });
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/settle"[^}]*result="failure"[^}]*reason="settlement_timeout"[^}]*\}\s+1/
+      );
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/status"[^}]*result="confirmed"[^}]*reason="none"[^}]*\}\s+1/
+      );
+    });
+
+    it('bounds unexpected reason labels to avoid cardinality abuse', async () => {
+      await server.inject({
+        method: 'POST',
+        url: '/verify',
+        payload: { reason: 'attacker supplied reason with spaces and punctuation !!!' },
+      });
+
+      const res = await server.inject({ method: 'GET', url: '/metrics' });
+      expect(res.body).toMatch(
+        /facilitator_payment_results_total\{[^}]*endpoint="\/verify"[^}]*result="invalid"[^}]*reason="other"[^}]*\}\s+1/
+      );
+      expect(res.body).not.toContain('attacker supplied reason');
     });
   });
 

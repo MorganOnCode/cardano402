@@ -52,6 +52,7 @@ describe('GET /supported Route', () => {
     logging: { level: 'error', pretty: false },
     rateLimit: { global: 100, windowMs: 60000, sensitive: 20 },
     env: 'test',
+    metrics: {},
     storage: {
       backend: 'fs',
       fs: { dataDir: './data/files' },

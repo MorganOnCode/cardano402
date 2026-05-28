@@ -87,6 +87,7 @@ function createTestConfig(overrides?: Partial<Config>): Config {
     logging: { level: 'error', pretty: false },
     rateLimit: { global: 1000, windowMs: 60000, sensitive: 100 },
     env: 'test',
+    metrics: {},
     chain: {
       network: 'Preview',
       blockfrost: { projectId: TEST_PROJECT_ID, tier: 'free' },

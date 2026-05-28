@@ -1,6 +1,71 @@
 import { z } from 'zod';
 
-import { ChainConfigSchema } from '../chain/config.js';
+import { ChainConfigSchema, loadCredentialFile } from '../chain/config.js';
+
+const DemoConfigSchema = z
+  .object({
+    /** Blockfrost project ID for demo (typically Preview testnet) */
+    blockfrostProjectId: z.string().min(1),
+    /** Seed phrase for demo wallet (Preview testnet wallet; sensitive - never log) */
+    seedPhrase: z.string().optional(),
+    /** Restrictive file containing the demo wallet seed phrase. */
+    seedPhraseFile: z.string().optional(),
+    /** Network for demo transactions */
+    network: z.enum(['Preview', 'Preprod']).default('Preview'),
+  })
+  .superRefine((data, ctx) => {
+    const sources = [data.seedPhrase, data.seedPhraseFile].filter(
+      (value) => value !== undefined && value.trim() !== ''
+    );
+    if (sources.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Either seedPhraseFile or seedPhrase must be provided',
+      });
+    }
+    if (sources.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Provide exactly one demo seed source',
+      });
+    }
+  })
+  .transform(
+    (
+      data,
+      ctx
+    ): {
+      blockfrostProjectId: string;
+      seedPhrase: string;
+      seedPhraseFile?: string;
+      credentialSource: 'seedPhraseFile' | 'seedPhrase';
+      network: 'Preview' | 'Preprod';
+    } => {
+      try {
+        if (data.seedPhraseFile) {
+          return {
+            blockfrostProjectId: data.blockfrostProjectId,
+            seedPhrase: loadCredentialFile(data.seedPhraseFile, 'demo.seedPhraseFile'),
+            seedPhraseFile: data.seedPhraseFile,
+            credentialSource: 'seedPhraseFile',
+            network: data.network,
+          };
+        }
+        return {
+          blockfrostProjectId: data.blockfrostProjectId,
+          seedPhrase: data.seedPhrase ?? '',
+          credentialSource: 'seedPhrase',
+          network: data.network,
+        };
+      } catch (error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return z.NEVER;
+      }
+    }
+  );
 
 export const ConfigSchema = z
   .object({
@@ -8,6 +73,14 @@ export const ConfigSchema = z
       .object({
         host: z.string().default('0.0.0.0'),
         port: z.number().int().min(1).max(65535).default(3000),
+        /**
+         * Trust X-Forwarded-* headers from the deployment reverse proxy.
+         *
+         * In production, use a numeric hop count instead of boolean `true` so
+         * direct clients cannot spoof arbitrary forwarded chains for rate
+         * limits and logs.
+         */
+        trustProxy: z.union([z.boolean(), z.number().int().min(1).max(3)]).optional(),
       })
       .default(() => ({ host: '0.0.0.0', port: 3000 })),
 
@@ -39,20 +112,19 @@ export const ConfigSchema = z
       })
       .default(() => ({ global: 100, sensitive: 20, windowMs: 60000 })),
 
+    // Metrics endpoint access control
+    metrics: z
+      .object({
+        /** Bearer token required for GET /metrics when set. Required in production. */
+        bearerToken: z.string().min(32).optional(),
+      })
+      .default(() => ({})),
+
     // Chain provider configuration (Blockfrost, network, cache, reservation, Redis)
     chain: ChainConfigSchema,
 
     // Demo configuration (optional -- separate testnet credentials for the live demo widget)
-    demo: z
-      .object({
-        /** Blockfrost project ID for demo (typically Preview testnet) */
-        blockfrostProjectId: z.string().min(1),
-        /** Seed phrase for demo wallet (Preview testnet wallet) */
-        seedPhrase: z.string().min(1),
-        /** Network for demo transactions */
-        network: z.enum(['Preview', 'Preprod']).default('Preview'),
-      })
-      .optional(),
+    demo: DemoConfigSchema.optional(),
 
     // Storage backend configuration (optional -- defaults to filesystem)
     storage: z
@@ -96,6 +168,31 @@ export const ConfigSchema = z
             'chain.redis.password is required when config.env is "production". ' +
             'Set REDIS_PASSWORD in .env and chain.redis.password in config.json.',
           path: ['chain', 'redis', 'password'],
+        });
+      }
+      const metricsToken = data.metrics.bearerToken;
+      if (!metricsToken || metricsToken.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'metrics.bearerToken is required when config.env is "production" to protect /metrics.',
+          path: ['metrics', 'bearerToken'],
+        });
+      }
+      if (data.demo?.credentialSource === 'seedPhrase') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'demo.seedPhraseFile is required when config.env is "production". Keep demo wallet seed material out of config JSON.',
+          path: ['demo', 'seedPhraseFile'],
+        });
+      }
+      if (data.server.trustProxy === true) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'server.trustProxy must be a numeric trusted-proxy hop count in production, not true. Use 1 for a single local reverse proxy or 2 for Cloudflare plus nginx.',
+          path: ['server', 'trustProxy'],
         });
       }
     }

@@ -1,7 +1,8 @@
 {
   "server": {
     "host": "0.0.0.0",
-    "port": 3000
+    "port": 3000,
+    "trustProxy": 2
   },
   "logging": {
     "level": "info",
@@ -18,6 +19,9 @@
     "sensitive": 20,
     "windowMs": 60000
   },
+  "metrics": {
+    "bearerToken": "replace-with-a-long-random-prometheus-token"
+  },
   "chain": {
     "network": "Preview",
     "blockfrost": {
@@ -25,7 +29,8 @@
       "tier": "free"
     },
     "facilitator": {
-      "seedPhrase": "your 24-word seed phrase here"
+      "signerMode": "local-file",
+      "seedPhraseFile": "/run/secrets/cardano402-facilitator.seed"
     },
     "cache": {
       "utxoTtlSeconds": 60
@@ -35,7 +40,7 @@
       "maxConcurrent": 20
     },
     "redis": {
-      "host": "redis",
+      "host": "redis-prod",
       "port": 6379,
       "password": "your-redis-password",
       "db": 0
@@ -49,7 +54,7 @@
   },
   "demo": {
     "blockfrostProjectId": "your-preview-blockfrost-project-id",
-    "seedPhrase": "your 24-word PREVIEW TESTNET seed phrase (NEVER use mainnet seed here)",
+    "seedPhraseFile": "/run/secrets/cardano402-demo-preview.seed",
     "network": "Preview"
   },
   "storage": {

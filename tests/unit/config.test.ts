@@ -1,4 +1,5 @@
-import { writeFileSync, unlinkSync, mkdirSync, existsSync } from 'node:fs';
+import { chmodSync, writeFileSync, unlinkSync, mkdirSync, existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -7,12 +8,24 @@ import { loadConfig } from '../../src/config/index.js';
 
 const TEST_CONFIG_DIR = join(process.cwd(), 'tests', 'fixtures');
 const TEST_CONFIG_PATH = join(TEST_CONFIG_DIR, 'test-config.json');
+const STRONG_METRICS_TOKEN = '0123456789abcdef0123456789abcdef';
 
 // Minimal chain config required by schema (sensitive fields use test values)
 const minimalChainConfig = {
   blockfrost: { projectId: 'test-project-id' },
   facilitator: { seedPhrase: 'test seed phrase for unit testing only' },
 };
+
+function writeSecretFile(
+  contents = 'test seed phrase for unit testing only',
+  mode = 0o600
+): string {
+  const dir = mkdtempSync(join(tmpdir(), 'cardano402-config-secret-'));
+  const path = join(dir, 'secret.txt');
+  writeFileSync(path, `${contents}\n`, { mode });
+  chmodSync(path, mode);
+  return path;
+}
 
 describe('Config Loading', () => {
   beforeEach(() => {
@@ -41,11 +54,12 @@ describe('Config Loading', () => {
     expect(config.chain.cache.utxoTtlSeconds).toBe(60);
     expect(config.chain.redis.host).toBe('127.0.0.1');
     expect(config.chain.redis.port).toBe(6379);
+    expect(config.chain.facilitator.signerMode).toBe('local-file');
   });
 
   it('should override defaults with provided values', () => {
     const customConfig = {
-      server: { port: 8080 },
+      server: { port: 8080, trustProxy: true },
       logging: { level: 'debug' },
       chain: minimalChainConfig,
     };
@@ -53,7 +67,22 @@ describe('Config Loading', () => {
     const config = loadConfig(TEST_CONFIG_PATH);
 
     expect(config.server.port).toBe(8080);
+    expect(config.server.trustProxy).toBe(true);
     expect(config.logging.level).toBe('debug');
+  });
+
+  it('should accept numeric trusted-proxy hop count', () => {
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        server: { trustProxy: 2 },
+        chain: minimalChainConfig,
+      })
+    );
+
+    const config = loadConfig(TEST_CONFIG_PATH);
+
+    expect(config.server.trustProxy).toBe(2);
   });
 
   it('should throw ConfigMissingError for non-existent file', () => {
@@ -134,7 +163,88 @@ describe('Config Loading', () => {
     }
   });
 
+  it('should load facilitator seed phrase from a restrictive file', () => {
+    const seedPhraseFile = writeSecretFile();
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        chain: {
+          blockfrost: { projectId: 'test123' },
+          facilitator: { seedPhraseFile },
+        },
+      })
+    );
+
+    const config = loadConfig(TEST_CONFIG_PATH);
+
+    expect(config.chain.facilitator.seedPhrase).toBe('test seed phrase for unit testing only');
+    expect(config.chain.facilitator.signerMode).toBe('local-file');
+    expect(config.chain.facilitator.credentialSource).toBe('seedPhraseFile');
+  });
+
+  it('should reject group/world-readable facilitator credential files on POSIX', () => {
+    if (process.platform === 'win32') return;
+    const seedPhraseFile = writeSecretFile('test seed phrase', 0o644);
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        chain: {
+          blockfrost: { projectId: 'test123' },
+          facilitator: { seedPhraseFile },
+        },
+      })
+    );
+
+    expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|group\/world/);
+  });
+
+  it('should reject multiple facilitator credential sources', () => {
+    const seedPhraseFile = writeSecretFile();
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        chain: {
+          blockfrost: { projectId: 'test123' },
+          facilitator: {
+            seedPhrase: 'inline seed',
+            seedPhraseFile,
+          },
+        },
+      })
+    );
+
+    expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|exactly one/);
+  });
+
   describe('Redis password production guardrail', () => {
+    it('rejects production env with boolean trustProxy true', () => {
+      const cfg = {
+        env: 'production',
+        server: { trustProxy: true },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|trustProxy/);
+    });
+
+    it('accepts production env with numeric trustProxy hop count', () => {
+      const cfg = {
+        env: 'production',
+        server: { trustProxy: 2 },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+
     it('rejects production env with no chain.redis.password', () => {
       const cfg = {
         env: 'production',
@@ -174,6 +284,7 @@ describe('Config Loading', () => {
     it('accepts production env with a non-empty chain.redis.password', () => {
       const cfg = {
         env: 'production',
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
         chain: {
           ...minimalChainConfig,
           redis: { host: 'redis', port: 6379, password: 'a-real-password' },
@@ -192,6 +303,146 @@ describe('Config Loading', () => {
         },
       };
       writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+  });
+
+  describe('Metrics production guardrail', () => {
+    it('rejects production env without metrics.bearerToken', () => {
+      const cfg = {
+        env: 'production',
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|metrics/);
+    });
+
+    it('accepts production env with metrics.bearerToken', () => {
+      const cfg = {
+        env: 'production',
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+
+    it('rejects production env with a short metrics.bearerToken', () => {
+      const cfg = {
+        env: 'production',
+        metrics: { bearerToken: 'short-metrics-token' },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|32/);
+    });
+  });
+
+  describe('Demo credential guardrail', () => {
+    it('loads demo seed phrase from a restrictive file', () => {
+      const seedPhraseFile = writeSecretFile('test demo seed phrase');
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          chain: minimalChainConfig,
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhraseFile,
+            network: 'Preview',
+          },
+        })
+      );
+
+      const config = loadConfig(TEST_CONFIG_PATH);
+
+      expect(config.demo?.seedPhrase).toBe('test demo seed phrase');
+      expect(config.demo?.seedPhraseFile).toBe(seedPhraseFile);
+      expect(config.demo?.credentialSource).toBe('seedPhraseFile');
+    });
+
+    it('rejects group/world-readable demo seed files on POSIX', () => {
+      if (process.platform === 'win32') return;
+      const seedPhraseFile = writeSecretFile('test demo seed phrase', 0o644);
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          chain: minimalChainConfig,
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhraseFile,
+          },
+        })
+      );
+
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|group\/world/);
+    });
+
+    it('rejects multiple demo seed sources', () => {
+      const seedPhraseFile = writeSecretFile('test demo seed phrase');
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          chain: minimalChainConfig,
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhrase: 'inline demo seed',
+            seedPhraseFile,
+          },
+        })
+      );
+
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|exactly one/);
+    });
+
+    it('rejects inline demo seed material in production', () => {
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          env: 'production',
+          metrics: { bearerToken: STRONG_METRICS_TOKEN },
+          chain: {
+            ...minimalChainConfig,
+            redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+          },
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhrase: 'inline demo seed',
+          },
+        })
+      );
+
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(
+        /CONFIG_INVALID|demo\.seedPhraseFile/
+      );
+    });
+
+    it('accepts production demo config with seedPhraseFile', () => {
+      const seedPhraseFile = writeSecretFile('test demo seed phrase');
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({
+          env: 'production',
+          metrics: { bearerToken: STRONG_METRICS_TOKEN },
+          chain: {
+            ...minimalChainConfig,
+            redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+          },
+          demo: {
+            blockfrostProjectId: 'preview-demo-key',
+            seedPhraseFile,
+          },
+        })
+      );
+
       expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
     });
   });
@@ -219,6 +470,89 @@ describe('Config Loading', () => {
       if (original !== undefined) {
         process.env.MAINNET = original;
       }
+    }
+  });
+
+  it('should reject inline mainnet facilitator credentials by default', () => {
+    const mainnetConfig = {
+      chain: {
+        network: 'Mainnet',
+        blockfrost: { projectId: 'mainnet-key' },
+        facilitator: { seedPhrase: 'test seed phrase' },
+      },
+    };
+    const originalMainnet = process.env.MAINNET;
+    const originalAllow = process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
+    const originalAllowLocalFile = process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+    process.env.MAINNET = 'true';
+    delete process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
+    process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = 'true';
+
+    writeFileSync(TEST_CONFIG_PATH, JSON.stringify(mainnetConfig));
+    try {
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|seedPhraseFile/);
+    } finally {
+      if (originalMainnet === undefined) delete process.env.MAINNET;
+      else process.env.MAINNET = originalMainnet;
+      if (originalAllow === undefined)
+        delete process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY;
+      else process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY = originalAllow;
+      if (originalAllowLocalFile === undefined)
+        delete process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+      else process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = originalAllowLocalFile;
+    }
+  });
+
+  it('should reject mainnet local-file signer without explicit hot-wallet acknowledgement', () => {
+    const seedPhraseFile = writeSecretFile();
+    const mainnetConfig = {
+      chain: {
+        network: 'Mainnet',
+        blockfrost: { projectId: 'mainnet-key' },
+        facilitator: { seedPhraseFile },
+      },
+    };
+    const originalMainnet = process.env.MAINNET;
+    const originalAllowLocalFile = process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+    process.env.MAINNET = 'true';
+    delete process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+
+    writeFileSync(TEST_CONFIG_PATH, JSON.stringify(mainnetConfig));
+    try {
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|hot-wallet/);
+    } finally {
+      if (originalMainnet === undefined) delete process.env.MAINNET;
+      else process.env.MAINNET = originalMainnet;
+      if (originalAllowLocalFile === undefined)
+        delete process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+      else process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = originalAllowLocalFile;
+    }
+  });
+
+  it('should accept mainnet facilitator seed file with explicit hot-wallet acknowledgement', () => {
+    const seedPhraseFile = writeSecretFile();
+    const mainnetConfig = {
+      chain: {
+        network: 'Mainnet',
+        blockfrost: { projectId: 'mainnet-key' },
+        facilitator: { seedPhraseFile },
+      },
+    };
+    const originalMainnet = process.env.MAINNET;
+    const originalAllowLocalFile = process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+    process.env.MAINNET = 'true';
+    process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = 'true';
+
+    writeFileSync(TEST_CONFIG_PATH, JSON.stringify(mainnetConfig));
+    try {
+      const config = loadConfig(TEST_CONFIG_PATH);
+      expect(config.chain.facilitator.credentialSource).toBe('seedPhraseFile');
+    } finally {
+      if (originalMainnet === undefined) delete process.env.MAINNET;
+      else process.env.MAINNET = originalMainnet;
+      if (originalAllowLocalFile === undefined)
+        delete process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER;
+      else process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER = originalAllowLocalFile;
     }
   });
 });
