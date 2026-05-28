@@ -10,8 +10,10 @@ This document records the canonical values and shapes that `@cardano402/core` sh
 | Network format | CAIP-2 colon form: `cardano:preview`, `cardano:preprod`, `cardano:mainnet`. The regex `/^[a-z0-9]+:[a-z0-9]+$/` rejects `cardano-mainnet` and other hyphen forms. |
 | Scheme | `'exact'` only |
 | Amounts | Base-10 lovelace **string** (BigInt-safe over JSON); never a number |
+| Asset identifiers | `lovelace` or lowercase `policyId.assetNameHex` (`56` hex chars, dot, `2..64` even hex chars) |
 | Address format | Bech32 Cardano address. `CardanoAddressSchema` enforces printable ASCII (`^[\x21-\x7e]+$`) with 200-char ceiling as of v0.1.1; tighter bech32 charset validation tracked for v0.3.0. |
 | UTXO reference (nonce) | `txHash#index` with 64 lowercase hex chars + decimal index |
+| Transaction hash (`/status`) | 64 lowercase hex chars |
 | Request header (canonical) | `Payment-Signature` |
 | Request header (alias) | `X-PAYMENT` (base x402 interop) |
 | Response header (canonical) | `X-Payment-Response` |
@@ -29,7 +31,7 @@ Composed: `PaymentRequirementsSchema`, `PaymentPayloadSchema`, `VerifyResponseSc
 
 Request envelopes: `VerifyRequestSchema`, `SettleRequestSchema`, `StatusRequestSchema`.
 
-Primitives: `NetworkSchema`, `UtxoRefSchema`, `CardanoAddressSchema`, `LovelaceAmountSchema`, `SchemeSchema`, `X402VersionSchema`, `AssetTransferMethodSchema`, `SettlementStatusSchema`, `VerifyErrorReasonSchema`.
+Primitives: `NetworkSchema`, `UtxoRefSchema`, `CardanoAddressSchema`, `LovelaceAmountSchema`, `AssetIdentifierSchema`, `SchemeSchema`, `X402VersionSchema`, `AssetTransferMethodSchema`, `SettlementStatusSchema`, `VerifyErrorReasonSchema`.
 
 **Still deferred:** `PaymentResponseHeaderSchema` (the emit-side response-header validator) remains in `src/sdk/types.ts`. It is intentionally narrow (`extensions.status` only accepts `['confirmed','mempool']`) and is paired with the facilitator's emission code path; promoting it would change resource-server validation behavior. Track for a later release once the consolidation PR (`/home/morganic/.claude/plans/consolidation-followup.md`) lands.
 
@@ -42,9 +44,9 @@ Primitives: `NetworkSchema`, `UtxoRefSchema`, `CardanoAddressSchema`, `LovelaceA
 | `extensions.status` requiredness | optional on success | optional | v0.2.0 will require it on `success: true` settle responses. |
 | `NetworkSchema` named export | yes (`z.string().regex(...)`) | regex inlined in `PaymentRequirementsSchema` (`src/verify/types.ts:61`) | Core publishes the named primitive so MCP and adapter consumers can validate one field. |
 | `PaymentRequirementsSchema` vs `PaymentRequiredResponseSchema` | Both ship (v0.2.0). `PaymentRequirementsSchema` is one accept option; `PaymentRequiredResponseSchema` is the 402 envelope wrapping `accepts: PaymentAcceptSchema[]`. | Both live — `PaymentRequirements` in `src/verify/types.ts`, `PaymentRequiredResponseSchema` in `src/sdk/types.ts` | Core publishes both as of v0.2.0; `src/` continues to define them locally until the consolidation PR lands. |
-| `PaymentAcceptSchema` field strictness (v0.2.0) | `network: z.string()`, `amount: z.string()`, `payTo: z.string()` — loose, matching `src/sdk/types.ts` | Same | Promoted as-is in v0.2.0 to avoid breaking existing 402 emissions. v0.3.0 will tighten to `NetworkSchema` / `LovelaceAmountSchema` / `CardanoAddressSchema` alongside the nonce promotion. |
+| `PaymentAcceptSchema` field strictness (v0.2.0) | `network: z.string()`, `amount: z.string()`, `payTo: z.string()` stay loose; `asset` uses `AssetIdentifierSchema` | `network` / `amount` / `payTo` are loose in `src/sdk/types.ts`; quote/discovery emit paths now validate stricter terms before publication | Promoted with loose legacy fields to avoid breaking existing 402 emissions. Asset identifiers are cheap to validate and flow into signer/token matching paths, so they are strict now. v0.3.0 will tighten to `NetworkSchema` / `LovelaceAmountSchema` / `CardanoAddressSchema` alongside the nonce promotion. |
 | `CardanoAddressSchema` strictness | Printable ASCII `^[\x21-\x7e]+$`, 200-char max (since v0.1.1) | `z.string().min(1)` | Core tightened in 0.1.1 hardening (audit A5); `src/` adopts in the consolidation PR. v0.3.0 may add bech32 charset validation. |
-| `X-PAYMENT` alias request header constant | exported | absent | Provided for base-x402 interop; cardano402's facilitator itself only accepts `Payment-Signature` on requests. |
+| `X-PAYMENT` alias request header constant | exported | accepted by the resource-server payment gate and CORS allowlist | Provided for base-x402 interop; facilitator `/verify` and `/settle` receive parsed request bodies rather than raw payment headers. |
 | `Cardano402*` error classes | exported (`Cardano402Error`, `Cardano402DecodeError`, `Cardano402ValidationError`, `Cardano402HttpError`, `Cardano402NetworkError`) | `FacilitatorClient` in `src/sdk/facilitator-client.ts` throws plain `Error` | Core ships the typed hierarchy; `src/` adopts in follow-up. |
 
 ## Header codec parity

@@ -158,6 +158,31 @@ describe('payAndFetch — spending limit gates', () => {
 });
 
 describe('payAndFetch — elicitation gate', () => {
+  it('checks spend caps before asking for elicitation', async () => {
+    const { signer, signPayment } = makeStubSigner();
+    const fetchImpl = make402Then200();
+    const elicit = vi.fn(async () => true);
+    const tracker = new SpendTracker({
+      maxAmountPerCall: 5_000_000n,
+      maxAmountPerDay: 50_000_000n,
+    });
+
+    await expect(
+      payAndFetch({
+        baseUrl: 'https://api.example.com',
+        endpoint: { ...ENDPOINT, amount: '6000000' },
+        signer,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        spendTracker: tracker,
+        elicit,
+        elicitationThreshold: 1n,
+      })
+    ).rejects.toBeInstanceOf(SpendLimitError);
+
+    expect(elicit).not.toHaveBeenCalled();
+    expect(signPayment).not.toHaveBeenCalled();
+  });
+
   it('declines a signing when the elicit callback returns false', async () => {
     const { signer, signPayment } = makeStubSigner();
     const fetchImpl = make402Then200();

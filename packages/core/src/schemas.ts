@@ -16,7 +16,11 @@ export type Network = z.infer<typeof NetworkSchema>;
 export const LovelaceAmountSchema = z
   .string()
   .regex(/^[0-9]+$/, 'Lovelace amount must be a base-10 digit string')
-  .min(1);
+  .min(1)
+  .max(20, 'Lovelace amount must fit in uint64')
+  .refine((value) => !/^[0-9]+$/.test(value) || BigInt(value) <= 18_446_744_073_709_551_615n, {
+    message: 'Lovelace amount must fit in uint64',
+  });
 export type LovelaceAmount = z.infer<typeof LovelaceAmountSchema>;
 
 export const CardanoAddressSchema = z
@@ -28,6 +32,26 @@ export const CardanoAddressSchema = z
     'Cardano address must contain only printable ASCII (no whitespace, no control chars)'
   );
 export type CardanoAddress = z.infer<typeof CardanoAddressSchema>;
+
+export const AssetIdentifierSchema = z.union([
+  z.literal('lovelace'),
+  z
+    .string()
+    .regex(
+      /^[0-9a-f]{56}\.[0-9a-f]{2,64}$/,
+      'Asset must be "lovelace" or "policyId.assetNameHex" with lowercase hex'
+    )
+    .refine(
+      (value) => {
+        const assetNameHex = value.split('.')[1];
+        return typeof assetNameHex === 'string' && assetNameHex.length % 2 === 0;
+      },
+      {
+        message: 'Asset name hex must have an even number of characters',
+      }
+    ),
+]);
+export type AssetIdentifier = z.infer<typeof AssetIdentifierSchema>;
 
 export const UtxoRefSchema = z
   .string()
@@ -50,7 +74,7 @@ export const PaymentRequirementsSchema = z
   .object({
     scheme: SchemeSchema,
     network: NetworkSchema,
-    asset: z.string().default('lovelace'),
+    asset: AssetIdentifierSchema.default('lovelace'),
     amount: LovelaceAmountSchema,
     payTo: CardanoAddressSchema,
     maxTimeoutSeconds: z.number().int().positive(),
@@ -93,18 +117,26 @@ export const VerifyResponseSchema = z.object({
 });
 export type VerifyResponse = z.infer<typeof VerifyResponseSchema>;
 
-export const SettleResponseSchema = z.object({
-  success: z.boolean(),
-  transaction: z.string(),
-  network: NetworkSchema,
-  payer: CardanoAddressSchema.optional(),
-  errorReason: z.string().optional(),
-  errorMessage: z.string().optional(),
-  extensions: z
-    .object({ status: SettlementStatusSchema.optional() })
-    .passthrough()
-    .optional(),
-});
+export const SettleResponseSchema = z
+  .object({
+    success: z.boolean(),
+    transaction: z.string(),
+    network: NetworkSchema,
+    payer: CardanoAddressSchema.optional(),
+    errorReason: z.string().optional(),
+    errorMessage: z.string().optional(),
+    extensions: z.object({ status: SettlementStatusSchema.optional() }).passthrough().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.success && !/^[0-9a-f]{64}$/.test(value.transaction)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['transaction'],
+        message:
+          'Successful settle responses must include a 64-character lowercase transaction hash',
+      });
+    }
+  });
 export type SettleResponse = z.infer<typeof SettleResponseSchema>;
 
 export const StatusResponseSchema = z.object({
@@ -115,16 +147,24 @@ export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
 export const SupportedKindSchema = z.object({
   x402Version: X402VersionSchema,
-  scheme: z.string(),
+  scheme: SchemeSchema,
   network: NetworkSchema,
   extra: z.record(z.string(), z.unknown()).optional(),
 });
 export type SupportedKind = z.infer<typeof SupportedKindSchema>;
 
+export const SignerNetworkPatternSchema = z
+  .string()
+  .regex(
+    /^[a-z0-9]+:(?:[a-z0-9]+|\*)$/,
+    'Signer keys must be CAIP-2 chain IDs or CAIP family wildcards such as "cardano:*"'
+  );
+export type SignerNetworkPattern = z.infer<typeof SignerNetworkPatternSchema>;
+
 export const SupportedResponseSchema = z.object({
   kinds: z.array(SupportedKindSchema),
   extensions: z.array(z.unknown()),
-  signers: z.record(z.string(), z.array(z.string())),
+  signers: z.record(SignerNetworkPatternSchema, z.array(CardanoAddressSchema)),
 });
 export type SupportedResponse = z.infer<typeof SupportedResponseSchema>;
 
@@ -142,7 +182,7 @@ export const PaymentAcceptSchema = z.object({
   amount: z.string(),
   payTo: z.string(),
   maxTimeoutSeconds: z.number().int().positive().default(300),
-  asset: z.string().default('lovelace'),
+  asset: AssetIdentifierSchema.default('lovelace'),
   extra: z.record(z.string(), z.unknown()).nullable().default(null),
 });
 export type PaymentAccept = z.infer<typeof PaymentAcceptSchema>;
@@ -183,7 +223,9 @@ export const SettleRequestSchema = VerifyRequestSchema;
 export type SettleRequest = z.infer<typeof SettleRequestSchema>;
 
 export const StatusRequestSchema = z.object({
-  transaction: z.string().length(64),
+  transaction: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/, 'Transaction hash must be 64 lowercase hex characters'),
   paymentRequirements: PaymentRequirementsSchema,
 });
 export type StatusRequest = z.infer<typeof StatusRequestSchema>;

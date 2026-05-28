@@ -8,7 +8,7 @@
 //     transport: 'stdio',
 //     network: 'Preview',
 //     blockfrostKey: process.env.BLOCKFROST_KEY!,
-//     signer: { type: 'seed', seedPhrase: process.env.SEED_PHRASE! },
+//     signer: { type: 'seed', seedPhrase: readSeedFromRestrictiveFile() },
 //     httpPort: 3333,
 //     requestTimeoutMs: 60_000,
 //     allowInsecure: false,

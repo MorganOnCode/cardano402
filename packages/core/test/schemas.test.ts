@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 
 import {
+  AssetIdentifierSchema,
   AssetTransferMethodSchema,
   CardanoAddressSchema,
   LovelaceAmountSchema,
@@ -16,6 +17,7 @@ import {
   SettleResponseSchema,
   SettlementStatusSchema,
   StatusResponseSchema,
+  StatusRequestSchema,
   SupportedResponseSchema,
   UtxoRefSchema,
   VerifyErrorReasonSchema,
@@ -68,18 +70,20 @@ describe('SchemeSchema', () => {
 });
 
 describe('LovelaceAmountSchema', () => {
-  it('accepts base-10 digit strings of any length', () => {
+  it('accepts base-10 digit strings up to uint64 max', () => {
     expect(LovelaceAmountSchema.safeParse('0').success).toBe(true);
     expect(LovelaceAmountSchema.safeParse('2000000').success).toBe(true);
     expect(LovelaceAmountSchema.safeParse('18446744073709551615').success).toBe(true);
   });
 
-  it('rejects empty, decimal, negative, scientific, hex', () => {
+  it('rejects empty, decimal, negative, scientific, hex, and over-uint64 values', () => {
     expect(LovelaceAmountSchema.safeParse('').success).toBe(false);
     expect(LovelaceAmountSchema.safeParse('2.0').success).toBe(false);
     expect(LovelaceAmountSchema.safeParse('-1').success).toBe(false);
     expect(LovelaceAmountSchema.safeParse('1e6').success).toBe(false);
     expect(LovelaceAmountSchema.safeParse('0x10').success).toBe(false);
+    expect(LovelaceAmountSchema.safeParse('18446744073709551616').success).toBe(false);
+    expect(LovelaceAmountSchema.safeParse('1'.repeat(256)).success).toBe(false);
   });
 });
 
@@ -138,6 +142,28 @@ describe('CardanoAddressSchema', () => {
   });
 });
 
+describe('AssetIdentifierSchema', () => {
+  const policy = 'a'.repeat(56);
+
+  it('accepts lovelace and lowercase policyId.assetNameHex native assets', () => {
+    expect(AssetIdentifierSchema.safeParse('lovelace').success).toBe(true);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.00`).success).toBe(true);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.0014df105553444d`).success).toBe(true);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.${'b'.repeat(64)}`).success).toBe(true);
+  });
+
+  it('rejects malformed, uppercase, concatenated, empty, and odd-length asset names', () => {
+    expect(AssetIdentifierSchema.safeParse('LOVELACE').success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse('').success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(policy).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.`).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.0`).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.zz`).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${'a'.repeat(55)}.00`).success).toBe(false);
+    expect(AssetIdentifierSchema.safeParse(`${policy}.${'b'.repeat(66)}`).success).toBe(false);
+  });
+});
+
 describe('UtxoRefSchema', () => {
   it('accepts canonical txHash#index', () => {
     expect(UtxoRefSchema.safeParse(`${sampleTxHash}#0`).success).toBe(true);
@@ -192,6 +218,16 @@ describe('PaymentRequirementsSchema', () => {
     const { payTo: _omit, ...withoutPayTo } = sampleRequirements;
     expect(PaymentRequirementsSchema.safeParse(withoutPayTo).success).toBe(false);
   });
+
+  it('rejects malformed asset identifiers', () => {
+    expect(PaymentRequirementsSchema.safeParse({ ...sampleRequirements, asset: '' }).success).toBe(
+      false
+    );
+    expect(
+      PaymentRequirementsSchema.safeParse({ ...sampleRequirements, asset: 'policyId.assetName' })
+        .success
+    ).toBe(false);
+  });
 });
 
 describe('PaymentPayloadSchema', () => {
@@ -213,9 +249,7 @@ describe('PaymentPayloadSchema', () => {
   });
 
   it('rejects x402Version !== 2', () => {
-    expect(
-      PaymentPayloadSchema.safeParse({ ...basePayload, x402Version: 1 }).success
-    ).toBe(false);
+    expect(PaymentPayloadSchema.safeParse({ ...basePayload, x402Version: 1 }).success).toBe(false);
   });
 });
 
@@ -237,7 +271,7 @@ describe('SettleResponseSchema', () => {
     for (const status of ['confirmed', 'mempool', 'failed'] as const) {
       const parsed = SettleResponseSchema.safeParse({
         success: status !== 'failed',
-        transaction: status === 'failed' ? '' : 'txhash',
+        transaction: status === 'failed' ? '' : sampleTxHash,
         network: 'cardano:preview',
         extensions: { status },
       });
@@ -245,11 +279,34 @@ describe('SettleResponseSchema', () => {
     }
   });
 
+  it('rejects malformed transaction hashes on successful settlement responses', () => {
+    expect(
+      SettleResponseSchema.safeParse({
+        success: true,
+        transaction: 'abc123',
+        network: 'cardano:preview',
+        extensions: { status: 'confirmed' },
+      }).success
+    ).toBe(false);
+  });
+
+  it('allows empty transaction on failed settlement responses', () => {
+    expect(
+      SettleResponseSchema.safeParse({
+        success: false,
+        transaction: '',
+        network: 'cardano:preview',
+        errorReason: 'submission_failed',
+        extensions: { status: 'failed' },
+      }).success
+    ).toBe(true);
+  });
+
   it('rejects unknown extensions.status', () => {
     expect(
       SettleResponseSchema.safeParse({
         success: true,
-        transaction: 'tx',
+        transaction: sampleTxHash,
         network: 'cardano:preview',
         extensions: { status: 'pending' },
       }).success
@@ -268,6 +325,29 @@ describe('StatusResponseSchema', () => {
   });
 });
 
+describe('StatusRequestSchema', () => {
+  it('accepts lowercase hex transaction hashes only', () => {
+    expect(
+      StatusRequestSchema.safeParse({
+        transaction: sampleTxHash,
+        paymentRequirements: sampleRequirements,
+      }).success
+    ).toBe(true);
+    expect(
+      StatusRequestSchema.safeParse({
+        transaction: 'g'.repeat(64),
+        paymentRequirements: sampleRequirements,
+      }).success
+    ).toBe(false);
+    expect(
+      StatusRequestSchema.safeParse({
+        transaction: 'A'.repeat(64),
+        paymentRequirements: sampleRequirements,
+      }).success
+    ).toBe(false);
+  });
+});
+
 describe('SupportedResponseSchema', () => {
   it('parses an example with one kind and empty extensions', () => {
     const parsed = SupportedResponseSchema.safeParse({
@@ -282,6 +362,32 @@ describe('SupportedResponseSchema', () => {
       signers: { 'cardano:preview': ['addr_test1xxx'] },
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it('rejects unsupported schemes and malformed signer data', () => {
+    expect(
+      SupportedResponseSchema.safeParse({
+        kinds: [{ x402Version: 2, scheme: 'anything', network: 'cardano:preview' }],
+        extensions: [],
+        signers: { 'cardano:preview': ['addr_test1xxx'] },
+      }).success
+    ).toBe(false);
+
+    expect(
+      SupportedResponseSchema.safeParse({
+        kinds: [{ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }],
+        extensions: [],
+        signers: { 'Cardano:*': ['addr_test1xxx'] },
+      }).success
+    ).toBe(false);
+
+    expect(
+      SupportedResponseSchema.safeParse({
+        kinds: [{ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }],
+        extensions: [],
+        signers: { 'cardano:*': ['addr_test1xxx\r\n'] },
+      }).success
+    ).toBe(false);
   });
 });
 
@@ -314,6 +420,13 @@ describe('PaymentAcceptSchema', () => {
     expect(PaymentAcceptSchema.safeParse(withoutNetwork).success).toBe(false);
     expect(PaymentAcceptSchema.safeParse(withoutAmount).success).toBe(false);
     expect(PaymentAcceptSchema.safeParse(withoutPayTo).success).toBe(false);
+  });
+
+  it('rejects malformed asset identifiers', () => {
+    expect(PaymentAcceptSchema.safeParse({ ...sampleAccept, asset: '' }).success).toBe(false);
+    expect(PaymentAcceptSchema.safeParse({ ...sampleAccept, asset: 'bad.asset' }).success).toBe(
+      false
+    );
   });
 });
 
@@ -357,9 +470,7 @@ describe('PaymentRequiredResponseSchema', () => {
   it('property-based: any well-formed envelope round-trips encode/decode', () => {
     const acceptArb = fc.record({
       network: fc.constantFrom('cardano:preview', 'cardano:preprod', 'cardano:mainnet'),
-      amount: fc
-        .bigInt({ min: 1n, max: 45_000_000_000_000_000n })
-        .map((n: bigint) => n.toString()),
+      amount: fc.bigInt({ min: 1n, max: 45_000_000_000_000_000n }).map((n: bigint) => n.toString()),
       payTo: fc
         .string({ minLength: 10, maxLength: 100 })
         .filter((s: string) => /^[\x21-\x7e]+$/.test(s) && s.length > 0)
@@ -383,9 +494,7 @@ describe('PaymentRequiredResponseSchema', () => {
         }),
         (env) => {
           const parsed = PaymentRequiredResponseSchema.parse(env);
-          const restored = PaymentRequiredResponseSchema.parse(
-            JSON.parse(JSON.stringify(parsed))
-          );
+          const restored = PaymentRequiredResponseSchema.parse(JSON.parse(JSON.stringify(parsed)));
           expect(restored).toEqual(parsed);
         }
       ),

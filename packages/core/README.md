@@ -12,7 +12,7 @@ npm install @cardano402/core
 
 ## What's in the box
 
-- **Wire-format Zod schemas** for the x402 V2 Cardano scheme: `PaymentRequirementsSchema`, `PaymentPayloadSchema`, `VerifyResponseSchema`, `SettleResponseSchema`, `StatusResponseSchema`, `SupportedResponseSchema`, plus primitives (`NetworkSchema`, `LovelaceAmountSchema`, `UtxoRefSchema`, ...).
+- **Wire-format Zod schemas** for the x402 V2 Cardano scheme: `PaymentRequirementsSchema`, `PaymentPayloadSchema`, `VerifyResponseSchema`, `SettleResponseSchema`, `StatusResponseSchema`, `SupportedResponseSchema`, plus primitives (`NetworkSchema`, `LovelaceAmountSchema`, `AssetIdentifierSchema`, `UtxoRefSchema`, ...).
 - **Header codec**: `encodePaymentHeader` / `decodePaymentHeader` for the base64-of-JSON body carried in `Payment-Signature` / `X-PAYMENT` / `X-Payment-Response` headers, plus `findPaymentHeader` for case-insensitive lookup.
 - **`FacilitatorClient`**: a tiny HTTP wrapper for cardano402's `/verify`, `/settle`, `/status`, and `/supported` endpoints. Native `fetch`, AbortController timeout, Zod-validated responses.
 - **Structured errors**: `Cardano402Error`, `Cardano402DecodeError`, `Cardano402ValidationError`, `Cardano402HttpError`, `Cardano402NetworkError`.

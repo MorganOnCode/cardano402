@@ -4,6 +4,8 @@
 // All fields are validated through a Zod schema before reaching the runtime,
 // so callers can rely on the parsed config being well-formed.
 
+import { closeSync, fstatSync, openSync, readFileSync } from 'node:fs';
+
 import { z } from 'zod';
 
 export const TransportSchema = z.enum(['stdio', 'http']);
@@ -49,7 +51,7 @@ export const McpServerConfigSchema = z.object({
   /** Network interface for the HTTP transport. Defaults to loopback. */
   listenHost: z.string().default('127.0.0.1'),
   /** Optional bearer token required on every HTTP transport request. */
-  httpBearerToken: z.string().min(8).optional(),
+  httpBearerToken: z.string().min(32).optional(),
   /** Optional Origin allowlist for HTTP transport. Empty/undefined → loopback only. */
   httpOriginAllowlist: z.array(z.string()).default([]),
   network: LucidNetworkSchema.default('Preview'),
@@ -76,6 +78,7 @@ export const McpServerConfigSchema = z.object({
    * Any mainnet tool not in this list is dropped at registerTools time.
    */
   mainnetConfirmedTools: z.array(z.string().min(1)).default([]),
+  spendStorePath: z.string().min(1).optional(),
 });
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
 
@@ -108,6 +111,8 @@ export interface RawArgs {
   httpBearerToken?: string;
   httpOriginAllowlist?: string;
   elicitationThreshold?: string;
+  spendStorePath?: string;
+  seedPhraseFile?: string;
   help?: boolean;
 }
 
@@ -130,6 +135,8 @@ export function parseArgs(argv: readonly string[]): RawArgs {
     '--http-bearer-token': 'httpBearerToken',
     '--http-origin-allowlist': 'httpOriginAllowlist',
     '--elicitation-threshold': 'elicitationThreshold',
+    '--spend-store-path': 'spendStorePath',
+    '--seed-phrase-file': 'seedPhraseFile',
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -177,12 +184,34 @@ function parseCsv(value: string): string[] {
     .filter((s) => s.length > 0);
 }
 
+function loadSeedPhraseFromFile(path: string): string {
+  const fd = openSync(path, 'r');
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) {
+      throw new Error(`SEED_PHRASE_FILE is not a regular file: ${path}`);
+    }
+    if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) {
+      throw new Error(
+        `SEED_PHRASE_FILE must not be group/world readable or writable: ${path}`
+      );
+    }
+    const seedPhrase = readFileSync(fd, 'utf8').trim();
+    if (!seedPhrase) {
+      throw new Error(`SEED_PHRASE_FILE is empty: ${path}`);
+    }
+    return seedPhrase;
+  } finally {
+    closeSync(fd);
+  }
+}
+
 /**
  * Resolve a fully-validated config from CLI args + environment.
  *
  * Throws on the following hard errors:
  *  - missing `--catalog` / `CARDANO402_CATALOG_URL`
- *  - missing `BLOCKFROST_KEY` or `SEED_PHRASE`
+ *  - missing `BLOCKFROST_KEY` or seed phrase source
  *  - non-HTTPS catalog URL pointing at a non-loopback host, unless
  *    `--allow-insecure` / `CARDANO402_ALLOW_INSECURE=true` is set
  *  - `Mainnet` network without explicit `MAINNET=true`
@@ -203,9 +232,12 @@ export function loadConfig(input: LoadConfigInput = {}): McpServerConfig {
     throw new Error('BLOCKFROST_KEY environment variable is required');
   }
 
-  const seedPhrase = env.SEED_PHRASE;
+  const seedPhraseFile = args.seedPhraseFile ?? env.SEED_PHRASE_FILE;
+  const seedPhrase = seedPhraseFile ? loadSeedPhraseFromFile(seedPhraseFile) : env.SEED_PHRASE;
   if (!seedPhrase) {
-    throw new Error('SEED_PHRASE environment variable is required');
+    throw new Error(
+      'seed phrase is required (SEED_PHRASE_FILE/--seed-phrase-file preferred, or SEED_PHRASE for testnet)'
+    );
   }
 
   const allowInsecure =
@@ -268,6 +300,23 @@ export function loadConfig(input: LoadConfigInput = {}): McpServerConfig {
 
   const elicitationThresholdAmount =
     args.elicitationThreshold ?? env.CARDANO402_ELICITATION_THRESHOLD;
+  const spendStorePath = args.spendStorePath ?? env.CARDANO402_SPEND_STORE_PATH;
+
+  if (network === 'Mainnet' && !spendStorePath) {
+    throw new Error(
+      'Mainnet connection requires CARDANO402_SPEND_STORE_PATH or --spend-store-path so spend caps persist across restarts'
+    );
+  }
+
+  if (
+    network === 'Mainnet' &&
+    !seedPhraseFile &&
+    env.CARDANO402_ALLOW_MAINNET_SEED_PHRASE_ENV !== 'true'
+  ) {
+    throw new Error(
+      'Mainnet signing requires SEED_PHRASE_FILE or --seed-phrase-file. Set CARDANO402_ALLOW_MAINNET_SEED_PHRASE_ENV=true only if you intentionally accept hot seed material in process environment.'
+    );
+  }
 
   return McpServerConfigSchema.parse({
     catalogUrl,
@@ -285,6 +334,7 @@ export function loadConfig(input: LoadConfigInput = {}): McpServerConfig {
     payToAllowlist,
     mainnetConfirmedTools,
     elicitationThresholdAmount,
+    spendStorePath,
   });
 }
 
@@ -305,16 +355,19 @@ export function helpText(): string {
     '  --pay-to-allowlist <a,b,c>     Refuse to sign to addresses outside this comma-separated list',
     '  --mainnet-confirmed-tools <a,b,c>',
     '                                 Only register these tools when the catalog network is cardano:mainnet',
-    '  --http-bearer-token <token>    Require Authorization: Bearer <token> on every HTTP transport request',
+    '  --http-bearer-token <token>    Require Authorization: Bearer <token> on every HTTP transport request (min 32 chars)',
     '  --http-origin-allowlist <a,b,c>',
     '                                 Additional Origin header values to accept (loopback is always allowed)',
     '  --elicitation-threshold <lovelace>',
     '                                 Trigger MCP elicitation/create before signing if amount > threshold',
     '                                 (default = --max-amount-per-call so every cap-hit is confirmed)',
+    '  --spend-store-path <path>       Persist rolling spend history to this JSON file',
+    '  --seed-phrase-file <path>       Read signing wallet seed phrase from a 0600 file (required for Mainnet by default)',
     '  -h, --help                     Show this help',
     '',
     'Environment:',
-    '  SEED_PHRASE                       24-word seed phrase for the signing wallet (required)',
+    '  SEED_PHRASE_FILE                  0600 file containing the signing wallet seed phrase (preferred; Mainnet default requirement)',
+    '  SEED_PHRASE                       24-word seed phrase for the signing wallet (testnet/default fallback)',
     '  BLOCKFROST_KEY                    Blockfrost project ID for the chosen network (required)',
     '  CARDANO402_CATALOG_URL            Alternative to --catalog',
     '  CARDANO402_NETWORK                Alternative to --network',
@@ -328,5 +381,7 @@ export function helpText(): string {
     '  CARDANO402_PAY_TO_ALLOWLIST       Alternative to --pay-to-allowlist',
     '  CARDANO402_MAINNET_CONFIRMED_TOOLS  Alternative to --mainnet-confirmed-tools',
     '  CARDANO402_ELICITATION_THRESHOLD  Alternative to --elicitation-threshold',
+    '  CARDANO402_SPEND_STORE_PATH       Alternative to --spend-store-path',
+    '  CARDANO402_ALLOW_MAINNET_SEED_PHRASE_ENV=true  Permit Mainnet seed from SEED_PHRASE env var (unsafe hot-wallet override)',
   ].join('\n');
 }

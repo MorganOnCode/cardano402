@@ -1,7 +1,7 @@
 // Orchestrate the MCP server: load catalog -> build signer -> register tools
 // -> connect to the chosen transport.
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer as createHttpServer, type IncomingMessage, type Server as HttpServer } from 'node:http';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -66,6 +66,7 @@ function isLoopbackOrigin(origin: string): boolean {
 // Length-cap defends against pathological inputs; no real Authorization
 // header will ever be this long.
 const MAX_AUTH_HEADER_LENGTH = 8192;
+const MIN_HTTP_BEARER_TOKEN_LENGTH = 32;
 
 function readBearer(req: IncomingMessage): string | null {
   const header = req.headers['authorization'];
@@ -76,10 +77,19 @@ function readBearer(req: IncomingMessage): string | null {
   if (value.length < 7) return null;
   if (value.slice(0, 6).toLowerCase() !== 'bearer') return null;
   const sep = value.charCodeAt(6);
-  // Require exactly one of SP / HT / CR / LF after "Bearer" — RFC 7235 SP.
-  if (sep !== 0x20 && sep !== 0x09 && sep !== 0x0d && sep !== 0x0a) return null;
-  const token = value.slice(7).trim();
+  // Require exactly one SP or HT after "Bearer"; reject obs-fold/control chars.
+  if (sep !== 0x20 && sep !== 0x09) return null;
+  const token = value.slice(7);
+  if (/[\s]/u.test(token)) return null;
   return token.length > 0 ? token : null;
+}
+
+function bearerMatches(presented: string | null, expected: string): boolean {
+  if (presented === null) return false;
+  const presentedBytes = Buffer.from(presented, 'utf8');
+  const expectedBytes = Buffer.from(expected, 'utf8');
+  if (presentedBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(presentedBytes, expectedBytes);
 }
 
 /**
@@ -123,7 +133,9 @@ export async function startCardano402Mcp(
     maxAmountPerCall: options.maxAmountPerCall,
     maxAmountPerDay: options.maxAmountPerDay,
     payToAllowlist: options.payToAllowlist,
+    storePath: options.spendStorePath,
   });
+  log('spend tracker ready', { persistent: options.spendStorePath ? 'true' : 'false' });
 
   // Default elicitation threshold = per-call cap, so any signing that
   // saturates the per-call limit requires a user accept. Operators can lower
@@ -191,6 +203,14 @@ export async function startCardano402Mcp(
   }
 
   // ---- HTTP (Streamable HTTP) ----
+  if (
+    options.httpBearerToken !== undefined &&
+    options.httpBearerToken.length < MIN_HTTP_BEARER_TOKEN_LENGTH
+  ) {
+    throw new Error(
+      `HTTP bearer token must be at least ${MIN_HTTP_BEARER_TOKEN_LENGTH} characters`
+    );
+  }
   if (!isLoopbackHost(options.listenHost) && !options.httpBearerToken) {
     log('refusing to start HTTP transport on a non-loopback host without a bearer token', {
       listenHost: options.listenHost,
@@ -230,7 +250,7 @@ export async function startCardano402Mcp(
         // ---- Bearer token (if configured) ----
         if (options.httpBearerToken) {
           const presented = readBearer(req);
-          if (presented !== options.httpBearerToken) {
+          if (!bearerMatches(presented, options.httpBearerToken)) {
             res.statusCode = 401;
             res.setHeader('content-type', 'application/json');
             res.setHeader('www-authenticate', 'Bearer realm="cardano402-mcp"');
