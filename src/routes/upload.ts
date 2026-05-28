@@ -18,6 +18,12 @@ import { createPaymentGate } from '../sdk/payment-gate.js';
 import { CAIP2_CHAIN_IDS } from '../verify/types.js';
 
 const UPLOAD_BODY_LIMIT = 10 * 1024 * 1024; // 10MB
+const UPLOAD_MULTIPART_LIMITS = {
+  fileSize: UPLOAD_BODY_LIMIT,
+  files: 1,
+  fields: 0,
+  parts: 1,
+};
 
 const uploadRoutes: FastifyPluginCallback = (fastify, _options, done) => {
   // Create FacilitatorClient pointing to ourselves (same-process facilitator)
@@ -110,7 +116,7 @@ const uploadRoutes: FastifyPluginCallback = (fastify, _options, done) => {
       // 2. Parse multipart file upload
       let fileData: Buffer;
       try {
-        const data = await request.file();
+        const data = await request.file({ limits: UPLOAD_MULTIPART_LIMITS });
         if (!data) {
           return reply.status(400).send({
             error: 'Bad Request',
