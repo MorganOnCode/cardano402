@@ -68,18 +68,20 @@ describe('SchemeSchema', () => {
 });
 
 describe('LovelaceAmountSchema', () => {
-  it('accepts base-10 digit strings of any length', () => {
+  it('accepts base-10 digit strings up to uint64 max', () => {
     expect(LovelaceAmountSchema.safeParse('0').success).toBe(true);
     expect(LovelaceAmountSchema.safeParse('2000000').success).toBe(true);
     expect(LovelaceAmountSchema.safeParse('18446744073709551615').success).toBe(true);
   });
 
-  it('rejects empty, decimal, negative, scientific, hex', () => {
+  it('rejects empty, decimal, negative, scientific, hex, and over-uint64 values', () => {
     expect(LovelaceAmountSchema.safeParse('').success).toBe(false);
     expect(LovelaceAmountSchema.safeParse('2.0').success).toBe(false);
     expect(LovelaceAmountSchema.safeParse('-1').success).toBe(false);
     expect(LovelaceAmountSchema.safeParse('1e6').success).toBe(false);
     expect(LovelaceAmountSchema.safeParse('0x10').success).toBe(false);
+    expect(LovelaceAmountSchema.safeParse('18446744073709551616').success).toBe(false);
+    expect(LovelaceAmountSchema.safeParse('1'.repeat(256)).success).toBe(false);
   });
 });
 
