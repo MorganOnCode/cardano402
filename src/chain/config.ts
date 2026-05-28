@@ -1,3 +1,5 @@
+import { closeSync, fstatSync, openSync, readFileSync } from 'node:fs';
+
 import { z } from 'zod';
 
 import { BLOCKFROST_URLS } from './types.js';
@@ -9,10 +11,119 @@ import type { CardanoNetwork } from './types.js';
  * Validates Blockfrost settings, facilitator credentials, UTXO cache,
  * reservation system, and Redis connection parameters.
  *
- * SECURITY: `blockfrost.projectId`, `facilitator.seedPhrase`, and
- * `facilitator.privateKey` are sensitive fields. They must be provided
- * explicitly in config and must never appear in logs.
+ * SECURITY: `blockfrost.projectId`, facilitator signing material, and Redis
+ * credentials are sensitive fields. They must never appear in logs. Mainnet
+ * signing material should be loaded from restrictive files rather than stored
+ * inline in config JSON.
  */
+export function loadCredentialFile(path: string, label: string): string {
+  const fd = openSync(path, 'r');
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) {
+      throw new Error(`${label} is not a regular file: ${path}`);
+    }
+    if (process.platform !== 'win32' && (stat.mode & 0o077) !== 0) {
+      throw new Error(`${label} must not be group/world readable or writable: ${path}`);
+    }
+    const value = readFileSync(fd, 'utf8').trim();
+    if (!value) {
+      throw new Error(`${label} is empty: ${path}`);
+    }
+    return value;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+const FacilitatorConfigSchema = z
+  .object({
+    /**
+     * Root facilitator signer mode.
+     *
+     * `local-file` is the only implemented mode today: the process loads
+     * signing material from config or restrictive files and initializes a
+     * local Lucid wallet. Remote policy signing is intentionally not accepted
+     * until a signer provider boundary exists.
+     */
+    signerMode: z.literal('local-file').default('local-file'),
+    /** Seed phrase for facilitator wallet (sensitive - never log) */
+    seedPhrase: z.string().optional(),
+    /** Restrictive file containing seed phrase for facilitator wallet. */
+    seedPhraseFile: z.string().optional(),
+    /** Private key for facilitator wallet (sensitive - never log) */
+    privateKey: z.string().optional(),
+    /** Restrictive file containing private key for facilitator wallet. */
+    privateKeyFile: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const sources = [
+      data.seedPhrase,
+      data.seedPhraseFile,
+      data.privateKey,
+      data.privateKeyFile,
+    ].filter((v) => v !== undefined && v.trim() !== '');
+    if (sources.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Either seedPhraseFile, privateKeyFile, seedPhrase, or privateKey must be provided',
+      });
+    }
+    if (sources.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Provide exactly one facilitator credential source',
+      });
+    }
+  })
+  .transform(
+    (
+      data,
+      ctx
+    ): {
+      seedPhrase?: string;
+      privateKey?: string;
+      signerMode?: 'local-file';
+      credentialSource?: 'seedPhraseFile' | 'privateKeyFile' | 'seedPhrase' | 'privateKey';
+    } => {
+      try {
+        if (data.seedPhraseFile) {
+          return {
+            seedPhrase: loadCredentialFile(data.seedPhraseFile, 'chain.facilitator.seedPhraseFile'),
+            signerMode: data.signerMode,
+            credentialSource: 'seedPhraseFile' as const,
+          };
+        }
+        if (data.privateKeyFile) {
+          return {
+            privateKey: loadCredentialFile(data.privateKeyFile, 'chain.facilitator.privateKeyFile'),
+            signerMode: data.signerMode,
+            credentialSource: 'privateKeyFile' as const,
+          };
+        }
+        if (data.seedPhrase) {
+          return {
+            seedPhrase: data.seedPhrase,
+            signerMode: data.signerMode,
+            credentialSource: 'seedPhrase' as const,
+          };
+        }
+        return {
+          privateKey: data.privateKey,
+          signerMode: data.signerMode,
+          credentialSource: 'privateKey' as const,
+        };
+      } catch (error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return z.NEVER;
+      }
+    }
+  );
+
 export const ChainConfigSchema = z
   .object({
     network: z.enum(['Preview', 'Preprod', 'Mainnet']).default('Preview'),
@@ -26,17 +137,7 @@ export const ChainConfigSchema = z
       tier: z.enum(['free', 'paid']).default('free'),
     }),
 
-    facilitator: z
-      .object({
-        /** Seed phrase for facilitator wallet (sensitive - never log) */
-        seedPhrase: z.string().optional(),
-        /** Private key for facilitator wallet (sensitive - never log) */
-        privateKey: z.string().optional(),
-      })
-      .refine(
-        (d) => d.seedPhrase || d.privateKey,
-        'Either seedPhrase or privateKey must be provided'
-      ),
+    facilitator: FacilitatorConfigSchema,
 
     cache: z
       .object({
@@ -120,6 +221,31 @@ export const ChainConfigSchema = z
         code: z.ZodIssueCode.custom,
         message: 'Mainnet connection requires explicit MAINNET=true environment variable',
         path: ['network'],
+      });
+    }
+    if (
+      data.network === 'Mainnet' &&
+      data.facilitator.signerMode === 'local-file' &&
+      process.env.CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER !== 'true'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Mainnet local-file facilitator signing is a hot-wallet mode. Set CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true only if you intentionally accept this interim risk; high-value Mainnet should use the documented remote or hardware-backed signer boundary.',
+        path: ['facilitator', 'signerMode'],
+      });
+    }
+    if (
+      data.network === 'Mainnet' &&
+      (data.facilitator.credentialSource === 'seedPhrase' ||
+        data.facilitator.credentialSource === 'privateKey') &&
+      process.env.CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY !== 'true'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Mainnet facilitator signing material must use seedPhraseFile or privateKeyFile. Set CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true only if you intentionally accept inline hot key material in config JSON.',
+        path: ['facilitator'],
       });
     }
   });

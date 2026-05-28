@@ -64,6 +64,9 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
     genReqId: () => randomUUID(),
     // Disable default request logging (we use custom plugin)
     disableRequestLogging: true,
+    // Production deployments bind to loopback and sit behind nginx/Cloudflare.
+    // A numeric trustProxy hop count avoids trusting spoofed forwarded chains.
+    trustProxy: config.server.trustProxy ?? false,
     // Security: Strict body limit (50KB) to prevent memory exhaustion
     bodyLimit: 51200,
   });
@@ -113,7 +116,7 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
   // CORS - permissive in dev, restrictive in prod
   await server.register(cors, {
     origin: isDev ? true : false,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
       'Authorization',
@@ -124,6 +127,7 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
       // wire, but CORS allowlists must enumerate them).
       'Payment-Signature',
       'PAYMENT-SIGNATURE',
+      'X-PAYMENT',
       'Payment-Required',
     ],
     // Both header names are emitted in parallel. See sdk/types.ts.

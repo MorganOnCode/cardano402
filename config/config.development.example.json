@@ -1,0 +1,46 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3000,
+    "trustProxy": false
+  },
+  "logging": {
+    "level": "debug",
+    "pretty": true
+  },
+  "env": "development",
+  "chain": {
+    "network": "Preview",
+    "blockfrost": {
+      "projectId": "your-preview-blockfrost-project-id",
+      "tier": "free"
+    },
+    "facilitator": {
+      "signerMode": "local-file",
+      "seedPhraseFile": "./secrets/cardano402-preview.seed"
+    },
+    "redis": {
+      "host": "127.0.0.1",
+      "port": 6379,
+      "db": 0
+    },
+    "verification": {
+      "graceBufferSeconds": 30,
+      "maxTimeoutSeconds": 300,
+      "feeMinLovelace": 150000,
+      "feeMaxLovelace": 5000000,
+      "requireNonce": true,
+      "confirmationMode": "confirmed_only",
+      "minConfirmations": 1
+    }
+  },
+  "storage": {
+    "backend": "fs",
+    "fs": {
+      "dataDir": "./data/files"
+    },
+    "ipfs": {
+      "apiUrl": "http://localhost:5001"
+    }
+  }
+}

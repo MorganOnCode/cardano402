@@ -42,6 +42,7 @@ describe('Health Endpoint', () => {
     logging: { level: 'error', pretty: false },
     rateLimit: { global: 100, windowMs: 60000, sensitive: 20 },
     env: 'test',
+    metrics: {},
     chain: {
       network: 'Preview',
       blockfrost: { projectId: 'test-project-id', tier: 'free' },
