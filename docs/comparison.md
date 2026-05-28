@@ -211,9 +211,9 @@ It Works / Spec Compliance / Documentation index.
 
 | What | Reason |
 |---|---|
-| Verifier and schema for an out-of-scope alternative `assetTransferMethod` | Not in cardano402's positioning. The route layer rejects unsupported methods with a structured `method_not_supported` reason rather than silently re-interpreting them. |
+| Silent reinterpretation of unknown `assetTransferMethod` values | The route layer rejects unsupported methods with a structured `method_not_supported` reason rather than silently treating them as `default`. |
 | The previous `docs/comparison.md` | Replaced by this document. |
-| Discriminated-union arms naming third-party protocols | Removed alongside the deletion above so the public surface only references methods we implement (`default`) or recognise but stub (`script`). |
+| Unrecognized third-party method literals | The public surface only references methods we implement (`default`) or recognize but stub (`script`). |
 
 ## What was hardened during the audit pass
 
