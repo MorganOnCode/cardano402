@@ -1,11 +1,17 @@
 # Backup & Restore Runbook
 
-cardano402 stores three things on the VPS that aren't in git and aren't trivially reconstructible:
+cardano402 stores four classes of data on the VPS that are not in git and are
+not trivially reconstructible:
 
-1. **`config/config.json`** — mainnet facilitator seed phrase + Blockfrost project ID. **Most valuable target.**
-2. **`.env`** — `REDIS_PASSWORD` + `MAINNET` guardrail flag.
-3. **Redis AOF volume (`cardano402_redis_data`)** — payment dedup keys and UTXO cache. Rebuildable from chain state but accelerates recovery.
-4. **`data/files/`** — uploaded payment-gated content (per-tenant; can grow over time).
+1. **`config/config.json`** — production configuration, Blockfrost project ID,
+   Redis settings, and file paths for local signing material.
+2. **`secrets/`** — local facilitator/demo signing files mounted read-only at
+   `/run/secrets`. **Most valuable target.**
+3. **`.env`** — `REDIS_PASSWORD` + `MAINNET` guardrail flag.
+4. **Redis AOF volume (`cardano402_redis_data` or
+   `cardano402_redis_prod_data`)** — payment dedup keys and UTXO cache.
+   Rebuildable from chain state but accelerates recovery.
+5. **`data/files/`** — uploaded payment-gated content (per-tenant; can grow over time).
 
 This runbook covers nightly encrypted backups, restore verification, and disaster recovery.
 
@@ -104,6 +110,10 @@ sudo diff /opt/cardano402/config/config.json /tmp/restore-test/.../sensitive/con
 sudo rm -rf /tmp/restore-test
 ```
 
+The restore script forces the target directory to `0700` because restored
+snapshots contain `config.json`, `.env`, and payment-gated content. Keep that
+directory private until you delete it.
+
 ### 7. Enable the cron job
 
 ```bash
@@ -175,15 +185,22 @@ curl http://localhost:3000/health
    ```bash
    sudo cp /tmp/recover/.../sensitive/config.json /opt/cardano402/config/config.json
    sudo cp /tmp/recover/.../sensitive/dotenv      /opt/cardano402/.env
+   sudo mkdir -p /opt/cardano402/secrets
+   sudo cp -a /tmp/recover/.../sensitive/secrets/. /opt/cardano402/secrets/
+   sudo chmod 700 /opt/cardano402/secrets
+   sudo chmod 600 /opt/cardano402/secrets/*
    sudo mkdir -p /opt/cardano402/data
    sudo cp -a /tmp/recover/.../data-files /opt/cardano402/data/files
    ```
-6. Restore Redis volume:
+6. Restore Redis volume. Use the volume directory present in the restored
+   snapshot. The `docker-compose.prod.yml` deployment uses
+   `cardano402_redis_data`; the `docker-compose.yml` production profile uses
+   `cardano402_redis_prod_data`.
    ```bash
    docker volume create cardano402_redis_data
    docker run --rm \
      -v cardano402_redis_data:/dest \
-     -v /tmp/recover/.../redis:/source:ro \
+     -v /tmp/recover/.../redis/cardano402_redis_data:/source:ro \
      alpine sh -c "cp -a /source/. /dest/"
    ```
 7. Start: `cd /opt/cardano402 && docker compose -f docker-compose.prod.yml up -d`
@@ -191,7 +208,10 @@ curl http://localhost:3000/health
 
 ### Scenario C — VPS is gone AND the passphrase is gone
 
-You're in trouble. The mainnet seed phrase is no longer recoverable from any encrypted backup — only from whatever offline seed-phrase backup you kept at the moment you set up the facilitator (per Cardano custody best practice, the 24-word phrase should already be written down somewhere safe, completely independent of this backup chain). Re-import the seed into a fresh facilitator install and recover funds. Uploaded payment-gated content is lost.
+You're in trouble. The mainnet seed phrase is no longer recoverable from any
+encrypted VPS backup — only from whatever offline seed-phrase backup you kept
+at the moment you set up the facilitator. Re-import the seed into a fresh
+facilitator install and recover funds. Uploaded payment-gated content is lost.
 
 This is the scenario the offline passphrase storage in step 2 of setup is designed to prevent.
 

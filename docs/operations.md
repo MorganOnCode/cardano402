@@ -9,15 +9,34 @@
 
 ## Quick Start (Development)
 
-1. Copy config: `cp config/config.example.json config/config.json`
-2. Edit config: set your Blockfrost project ID and seed phrase
-3. Start dependencies: `docker compose up -d`
+1. Copy config: `cp config/config.development.example.json config/config.json`
+2. Edit config: set your Blockfrost project ID and create the seed phrase file
+3. Start dependencies: `docker compose --profile development up -d`
 4. Start server: `pnpm dev`
 5. Verify: `curl http://localhost:3000/health`
 
 ## Backups
 
 See [`backup-restore.md`](backup-restore.md) for the encrypted off-host backup runbook (restic, nightly cron, retention policy, restore procedure, disaster recovery scenarios).
+
+## Mainnet signer isolation
+
+The current root facilitator uses local Lucid signing material from a
+restrictive file. This is acceptable for Preview, Preprod, and limited-value
+Mainnet operation, but it is still a hot-wallet deployment because the web
+process can sign if the host is compromised.
+
+Before high-value Mainnet operation, use the target remote or hardware-backed
+policy signer model in
+[`mainnet-signer-isolation.md`](mainnet-signer-isolation.md). Until that exists:
+
+- keep only operational float in the facilitator wallet;
+- keep signing files out of unencrypted backups;
+- rotate the facilitator wallet after suspected host compromise;
+- set `CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true` only after accepting the
+  local-file hot-wallet risk;
+- avoid enabling `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY`;
+- use Preview or Preprod for public demos and integration testing.
 
 ## Manual deploy procedure
 
@@ -69,11 +88,22 @@ For routine deploys (no Dockerfile or compose change), `bash deploy.sh` runs the
 
 Copy `config/config.example.json` to `config/config.json` and set:
 - `env` to `"production"`
+- `server.trustProxy` to a numeric hop count when deployed behind
+  nginx/Cloudflare on the same host so rate limits and logs use the original
+  client IP without trusting arbitrary forwarded chains
 - `logging.pretty` to `false`
 - `chain.redis.host` to `"redis-prod"` (Docker service name)
 - `chain.redis.password` to your Redis password
 - `chain.blockfrost.projectId` to your Blockfrost key
-- `chain.facilitator.seedPhrase` to your facilitator wallet seed
+- `chain.facilitator.seedPhraseFile` to a `0600` file containing your facilitator wallet seed
+- if the live demo is enabled, `demo.seedPhraseFile` to a separate `0600`
+  Preview/Preprod wallet seed; production rejects inline demo seed material
+
+Production Compose mounts `./secrets` read-only at `/run/secrets`, so local
+files such as `secrets/cardano402-facilitator.seed` appear inside the container
+as `/run/secrets/cardano402-facilitator.seed`. Keep `secrets/` out of git and
+use `chmod 600` on every signing file. If the live demo is disabled, remove the
+`demo` section instead of leaving a missing `demo.seedPhraseFile` path.
 
 ### 2. Set Redis password
 
@@ -89,8 +119,33 @@ docker compose --profile production up -d
 ```
 
 This starts:
-- `cardano402` -- the payment facilitator (port 3000)
-- `cardano402-redis-prod` -- Redis with authentication (port 6380)
+- `cardano402` -- the payment facilitator (`127.0.0.1:3000`)
+- `cardano402-redis-prod` -- Redis with authentication (`127.0.0.1:6380`)
+
+Production Compose fails fast if `REDIS_PASSWORD` is unset, mounts `./secrets`
+read-only at `/run/secrets`, mounts `./data` for stored files, runs the
+facilitator with a read-only root filesystem plus `/tmp` tmpfs, and keeps
+development-only Redis/IPFS services out of the production profile. The
+production containers also drop ambient Linux capabilities and set
+`no-new-privileges`.
+
+Production Redis uses AOF plus `maxmemory-policy noeviction`. Settlement dedup
+records are part of replay protection; if Redis memory is exhausted, writes
+must fail loudly instead of evicting dedup keys.
+
+Production Compose also passes `NODE_ENV=production`, `MAINNET=${MAINNET:-false}`,
+and
+`CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=${CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER:-false}`
+into the facilitator. Set `MAINNET=true` in `.env` only when `chain.network`
+is intentionally `"Mainnet"`, and set the local-file acknowledgement only for
+limited-value hot-wallet operation.
+
+Because the production service binds to loopback and is reached through the
+local reverse proxy, set `server.trustProxy` to a numeric hop count such as `1`
+for nginx only or `2` for Cloudflare plus nginx. Do not use boolean `true` in
+production and do not enable it for a deployment that accepts direct public
+traffic without a trusted proxy boundary, because clients could spoof
+`X-Forwarded-*` headers.
 
 ### 4. Verify deployment
 
@@ -136,6 +191,32 @@ In Docker: `docker compose --profile production stop` sends SIGTERM.
 **Alert on:** `unhealthy` status or health endpoint unreachable.
 **Investigate:** `degraded` status -- check Redis connectivity.
 
+The response also includes non-secret confirmation policy under
+`policy.confirmation` and signer posture under `policy.signer`:
+
+```json
+{
+  "confirmation": {
+    "network": "Mainnet",
+    "confirmationMode": "confirmed_only",
+    "minConfirmations": 6,
+    "maxTimeoutSeconds": 300,
+    "requireNonce": true
+  },
+  "signer": {
+    "mode": "local-file",
+    "credentialSource": "seedPhraseFile",
+    "hotWallet": true
+  }
+}
+```
+
+Alert if production unexpectedly reports `confirmationMode:
+"allow_mempool"`, `requireNonce: false`, or a lower-than-approved
+`minConfirmations` value. Until remote policy signing is implemented,
+`policy.signer.hotWallet: true` is expected and should be treated as a
+deployment risk signal rather than a failure by itself.
+
 ## Common Issues
 
 ### Config validation error on startup
@@ -153,10 +234,70 @@ In Docker: `docker compose --profile production stop` sends SIGTERM.
 **Symptom:** `Mainnet connection requires explicit MAINNET=true environment variable`
 **Fix:** Set `MAINNET=true` in environment if intentionally connecting to mainnet. This is a safety guardrail.
 
+**Symptom:** `Mainnet local-file facilitator signing is a hot-wallet mode`
+**Fix:** For limited-value local-file Mainnet operation, set
+`CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true`. For high-value Mainnet, do
+not set the override; implement the remote or hardware-backed signer boundary.
+
 ### Rate limiting (429)
 
 **Symptom:** Clients receive 429 Too Many Requests
-**Fix:** Default limits: 100 req/min global, 20 req/min on /verify, /settle, /status. Adjust in config `rateLimit` section.
+**Fix:** Default limits: 100 req/min global, 20 req/min on `/verify`, `/settle`,
+`/status`, `/upload`, `/demo/run`, and `/demo/status`. Adjust in config
+`rateLimit` section.
+
+### Cloudflare challenge blocks x402 clients
+
+**Symptom:** Non-browser clients receive HTTP 403 with `cf-mitigated: challenge`
+for `/supported`, `/verify`, `/settle`, or `/status`.
+
+**Impact:** This blocks x402 resource servers and agents. Browser challenges are
+reasonable for the landing page, but machine protocol endpoints must return JSON
+without JavaScript or cookies.
+
+**Required machine-reachable paths:**
+
+- `/.well-known/x402.json`
+- `/.well-known/agent-card.json`
+- `/.well-known/ai-agent.json`
+- `/.well-known/mcp/server-card.json`
+- `/health`
+- `/supported`
+- `/verify`
+- `/settle`
+- `/status`
+
+**Cloudflare WAF posture:**
+
+1. Keep the default managed challenge for `/` and human-facing landing assets.
+2. Add a WAF skip rule for the machine paths above that skips managed challenge
+   and bot fight mode, but does not skip logging.
+3. Add Cloudflare rate limiting on machine paths:
+   - `/.well-known/*` and `/supported`: high read limit, cacheable where safe.
+   - `/verify`: moderate limit; this burns CPU and Blockfrost quota.
+   - `/settle`: strictest limit; this can submit transactions.
+   - `/status`: moderate limit; this reads settlement state.
+4. Keep Fastify route limits enabled as the application backstop.
+5. Alert on spikes in 4xx/5xx, `invalid_request`, `nonce_lookup_failed`, and
+   Blockfrost quota errors.
+
+**Verification:**
+
+Run this from outside the Cloudflare zone after every WAF change:
+
+```bash
+pnpm monitor:protocol -- --base-url https://cardano402.com --min-confirmations 6 --json
+```
+
+The monitor fails if any machine endpoint returns a Cloudflare challenge, HTML,
+or an unexpected status. It is acceptable for `/verify` and `/settle` to return
+structured JSON rejections for deliberately invalid monitor payloads; it is not
+acceptable for them to return a browser challenge.
+
+The monitor also checks `/health` policy drift. By default it fails if
+`policy.confirmation` is missing, if `confirmationMode` is `allow_mempool`, if
+`requireNonce` is false, or if `minConfirmations` is below the configured
+threshold.
 
 ### Health endpoint shows version 0.0.0
 
@@ -181,6 +322,37 @@ Key log fields:
 - `reqId` -- request correlation ID (UUID)
 - `responseTime` -- request duration in ms
 - `statusCode` -- HTTP response status
+
+### Prometheus Metrics
+
+`GET /metrics` exposes process metrics, HTTP route counters, HTTP latency
+histograms, and payment-protocol outcome counters. Set
+`metrics.bearerToken` in production and scrape the endpoint with
+`Authorization: Bearer <token>`. Use a random token of at least 32 characters.
+
+Key payment metric:
+
+```text
+facilitator_payment_results_total{endpoint="/verify",result="invalid",reason="nonce_lookup_failed"}
+```
+
+Recommended alerts:
+
+- `/verify` invalid spikes, especially `reason="invalid_request"` or
+  `reason="nonce_lookup_failed"`.
+- `/settle` failures with sustained non-`none` reasons.
+- `/status` `result="not_found"` spikes after settlement attempts.
+- HTTP 429/5xx spikes on `/verify`, `/settle`, or `/status`.
+
+The `reason` label is bounded by the application to avoid attacker-controlled
+Prometheus cardinality.
+
+### Release readiness
+
+Before publishing or deploying money-handling changes, follow
+[`release-readiness.md`](release-readiness.md). The `pnpm security:release`
+gate checks that required security workflows, protocol monitor invariants,
+payment outcome metrics, and prepublish hooks remain wired into the repo.
 
 ### Sentry
 

@@ -7,7 +7,7 @@ Deployment options for the x402 Cardano Payment Facilitator.
 - **Docker and Docker Compose** (for containerized deployment)
   - OR **Node.js 20+** and **pnpm** (for bare metal)
 - **Blockfrost API key** -- register at [blockfrost.io](https://blockfrost.io)
-- **Funded Cardano wallet** (24-word seed phrase)
+- **Funded Cardano wallet** (seed phrase or private key stored in a restrictive file)
 - **Redis 7+** (provided via Docker Compose or external)
 
 ## Configuration
@@ -30,7 +30,9 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 |-------|-------------|---------|
 | `chain.network` | Cardano network | `"Preview"`, `"Preprod"`, `"Mainnet"` |
 | `chain.blockfrost.projectId` | Blockfrost API key | `"previewXXX..."` |
-| `chain.facilitator.seedPhrase` | 24-word wallet seed phrase | `"word1 word2 ..."` |
+| `chain.facilitator.signerMode` | Current root facilitator signer mode. Only `"local-file"` is implemented today | `"local-file"` |
+| `chain.facilitator.seedPhraseFile` | `0600` file containing facilitator wallet seed phrase, mounted from local `./secrets` in production Compose | `"/run/secrets/cardano402-facilitator.seed"` |
+| `chain.facilitator.privateKeyFile` | `0600` file containing facilitator wallet private key, mounted from local `./secrets` in production Compose | `"/run/secrets/cardano402-facilitator.skey"` |
 | `chain.redis.host` | Redis hostname | `"localhost"` or `"redis-prod"` |
 
 ### Optional Settings
@@ -39,14 +41,19 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 |-------|---------|-------------|
 | `server.port` | `3000` | HTTP listen port |
 | `server.host` | `"0.0.0.0"` | HTTP listen address |
+| `server.trustProxy` | `2` for Cloudflare + nginx production deployments | Numeric trusted-proxy hop count for `X-Forwarded-*` so rate limits and logs use the client IP without trusting arbitrary forwarded chains |
 | `logging.level` | `"info"` | Log level (`debug`, `info`, `warn`, `error`) |
 | `logging.pretty` | `false` | Pretty-print logs (enable for development) |
 | `env` | `"development"` | Environment (`development`, `production`) |
 | `rateLimit.global` | `100` | Requests per minute (global) |
-| `rateLimit.sensitive` | `20` | Requests per minute (`/verify`, `/settle`, `/status`) |
+| `rateLimit.sensitive` | `20` | Requests per minute (`/verify`, `/settle`, `/status`, `/upload`, `/demo/run`, `/demo/status`) |
 | `rateLimit.windowMs` | `60000` | Rate limit window in milliseconds |
+| `metrics.bearerToken` | *(none)* | Bearer token for `GET /metrics` (required in production; minimum 32 characters) |
 | `chain.blockfrost.tier` | `"free"` | Blockfrost plan tier |
 | `chain.cache.utxoTtlSeconds` | `60` | UTXO cache TTL |
+| `chain.verification.confirmationMode` | `"confirmed_only"` | Settlement response policy; `allow_mempool` is lower assurance |
+| `chain.verification.minConfirmations` | `6` | Cardano confirmation depth before reporting `confirmed` |
+| `chain.verification.requireNonce` | `true` | Require spec nonce UTXO anti-replay field |
 | `chain.redis.port` | `6379` | Redis port |
 | `chain.redis.password` | *(none)* | Redis password (enable in production) |
 | `chain.redis.db` | `0` | Redis database index |
@@ -64,20 +71,36 @@ Follow these steps to deploy on the Cardano Preview testnet:
 1. **Create a Blockfrost account** at [blockfrost.io](https://blockfrost.io)
 2. **Create a project** for the "Cardano Preview" network
 3. **Copy the project ID** into `config.chain.blockfrost.projectId`
-4. **Generate or use an existing 24-word seed phrase** for the facilitator wallet
+4. **Generate or use an existing 24-word seed phrase** for the facilitator wallet and store it in a `0600` file
 5. **Fund the wallet** via the [Cardano Testnet Faucet](https://docs.cardano.org/cardano-testnets/tools/faucet/)
    - Request at least 10 ADA for facilitator operations
 6. **Set the network** to `"Preview"` in `config.chain.network`
+7. **If enabling the live demo**, use a separate Preview/Preprod wallet via
+   `demo.seedPhraseFile`; production rejects inline demo seed material in
+   `config.json`
 
 ### Mainnet Safety
 
-The facilitator requires the `MAINNET=true` environment variable to connect to mainnet. This is a safety guardrail that prevents accidental mainnet usage during development.
+The facilitator requires the `MAINNET=true` environment variable to connect to mainnet. This is a safety guardrail that prevents accidental mainnet usage during development. Mainnet also requires facilitator signing material to come from `chain.facilitator.seedPhraseFile` or `chain.facilitator.privateKeyFile` by default; inline `seedPhrase` / `privateKey` values in `config.json` are rejected unless `CARDANO402_ALLOW_MAINNET_INLINE_SIGNING_KEY=true` is set.
 
 Without it, attempting to use `"Mainnet"` as the network will cause a startup error:
 
 ```
 Mainnet connection requires explicit MAINNET=true environment variable
 ```
+
+File-based Mainnet credentials are still a hot-wallet model. Mainnet
+`local-file` signing also requires
+`CARDANO402_ALLOW_MAINNET_LOCAL_FILE_SIGNER=true` so operators must explicitly
+acknowledge the interim risk. For high-value Mainnet operation, use the signer
+isolation target described in
+[`mainnet-signer-isolation.md`](mainnet-signer-isolation.md); until that remote
+or hardware-backed signer exists, keep only limited operational funds in the
+facilitator wallet.
+
+`chain.facilitator.signerMode` is explicit so monitoring can report signer
+posture. The only supported value today is `"local-file"`; remote policy signer
+config should not be added until the signer provider boundary exists.
 
 ## Docker Deployment (Recommended)
 
@@ -86,8 +109,14 @@ Mainnet connection requires explicit MAINNET=true environment variable
 Start Redis and IPFS for local development:
 
 ```bash
-docker compose up -d
+cp config/config.development.example.json config/config.json
+mkdir -p secrets
+docker compose --profile development up -d
 ```
+
+Edit `config/config.json`, set `chain.blockfrost.projectId`, create
+`secrets/cardano402-preview.seed`, and run
+`chmod 600 secrets/cardano402-preview.seed` before starting the server.
 
 Then run the facilitator locally with hot reload:
 
@@ -101,11 +130,27 @@ pnpm dev
 
    Copy `config/config.example.json` to `config/config.json` and set:
    - `env` to `"production"`
+   - `server.trustProxy` to a numeric hop count when deployed behind
+     nginx/Cloudflare on the same host (`1` for nginx only, `2` for
+     Cloudflare plus nginx)
    - `logging.pretty` to `false`
    - `chain.redis.host` to `"redis-prod"` (Docker Compose service name)
    - `chain.redis.password` to your Redis password
    - `chain.blockfrost.projectId` to your Blockfrost key
-   - `chain.facilitator.seedPhrase` to your facilitator wallet seed phrase
+   - `chain.facilitator.seedPhraseFile` to a `0600` file containing your facilitator wallet seed phrase
+
+   Production Compose mounts `./secrets` read-only at `/run/secrets`, matching
+   the example `seedPhraseFile` paths:
+
+   ```bash
+   mkdir -p secrets
+   nano secrets/cardano402-facilitator.seed
+   chmod 600 secrets/cardano402-facilitator.seed
+   ```
+
+   If the example `demo` section is kept, create the separate
+   `secrets/cardano402-demo-preview.seed` file with `0600` permissions. If the
+   live demo is disabled, remove the `demo` section from `config/config.json`.
 
 2. **Set Redis password**
 
@@ -133,10 +178,10 @@ pnpm dev
 |---------|---------|------|-------------|
 | *(default)* | `redis` | 6379 | Dev Redis (no auth) |
 | *(default)* | `ipfs` | 5001, 8080 | IPFS node (API + gateway) |
-| `production` | `facilitator` | 3000 | Facilitator server |
-| `production` | `redis-prod` | 6380 | Production Redis (with auth) |
+| `production` | `facilitator` | 127.0.0.1:3000 | Facilitator server |
+| `production` | `redis-prod` | 127.0.0.1:6380 | Production Redis (with auth) |
 
-The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting.
+The production profile includes a health check on `redis-prod` -- the facilitator waits for Redis to be healthy before starting. Production Compose fails fast when `REDIS_PASSWORD` is unset, passes `NODE_ENV=production`, `MAINNET`, and the Mainnet local-file hot-wallet acknowledgement into the facilitator, runs Redis with AOF and `maxmemory-policy noeviction` for settlement dedup safety, mounts `./secrets` read-only at `/run/secrets`, mounts `./data` for stored files, runs the facilitator with a read-only root filesystem plus `/tmp` tmpfs, and binds ports to loopback for local reverse-proxy access.
 
 ### Custom Docker Build
 
@@ -202,3 +247,6 @@ For operational monitoring, log analysis, Sentry error tracking, Redis monitorin
 - **Rate limiting** is configured by default (100 req/min global, 20 req/min on sensitive endpoints)
 - **Non-root container** -- the Docker image runs as `appuser:1001`
 - **Token registry** is hardcoded as a security gate -- adding new tokens requires a code change and review
+- **Mainnet signing isolation** -- file-based credentials reduce accidental
+  leakage but do not isolate signing from a compromised web process; see
+  [`mainnet-signer-isolation.md`](mainnet-signer-isolation.md)
