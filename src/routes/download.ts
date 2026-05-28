@@ -11,6 +11,14 @@ interface DownloadParams {
   cid: string;
 }
 
+const SHA256_HEX_CID = /^[a-f0-9]{64}$/u;
+const IPFS_CID_V0 = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/u;
+const IPFS_CID_V1_BASE32 = /^b[a-z2-7]{20,120}$/u;
+
+function isSupportedContentId(cid: string): boolean {
+  return SHA256_HEX_CID.test(cid) || IPFS_CID_V0.test(cid) || IPFS_CID_V1_BASE32.test(cid);
+}
+
 const downloadRoutes: FastifyPluginCallback = (fastify, _options, done) => {
   fastify.get<{ Params: DownloadParams }>(
     '/files/:cid',
@@ -32,11 +40,13 @@ const downloadRoutes: FastifyPluginCallback = (fastify, _options, done) => {
     async (request, reply) => {
       const { cid } = request.params;
 
-      // 1. Validate CID format (basic check -- backends do their own validation too)
-      if (!cid || cid.length === 0) {
+      // 1. Validate CID format before passing attacker-controlled identifiers
+      // to any storage backend. The filesystem backend is strict already; this
+      // also avoids expensive or oversized arbitrary Kubo/IPFS lookups.
+      if (!cid || !isSupportedContentId(cid)) {
         return reply.status(400).send({
           error: 'Bad Request',
-          message: 'Content identifier is required',
+          message: 'Content identifier is invalid',
         });
       }
 
