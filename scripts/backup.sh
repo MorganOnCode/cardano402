@@ -77,6 +77,18 @@ cp -p "$REPO_ROOT/config/config.json" "$STAGE_DIR/sensitive/config.json"
 cp -p "$REPO_ROOT/.env"               "$STAGE_DIR/sensitive/dotenv"
 log "Staged: sensitive config ($(du -sh "$STAGE_DIR/sensitive" | cut -f1))"
 
+# 1b. Shared VPS infrastructure: the Cloudflare tunnel config + its credential
+#     (root-only 0400 file — readable here because this job runs as root) and the
+#     three /etc/cron.d backup schedules. Lets a fresh box restore public ingress
+#     for all three sites (cardano402.com, thehosksaid.com, tubechat.video) without
+#     re-creating the shared tunnel. Tiny; restic dedups.
+mkdir -p "$STAGE_DIR/infra"
+[ -d /etc/cloudflared ] && cp -a /etc/cloudflared "$STAGE_DIR/infra/cloudflared"
+for c in /etc/cron.d/cardano402-backup /etc/cron.d/tubechat-backup /etc/cron.d/hosksaid-backup; do
+  [ -f "$c" ] && cp -p "$c" "$STAGE_DIR/infra/"
+done
+log "Staged: infra ($(du -sh "$STAGE_DIR/infra" 2>/dev/null | cut -f1))"
+
 # 2. Redis AOF volume. AOF is append-only; copying the on-disk state while
 #    redis is running yields a valid replica that may be slightly behind
 #    the in-memory state. Restic deduplicates so growing AOFs are cheap.
