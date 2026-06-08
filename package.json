@@ -103,7 +103,7 @@
     "@fastify/swagger-ui": "^5.2.6",
     "@lucid-evolution/lucid": "0.4.29",
     "@lucid-evolution/provider": "0.1.90",
-    "@sentry/node": "^10.53.1",
+    "@sentry/node": "^10.55.0",
     "fastify": "^5.8.5",
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^6.1.0",
