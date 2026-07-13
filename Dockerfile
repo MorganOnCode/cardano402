@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM node:20-alpine AS build
+FROM node:25-alpine AS build
 
 # Enable corepack for pnpm
 RUN corepack enable
@@ -25,7 +25,7 @@ COPY tsconfig.json tsconfig.build.json tsup.config.ts ./
 RUN pnpm build
 
 # Stage 2: Production
-FROM node:20-alpine AS production
+FROM node:25-alpine AS production
 
 RUN corepack enable
 
