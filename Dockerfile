@@ -13,6 +13,12 @@ COPY packages/ packages/
 # Install all dependencies (including dev for build)
 RUN pnpm install --frozen-lockfile
 
+# Build workspace packages explicitly (prepare also does this, but being
+# explicit means a future --ignore-scripts here can't silently skip it).
+# packages/*/dist never comes from the build context (see .dockerignore),
+# so the runtime core is always built from this commit's source (#138).
+RUN pnpm --filter @cardano402/core build
+
 # Copy source code AND landing page AND build scripts so `pnpm build`
 # can produce both the backend dist/ and landing/dist/app.js bundle.
 COPY src/ src/
@@ -44,6 +50,11 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built output from build stage
 COPY --from=build /app/dist ./dist
+
+# The production install above runs with --ignore-scripts and the build
+# context carries no packages/*/dist, so supply the freshly built core the
+# workspace link resolves to at runtime (#138).
+COPY --from=build /app/packages/core/dist ./packages/core/dist
 
 # Copy the landing page WITH its precompiled bundle from the build stage.
 # The host-side landing/ doesn't have landing/dist (it's gitignored and only
