@@ -1,5 +1,8 @@
 node_modules
 dist
+# Never ship host-built workspace artifacts: the image must build its own
+# packages/*/dist, or a stale host dist silently becomes the runtime core (#138).
+packages/*/dist
 coverage
 .git
 .github
