@@ -204,6 +204,15 @@ describe('PaymentPayloadSchema', () => {
     payload: { transaction: 'tx-bytes' },
   };
 
+  it('accepts accepted.extra: null as echoed by published payers (#131)', () => {
+    expect(
+      PaymentPayloadSchema.safeParse({
+        ...basePayload,
+        accepted: { ...sampleRequirements, extra: null },
+      }).success
+    ).toBe(true);
+  });
+
   it('parses with and without optional resource / extensions', () => {
     expect(PaymentPayloadSchema.safeParse(basePayload).success).toBe(true);
     expect(
@@ -325,11 +334,18 @@ const sampleResource = {
 };
 
 describe('PaymentAcceptSchema', () => {
-  it('applies defaults for scheme / maxTimeoutSeconds / asset / extra', () => {
+  it('applies defaults for scheme / maxTimeoutSeconds / asset; absent extra stays absent', () => {
     const parsed = PaymentAcceptSchema.parse(sampleAccept);
     expect(parsed.scheme).toBe('exact');
     expect(parsed.maxTimeoutSeconds).toBe(300);
     expect(parsed.asset).toBe('lovelace');
+    // No .default(null): a fabricated extra:null in the echoed accept is
+    // rejected by the facilitator's payload schema (#131).
+    expect(parsed.extra).toBeUndefined();
+  });
+
+  it('still accepts an explicit extra: null from legacy 402 quotes (#131)', () => {
+    const parsed = PaymentAcceptSchema.parse({ ...sampleAccept, extra: null });
     expect(parsed.extra).toBeNull();
   });
 
