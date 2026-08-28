@@ -58,7 +58,10 @@ export const PaymentRequirementsSchema = z
     amount: LovelaceAmountSchema,
     payTo: CardanoAddressSchema,
     maxTimeoutSeconds: z.number().int().positive(),
-    extra: z.record(z.string(), z.unknown()).optional(),
+    // record | null | absent: published payers echo the 402 accept back
+    // verbatim, and PaymentAcceptSchema (below) historically defaulted
+    // extra to null - rejecting null here broke every payment (see #131).
+    extra: z.record(z.string(), z.unknown()).nullable().optional(),
   })
   .passthrough();
 export type PaymentRequirements = z.infer<typeof PaymentRequirementsSchema>;
@@ -147,7 +150,10 @@ export const PaymentAcceptSchema = z.object({
   payTo: z.string(),
   maxTimeoutSeconds: z.number().int().positive().default(300),
   asset: z.string().default('lovelace'),
-  extra: z.record(z.string(), z.unknown()).nullable().default(null),
+  // nullable for quotes that send an explicit null (buildPaymentRequired
+  // did), but no .default(null): absence must stay absence, or the payer
+  // fabricates a null the facilitator's payload schema rejects (see #131).
+  extra: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 export type PaymentAccept = z.infer<typeof PaymentAcceptSchema>;
 
