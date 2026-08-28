@@ -8,15 +8,27 @@
     "overrides": {
       "libsodium-wrappers-sumo": "0.8.2",
       "libsodium-sumo": "0.8.2",
-      "fast-uri": "^3.1.2",
+      "fast-uri": "^3.1.5",
       "yaml": "^2.9.0",
-      "vite": "^7.3.2",
+      "vite": "^7.3.6",
       "flatted": "^3.4.2",
       "ajv@>=7": "^8.20.0",
       "minimatch@<10": "^3.1.4",
       "minimatch@>=10": "^10.2.5",
-      "brace-expansion@<2": "^1.1.13",
-      "brace-expansion@>=2": "^2.1.0"
+      "brace-expansion@<2": "^1.1.18",
+      "brace-expansion@>=2": "^2.1.4",
+      "@babel/core": "^7.29.6",
+      "body-parser": "^2.3.0",
+      "esbuild": "^0.28.1",
+      "find-my-way": "^9.7.0",
+      "form-data": "^4.0.6",
+      "hono": "^4.12.34",
+      "@hono/node-server": "^1.19.15",
+      "ip-address": "^10.3.1",
+      "js-yaml@>=4": "^4.3.1",
+      "nanoid@<4": "^3.3.18",
+      "@opentelemetry/core": "^2.8.0",
+      "postcss": "^8.5.23"
     }
   },
   "name": "cardano402",
@@ -98,9 +110,9 @@
     "@fastify/helmet": "^13.0.2",
     "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^10.3.0",
-    "@fastify/static": "^9.1.3",
+    "@fastify/static": "^10.1.2",
     "@fastify/swagger": "^9.7.0",
-    "@fastify/swagger-ui": "^5.2.6",
+    "@fastify/swagger-ui": "^6.1.1",
     "@lucid-evolution/lucid": "0.4.29",
     "@lucid-evolution/provider": "0.1.90",
     "@sentry/node": "^10.53.1",
@@ -120,7 +132,7 @@
     "@types/react": "^19.2",
     "@types/react-dom": "^19.2",
     "@vitest/coverage-v8": "^4.1.7",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
     "eslint-config-airbnb-extended": "^3.1.0",
     "eslint-plugin-import": "^2.32.0",
@@ -133,6 +145,7 @@
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.7",
+    "vite": "^7.3.6"
   }
 }
