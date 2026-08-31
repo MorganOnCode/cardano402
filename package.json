@@ -103,7 +103,7 @@
     ]
   },
   "dependencies": {
-    "@blockfrost/blockfrost-js": "^6.1.1",
+    "@blockfrost/blockfrost-js": "^6.2.0",
     "@cardano402/core": "workspace:*",
     "@fastify/cors": "^11.2.0",
     "@fastify/error": "^4.2.0",
