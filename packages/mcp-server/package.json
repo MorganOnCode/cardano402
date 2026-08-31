@@ -56,7 +56,7 @@
   "dependencies": {
     "@cardano402/core": "workspace:^",
     "@lucid-evolution/lucid": "0.5.1",
-    "@lucid-evolution/provider": "0.1.95",
+    "@lucid-evolution/provider": "0.2.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
   },
