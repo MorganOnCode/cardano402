@@ -88,11 +88,17 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
           useDefaults: true,
           directives: {
             // Strict script policy: no inline, no eval, no third-party scripts
-            // except the Cloudflare Web Analytics beacon. The landing app is
+            // except the analytics beacons: self-hosted Umami at
+            // stats.agenticdynamics.org (/opt/umami on the VPS) and Cloudflare
+            // Web Analytics. The landing app is
             // precompiled to landing/dist/app.js (see scripts/build-landing.mjs)
             // and bundles React + ReactDOM, so Babel-standalone and unpkg.com
             // are no longer needed.
-            'script-src': ["'self'", 'https://static.cloudflareinsights.com'],
+            'script-src': [
+              "'self'",
+              'https://stats.agenticdynamics.org',
+              'https://static.cloudflareinsights.com',
+            ],
             // 'unsafe-inline' on style-src remains for now: React's inline
             // style={{...}} pattern and the inline <style> block in landing
             // both depend on it. A future PR can extract the inline <style>
@@ -101,7 +107,12 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
             'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
             'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
             'img-src': ["'self'", 'data:'],
-            'connect-src': ["'self'", 'https://cloudflareinsights.com'],
+            // connect-src: the Umami tracker POSTs pageviews to /api/send on its host.
+            'connect-src': [
+              "'self'",
+              'https://stats.agenticdynamics.org',
+              'https://cloudflareinsights.com',
+            ],
           },
         },
   });
