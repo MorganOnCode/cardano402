@@ -209,6 +209,13 @@
     footer .signoff { font-size: 12.5px; }
   }
 </style>
+
+<!-- Self-hosted Umami analytics (/opt/umami on this VPS): cookieless, no consent
+     banner needed. The host is whitelisted in script-src + connect-src (src/server.ts).
+     `async`, NOT `defer`: deferred scripts execute in document order, so a slow or
+     unreachable stats host would hold up /dist/app.js and leave the page blank.
+     async runs the tracker whenever it arrives and never gates the app bundle. -->
+<script async src="https://stats.agenticdynamics.org/script.js" data-website-id="ddea134d-d19a-4688-bc64-0584b76ae632"></script>
 </head>
 <body>
 
@@ -216,7 +223,8 @@
 
 <!-- Precompiled by scripts/build-landing.mjs (bundled React 18.3.1 + app). -->
 <!-- Source files live in landing/*.jsx and landing/components/*.jsx.       -->
-<!-- CSP is strict: no inline scripts, no eval, no third-party script src.  -->
+<!-- CSP is strict: no inline scripts, no eval; the only third-party script -->
+<!-- sources are the Umami + Cloudflare analytics beacons (see src/server.ts). -->
 <script src="/dist/app.js" defer></script>
 
 </body>

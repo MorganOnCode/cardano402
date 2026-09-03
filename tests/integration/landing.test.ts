@@ -125,4 +125,14 @@ describe('Landing page', () => {
     // 'self' must still be present so /dist/app.js loads
     expect(cspStr).toMatch(/script-src[^;]*'self'/);
   });
+
+  it('whitelists the self-hosted Umami beacon host in script-src and connect-src', async () => {
+    const response = await server.inject({ method: 'GET', url: '/' });
+    const cspStr = String(response.headers['content-security-policy']);
+    // script.js is loaded from the stats host, and the tracker POSTs to
+    // <host>/api/send, so both directives must allow it or the beacon is
+    // silently blocked by the browser.
+    expect(cspStr).toMatch(/script-src[^;]*https:\/\/stats\.agenticdynamics\.org/);
+    expect(cspStr).toMatch(/connect-src[^;]*https:\/\/stats\.agenticdynamics\.org/);
+  });
 });
