@@ -1,3 +1,5 @@
+import { isIP } from 'node:net';
+
 import { z } from 'zod';
 
 import { ChainConfigSchema, loadCredentialFile } from '../chain/config.js';
@@ -68,13 +70,52 @@ const DemoConfigSchema = z
   );
 
 /**
- * Error for any `server.trustProxy` value that is not `false`, a proxy
- * address/CIDR string, or an array of them. Called out explicitly because the
- * most likely invalid value is a legacy numeric hop count from an older
- * config.example.json.
+ * Error for a `server.trustProxy` value of the wrong shape entirely. Called
+ * out explicitly because the most likely invalid value is a legacy numeric
+ * hop count from an older config.example.json.
  */
 const TRUST_PROXY_ERROR =
   'must be false, a trusted proxy address/CIDR (string, comma-separated), or an array of them; numeric hop counts are no longer supported since fastify 5.12.1 (GHSA-3m5p-2c4r-xxw2) because they never check the connecting address';
+
+/** Named ranges understood by proxy-addr, the compiler behind Fastify's trustProxy. */
+const TRUST_PROXY_KEYWORDS = new Set(['loopback', 'linklocal', 'uniquelocal']);
+
+/**
+ * True when `entry` is something proxy-addr accepts: a named range, an
+ * IPv4/IPv6 address, or an address with a CIDR prefix. Checked here so a typo
+ * fails as CONFIG_INVALID at load time instead of throwing from
+ * `createServer()` after the config was accepted.
+ */
+function isTrustedProxyEntry(entry: string): boolean {
+  if (TRUST_PROXY_KEYWORDS.has(entry)) return true;
+  const slash = entry.indexOf('/');
+  const address = slash === -1 ? entry : entry.slice(0, slash);
+  const family = isIP(address);
+  if (family === 0) return false;
+  if (slash === -1) return true;
+  const prefix = entry.slice(slash + 1);
+  if (!/^\d{1,3}$/.test(prefix)) return false;
+  return Number(prefix) <= (family === 4 ? 32 : 128);
+}
+
+function trustProxyEntryError(entry: unknown): string {
+  return `invalid trusted-proxy entry ${JSON.stringify(entry)}: use "loopback", "linklocal", "uniquelocal", an IP address, or an IP/CIDR range such as "172.16.0.0/12"`;
+}
+
+/** Comma-separated form. Fastify trims each part, so validate the same way. */
+const TrustProxyListSchema = z.string().superRefine((value, ctx) => {
+  for (const part of value.split(',')) {
+    const entry = part.trim();
+    if (!isTrustedProxyEntry(entry)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: trustProxyEntryError(entry) });
+    }
+  }
+});
+
+/** Array form. Fastify passes it through untrimmed, so entries must be exact. */
+const TrustProxyEntrySchema = z.string().refine(isTrustedProxyEntry, {
+  error: (issue) => trustProxyEntryError(issue.input),
+});
 
 export const ConfigSchema = z
   .object({
@@ -88,9 +129,10 @@ export const ConfigSchema = z
          * Accepts Fastify's `trustProxy` forms minus the numeric hop count:
          * `false` (default), a proxy-addr keyword or IP/CIDR (`"loopback"`,
          * `"127.0.0.1"`, `"172.16.0.0/12"`), a comma-separated list of those,
-         * or an array of them. Each trusted hop is checked against the
-         * connecting address, so a client that reaches the origin directly
-         * cannot spoof the forwarded chain.
+         * or an array of them. Entries are validated at load time so a typo
+         * fails as CONFIG_INVALID rather than at server construction. Each
+         * trusted hop is checked against the connecting address, so a client
+         * that reaches the origin directly cannot spoof the forwarded chain.
          *
          * Numeric hop counts (`trustProxy: 2`) are rejected on purpose:
          * fastify 5.12.1 disabled them (GHSA-3m5p-2c4r-xxw2) because a hop
@@ -98,9 +140,16 @@ export const ConfigSchema = z
          * silently trusts nothing. Boolean `true` is rejected in production.
          */
         trustProxy: z
-          .union([z.boolean(), z.string().min(1), z.array(z.string().min(1)).min(1)], {
-            error: TRUST_PROXY_ERROR,
-          })
+          .union(
+            [
+              z.boolean(),
+              TrustProxyListSchema,
+              z.array(TrustProxyEntrySchema).min(1, {
+                error: 'must list at least one trusted proxy entry, or use false',
+              }),
+            ],
+            { error: TRUST_PROXY_ERROR }
+          )
           .optional(),
       })
       .default(() => ({ host: '0.0.0.0', port: 3000 })),

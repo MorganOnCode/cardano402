@@ -117,6 +117,44 @@ describe('Config Loading', () => {
     expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|trustProxy/);
   });
 
+  it('should reject malformed trusted-proxy entries at load time, naming the entry', () => {
+    // Anything Fastify's proxy-addr compiler would throw on must fail here as
+    // CONFIG_INVALID instead of crashing createServer() after the config loaded.
+    const malformed: (string | string[])[] = [
+      'bogus',
+      '10.0.0.0/33',
+      '   ',
+      'loopback,,uniquelocal',
+      ['10.0.0.0/8', ' loopback'],
+      ['::1/129'],
+    ];
+    for (const trustProxy of malformed) {
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({ server: { trustProxy }, chain: minimalChainConfig })
+      );
+      expect(() => loadConfig(TEST_CONFIG_PATH), JSON.stringify(trustProxy)).toThrowError(
+        /server\.trustProxy.*invalid trusted-proxy entry/
+      );
+    }
+  });
+
+  it('should accept every proxy-addr entry form', () => {
+    const valid: (string | string[])[] = [
+      'loopback , linklocal, uniquelocal',
+      '::1',
+      'fe80::1/64',
+      ['127.0.0.1', '10.0.0.0/8', 'fd00::/8'],
+    ];
+    for (const trustProxy of valid) {
+      writeFileSync(
+        TEST_CONFIG_PATH,
+        JSON.stringify({ server: { trustProxy }, chain: minimalChainConfig })
+      );
+      expect(loadConfig(TEST_CONFIG_PATH).server.trustProxy).toEqual(trustProxy);
+    }
+  });
+
   it('should throw ConfigMissingError for non-existent file', () => {
     try {
       loadConfig('/nonexistent/path/config.json');
