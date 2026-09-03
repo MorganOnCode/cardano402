@@ -64,8 +64,10 @@ export async function createServer(options: CreateServerOptions): Promise<Fastif
     genReqId: () => randomUUID(),
     // Disable default request logging (we use custom plugin)
     disableRequestLogging: true,
-    // Production deployments bind to loopback and sit behind nginx/Cloudflare.
-    // A numeric trustProxy hop count avoids trusting spoofed forwarded chains.
+    // Production deployments bind to loopback and sit behind a reverse proxy
+    // or tunnel. trustProxy names the proxy address(es) (never a hop count:
+    // fastify 5.12.1 disabled those, see config schema), so X-Forwarded-* is
+    // only honoured when the connecting peer is one of them.
     trustProxy: config.server.trustProxy ?? false,
     // Security: Strict body limit (50KB) to prevent memory exhaustion
     bodyLimit: 51200,

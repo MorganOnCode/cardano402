@@ -166,8 +166,8 @@ Before release, verify:
   ports to loopback, and drops unnecessary container privileges.
 - Production Redis uses AOF and `maxmemory-policy noeviction` so settlement
   dedup keys are not silently evicted under memory pressure.
-- Production config sets `server.trustProxy` to a numeric trusted-proxy hop
-  count only for the documented loopback reverse-proxy deployment so rate
+- Production config sets `server.trustProxy` to the trusted proxy address(es)
+  only for the documented loopback reverse-proxy deployment so rate
   limits/logs use real client IPs without trusting arbitrary forwarded chains.
 - High-value Mainnet deployments have an implementation plan for the remote or
   hardware-backed policy signer boundary.

@@ -71,7 +71,29 @@ describe('Config Loading', () => {
     expect(config.logging.level).toBe('debug');
   });
 
-  it('should accept numeric trusted-proxy hop count', () => {
+  it('should accept trusted-proxy addresses as a string or an array', () => {
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        server: { trustProxy: 'loopback, uniquelocal' },
+        chain: minimalChainConfig,
+      })
+    );
+    expect(loadConfig(TEST_CONFIG_PATH).server.trustProxy).toBe('loopback, uniquelocal');
+
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        server: { trustProxy: ['127.0.0.1', '172.16.0.0/12'] },
+        chain: minimalChainConfig,
+      })
+    );
+    expect(loadConfig(TEST_CONFIG_PATH).server.trustProxy).toEqual(['127.0.0.1', '172.16.0.0/12']);
+  });
+
+  it('should reject numeric trusted-proxy hop counts with a migration hint', () => {
+    // fastify 5.12.1 (GHSA-3m5p-2c4r-xxw2) disabled hop counts; a number now
+    // silently trusts nothing, so the schema must fail loudly instead.
     writeFileSync(
       TEST_CONFIG_PATH,
       JSON.stringify({
@@ -80,9 +102,19 @@ describe('Config Loading', () => {
       })
     );
 
-    const config = loadConfig(TEST_CONFIG_PATH);
+    expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/server\.trustProxy.*hop count/);
+  });
 
-    expect(config.server.trustProxy).toBe(2);
+  it('should reject empty trusted-proxy entries', () => {
+    writeFileSync(
+      TEST_CONFIG_PATH,
+      JSON.stringify({
+        server: { trustProxy: ['loopback', ''] },
+        chain: minimalChainConfig,
+      })
+    );
+
+    expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|trustProxy/);
   });
 
   it('should throw ConfigMissingError for non-existent file', () => {
@@ -231,7 +263,21 @@ describe('Config Loading', () => {
       expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/CONFIG_INVALID|trustProxy/);
     });
 
-    it('accepts production env with numeric trustProxy hop count', () => {
+    it('accepts production env with trusted proxy addresses', () => {
+      const cfg = {
+        env: 'production',
+        server: { trustProxy: 'loopback, uniquelocal' },
+        metrics: { bearerToken: STRONG_METRICS_TOKEN },
+        chain: {
+          ...minimalChainConfig,
+          redis: { host: 'redis', port: 6379, password: 'a-real-password' },
+        },
+      };
+      writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
+      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+    });
+
+    it('rejects production env with a numeric trustProxy hop count', () => {
       const cfg = {
         env: 'production',
         server: { trustProxy: 2 },
@@ -242,7 +288,7 @@ describe('Config Loading', () => {
         },
       };
       writeFileSync(TEST_CONFIG_PATH, JSON.stringify(cfg));
-      expect(() => loadConfig(TEST_CONFIG_PATH)).not.toThrow();
+      expect(() => loadConfig(TEST_CONFIG_PATH)).toThrowError(/hop count/);
     });
 
     it('rejects production env with no chain.redis.password', () => {

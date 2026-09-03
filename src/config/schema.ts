@@ -67,6 +67,15 @@ const DemoConfigSchema = z
     }
   );
 
+/**
+ * Error for any `server.trustProxy` value that is not `false`, a proxy
+ * address/CIDR string, or an array of them. Called out explicitly because the
+ * most likely invalid value is a legacy numeric hop count from an older
+ * config.example.json.
+ */
+const TRUST_PROXY_ERROR =
+  'must be false, a trusted proxy address/CIDR (string, comma-separated), or an array of them; numeric hop counts are no longer supported since fastify 5.12.1 (GHSA-3m5p-2c4r-xxw2) because they never check the connecting address';
+
 export const ConfigSchema = z
   .object({
     server: z
@@ -76,11 +85,23 @@ export const ConfigSchema = z
         /**
          * Trust X-Forwarded-* headers from the deployment reverse proxy.
          *
-         * In production, use a numeric hop count instead of boolean `true` so
-         * direct clients cannot spoof arbitrary forwarded chains for rate
-         * limits and logs.
+         * Accepts Fastify's `trustProxy` forms minus the numeric hop count:
+         * `false` (default), a proxy-addr keyword or IP/CIDR (`"loopback"`,
+         * `"127.0.0.1"`, `"172.16.0.0/12"`), a comma-separated list of those,
+         * or an array of them. Each trusted hop is checked against the
+         * connecting address, so a client that reaches the origin directly
+         * cannot spoof the forwarded chain.
+         *
+         * Numeric hop counts (`trustProxy: 2`) are rejected on purpose:
+         * fastify 5.12.1 disabled them (GHSA-3m5p-2c4r-xxw2) because a hop
+         * count never inspects the address, and since that release a number
+         * silently trusts nothing. Boolean `true` is rejected in production.
          */
-        trustProxy: z.union([z.boolean(), z.number().int().min(1).max(3)]).optional(),
+        trustProxy: z
+          .union([z.boolean(), z.string().min(1), z.array(z.string().min(1)).min(1)], {
+            error: TRUST_PROXY_ERROR,
+          })
+          .optional(),
       })
       .default(() => ({ host: '0.0.0.0', port: 3000 })),
 
@@ -191,7 +212,7 @@ export const ConfigSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message:
-            'server.trustProxy must be a numeric trusted-proxy hop count in production, not true. Use 1 for a single local reverse proxy or 2 for Cloudflare plus nginx.',
+            'server.trustProxy must name the trusted proxy address(es) in production, not true. Use "loopback, uniquelocal" for a local reverse proxy or Docker-network peer, or an explicit IP/CIDR list.',
           path: ['server', 'trustProxy'],
         });
       }
