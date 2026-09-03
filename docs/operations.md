@@ -88,9 +88,10 @@ For routine deploys (no Dockerfile or compose change), `bash deploy.sh` runs the
 
 Copy `config/config.example.json` to `config/config.json` and set:
 - `env` to `"production"`
-- `server.trustProxy` to a numeric hop count when deployed behind
-  nginx/Cloudflare on the same host so rate limits and logs use the original
-  client IP without trusting arbitrary forwarded chains
+- `server.trustProxy` to the reverse proxy's address(es) (for example
+  `"loopback, uniquelocal"`) when deployed behind nginx/Cloudflare on the same
+  host so rate limits and logs use the original client IP without trusting
+  forwarded chains from anywhere else
 - `logging.pretty` to `false`
 - `chain.redis.host` to `"redis-prod"` (Docker service name)
 - `chain.redis.password` to your Redis password
@@ -141,11 +142,17 @@ is intentionally `"Mainnet"`, and set the local-file acknowledgement only for
 limited-value hot-wallet operation.
 
 Because the production service binds to loopback and is reached through the
-local reverse proxy, set `server.trustProxy` to a numeric hop count such as `1`
-for nginx only or `2` for Cloudflare plus nginx. Do not use boolean `true` in
-production and do not enable it for a deployment that accepts direct public
-traffic without a trusted proxy boundary, because clients could spoof
-`X-Forwarded-*` headers.
+local reverse proxy, set `server.trustProxy` to the address(es) that proxy
+connects from: `"loopback, uniquelocal"` trusts loopback plus private/Docker
+ranges, and a comma-separated string or array of IPs/CIDRs narrows it further.
+If nginx forwards Cloudflare's edge IP rather than the client IP, add
+Cloudflare's published ranges (or have nginx rewrite `X-Forwarded-For` from
+`CF-Connecting-IP`). Numeric hop counts such as `2` are rejected by the config
+schema: fastify 5.12.1 disabled them (GHSA-3m5p-2c4r-xxw2) because a hop count
+never checks the connecting address, so any client that reached the origin
+directly could spoof `X-Forwarded-*`. Do not use boolean `true` in production
+and do not enable it for a deployment that accepts direct public traffic
+without a trusted proxy boundary.
 
 ### 4. Verify deployment
 

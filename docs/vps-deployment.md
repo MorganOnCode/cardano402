@@ -50,8 +50,11 @@ Set these fields:
 - `chain.redis.password` → same value as `REDIS_PASSWORD` in `.env`
 - `logging.level` → `"info"` (not `"debug"` in production)
 - `logging.pretty` → `false`
-- `server.trustProxy` → numeric hop count when nginx/Cloudflare is the only
-  public path (`1` for nginx only, `2` for Cloudflare plus nginx)
+- `server.trustProxy` → the address(es) of the reverse proxy or tunnel that
+  fronts the container (`"loopback, uniquelocal"` covers nginx on the host and
+  Docker-network peers; add Cloudflare's published ranges if nginx forwards the
+  edge IP). Numeric hop counts are rejected: fastify 5.12.1 disabled them
+  (GHSA-3m5p-2c4r-xxw2) because they never check the connecting address.
 - `env` → `"production"`
 
 Production Compose mounts `./secrets` read-only at `/run/secrets`. Create the
@@ -141,9 +144,9 @@ bash deploy.sh   # pulls git + rebuilds + restarts
 - The facilitator root filesystem is read-only in production; mutable uploaded
   file storage is limited to the explicit `./data:/app/data` mount and `/tmp`
   tmpfs
-- `server.trustProxy` should stay numeric and enabled only behind the loopback
+- `server.trustProxy` should list only the loopback/private addresses of the
   nginx/Cloudflare path so rate limits use real client IPs without trusting
-  arbitrary direct traffic headers
+  forwarded headers from arbitrary direct traffic
 - The facilitator runs as a non-root user inside the container
 - Demo wallet seed material must use `demo.seedPhraseFile` in production and
   the file must be `0600`

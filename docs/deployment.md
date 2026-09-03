@@ -41,7 +41,7 @@ See [`config/config.example.json`](../config/config.example.json) for the full s
 |-------|---------|-------------|
 | `server.port` | `3000` | HTTP listen port |
 | `server.host` | `"0.0.0.0"` | HTTP listen address |
-| `server.trustProxy` | `2` for Cloudflare + nginx production deployments | Numeric trusted-proxy hop count for `X-Forwarded-*` so rate limits and logs use the client IP without trusting arbitrary forwarded chains |
+| `server.trustProxy` | `"loopback, uniquelocal"` for a local reverse proxy or tunnel | Trusted proxy address(es)/CIDRs (string, comma-separated string, or array) for `X-Forwarded-*` so rate limits and logs use the client IP; numeric hop counts are rejected (fastify 5.12.1, GHSA-3m5p-2c4r-xxw2) |
 | `logging.level` | `"info"` | Log level (`debug`, `info`, `warn`, `error`) |
 | `logging.pretty` | `false` | Pretty-print logs (enable for development) |
 | `env` | `"development"` | Environment (`development`, `production`) |
@@ -130,9 +130,9 @@ pnpm dev
 
    Copy `config/config.example.json` to `config/config.json` and set:
    - `env` to `"production"`
-   - `server.trustProxy` to a numeric hop count when deployed behind
-     nginx/Cloudflare on the same host (`1` for nginx only, `2` for
-     Cloudflare plus nginx)
+   - `server.trustProxy` to the reverse proxy's address(es) when deployed
+     behind nginx/Cloudflare on the same host (`"loopback, uniquelocal"`;
+     add Cloudflare's ranges if nginx forwards the edge IP)
    - `logging.pretty` to `false`
    - `chain.redis.host` to `"redis-prod"` (Docker Compose service name)
    - `chain.redis.password` to your Redis password
