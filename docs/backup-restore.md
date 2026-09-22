@@ -6,7 +6,9 @@ not trivially reconstructible:
 1. **`config/config.json`** — production configuration, Blockfrost project ID,
    Redis settings, and file paths for local signing material.
 2. **`secrets/`** — local facilitator/demo signing files mounted read-only at
-   `/run/secrets`. **Most valuable target.**
+   `/run/secrets`. **Most valuable target.** Backed up as `sensitive/secrets/`
+   inside the snapshot; see [Signer coverage](#signer-coverage) for exactly
+   which files that is and which snapshots predate it.
 3. **`.env`** — `REDIS_PASSWORD` + `MAINNET` guardrail flag.
 4. **Redis AOF volume (`cardano402_redis_data` or
    `cardano402_redis_prod_data`)** — payment dedup keys and UTXO cache.
@@ -23,6 +25,43 @@ This runbook covers nightly encrypted backups, restore verification, and disaste
 - **Retention:** 14 daily snapshots, 8 weekly, 12 monthly (~24 snapshots steady-state).
 - **Integrity:** every run does a `restic check --read-data-subset=5%`.
 - **Verification:** documented restore-to-temp procedure, recommended quarterly.
+
+### Signer coverage
+
+`config/config.json` stores *paths* to the signing files, not the seed itself,
+so staging `config.json` alone yields a snapshot that looks complete but cannot
+rebuild a signing facilitator. `scripts/backup.sh` therefore reads these keys
+out of `config/config.json` and stages exactly the files they name into
+`sensitive/secrets/`:
+
+| Config key | Purpose |
+|---|---|
+| `chain.facilitator.seedPhraseFile` | facilitator wallet seed phrase |
+| `chain.facilitator.privateKeyFile` | facilitator private key (alternative to the seed phrase) |
+| `demo.seedPhraseFile` | live-demo wallet seed phrase |
+
+Rules the script enforces:
+
+- A configured path that is **missing or unreadable aborts the whole run** with
+  a `FATAL:` log line and no snapshot. An incomplete snapshot that reports
+  success is the failure mode this replaced.
+- Paths are resolved the way production mounts them: `/run/secrets/x` maps to
+  `<repo>/secrets/x` (per `docker-compose.prod.yml`), `/app/...` and relative
+  paths resolve against the repo root, and any other absolute path is used as-is.
+- Only the named files are staged. A file sitting in `secrets/` that no config
+  key references is **not** backed up — it is not this install's signing
+  material. Point a config key at it, or copy it out of band.
+- An install that names no signing file (a dev config with an inline
+  `seedPhrase`, or a non-signing deployment) logs an explicit
+  `no signer files` skip and succeeds. This is not treated as an error.
+- Staging happens inside the `0700` staging directory and uses `cp -p`, so the
+  copies keep their `0600` mode and never widen access. The seed value itself
+  is never logged — only the path, byte count and mode.
+
+> **Snapshots taken before 2026-09 contain no `sensitive/secrets/` directory.**
+> `scripts/restore.sh` prints a warning when the restored snapshot has none.
+> Those snapshots can restore config, infra, Redis and uploaded files, but the
+> signing identity must come from your offline seed backup (Scenario C).
 
 ## One-time setup
 
@@ -106,13 +145,29 @@ sudo ls -la /tmp/restore-test
 sudo cat /tmp/restore-test/.../MANIFEST.txt
 sudo diff /opt/cardano402/config/config.json /tmp/restore-test/.../sensitive/config.json
 # Should be identical.
+```
 
+The script's own output ends with the signing files the snapshot holds, listed
+by name, mode, `uid:gid` and size — never contents. Confirm the files you
+expect are there. To check the signer round-trips byte-for-byte without ever
+printing it:
+
+```bash
+# Prints only "OK" or "MISMATCH" — no bytes, no digests.
+sudo bash -c 'cmp -s /opt/cardano402/secrets/facilitator.seed \
+  /tmp/restore-test/.../sensitive/secrets/facilitator.seed && echo OK || echo MISMATCH'
+```
+
+Then clean up:
+
+```bash
 sudo rm -rf /tmp/restore-test
 ```
 
-The restore script forces the target directory to `0700` because restored
-snapshots contain `config.json`, `.env`, and payment-gated content. Keep that
-directory private until you delete it.
+The restore script forces the target directory to `0700` before restic writes
+into it, because restored snapshots contain `config.json`, `.env`, signing
+files, and payment-gated content. Keep that directory private until you delete
+it.
 
 ### 7. Enable the cron job
 
@@ -181,14 +236,24 @@ curl http://localhost:3000/health
 2. Clone the repo: `sudo git clone https://github.com/MorganOnCode/cardano402 /opt/cardano402`
 3. Install restic, copy the **same** `/etc/cardano402/restic.env` (you have an offline copy of the passphrase).
 4. Restore: `sudo bash /opt/cardano402/scripts/restore.sh latest /tmp/recover`
-5. Put files back:
+5. Put files back. `cp -a` as root preserves the recorded mode and ownership,
+   so do not re-`chown` the signing files to your login user — the container
+   runs as a non-root UID and must still be able to read them.
    ```bash
    sudo cp /tmp/recover/.../sensitive/config.json /opt/cardano402/config/config.json
    sudo cp /tmp/recover/.../sensitive/dotenv      /opt/cardano402/.env
+
+   # Signing files. Skip this block if the snapshot has no sensitive/secrets/
+   # (restore.sh warns when it doesn't) and re-import from your offline seed
+   # backup instead — see Scenario C.
    sudo mkdir -p /opt/cardano402/secrets
+   sudo chmod 755 /opt/cardano402/secrets
    sudo cp -a /tmp/recover/.../sensitive/secrets/. /opt/cardano402/secrets/
-   sudo chmod 700 /opt/cardano402/secrets
-   sudo chmod 600 /opt/cardano402/secrets/*
+
+   # Verify, don't assume: every file should be 0600 and owned by the UID the
+   # facilitator container runs as (1001:1001 on the current production image).
+   sudo stat -c '%n %a %u:%g' /opt/cardano402/secrets/*
+
    sudo mkdir -p /opt/cardano402/data
    sudo cp -a /tmp/recover/.../data-files /opt/cardano402/data/files
    ```
@@ -227,5 +292,8 @@ If you want to get fancier: `cronitor.io`, `healthchecks.io`, or a dead-man's-sw
 - **`node_modules`** — pnpm install reproduces this from `pnpm-lock.yaml` in git
 - **Application logs** — handled by Docker's log rotation (json-file driver, max-size 50m, max-file 5)
 - **The git working tree** — already redundantly stored on GitHub
+- **Files in `secrets/` that no `config.json` key names** — see
+  [Signer coverage](#signer-coverage); the backup copies named paths, not the
+  directory
 
 If the VPS dies and the backups die *and* the GitHub repo dies, that's a three-way disaster the runbook doesn't cover.
