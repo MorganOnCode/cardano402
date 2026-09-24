@@ -6,6 +6,7 @@ import { toFacilitatorCardanoSigner } from '@x402/cardano';
 import { ExactCardanoScheme } from '@x402/cardano/exact/facilitator';
 import { x402Facilitator } from '@x402/core/facilitator';
 import type { Network } from '@x402/core/types';
+import { budget } from './budget';
 import { durableSettlementStore } from './settlement-store';
 
 const BLOCKFROST_URLS: Record<string, string> = {
@@ -18,6 +19,7 @@ const BLOCKFROST_URLS: Record<string, string> = {
 // timeout (@x402/core defaults to 90s); core retries a pending settlement once
 // and the retry resumes observing the same transaction.
 export const CONFIRMATION_TIMEOUT_MS = 75_000;
+export const CONFIRMATION_POLL_MS = 15_000;
 
 export class ConfigError extends Error {}
 
@@ -34,8 +36,11 @@ let cached: { key: string; facilitator: x402Facilitator } | undefined;
 
 export function getFacilitator(env: CloudflareBindings): x402Facilitator {
   const network = env.CARDANO_NETWORK;
+  if (network !== 'cardano:preview')
+    throw new ConfigError('This portfolio demo only supports preview testnet');
   const projectId = env.BLOCKFROST_PROJECT_ID;
-  if (!projectId) throw new ConfigError('BLOCKFROST_PROJECT_ID secret is not set');
+  if (!projectId?.startsWith('preview'))
+    throw new ConfigError('A preview BLOCKFROST_PROJECT_ID is required');
   const key = `${network}:${projectId}`;
   if (cached?.key === key) return cached.facilitator;
 
@@ -48,9 +53,45 @@ export function getFacilitator(env: CloudflareBindings): x402Facilitator {
     // Return on broadcast; the scheme polls Blockfrost for the policy's evidence.
     awaitConfirmation: false,
   });
+  // Bound upstream work as well as incoming requests. One SDK operation may
+  // make multiple HTTP calls, so this is an operation cap, not a billing meter.
+  for (const method of [
+    'getUtxo',
+    'getCurrentSlot',
+    'submitTransaction',
+    'evaluateTransaction',
+    'getTransactionEvidence',
+    'getProtocolParameters',
+  ] as const) {
+    const original = signer[method];
+    if (!original) continue;
+    // Preserve each method's public signature while wrapping its invocation.
+    Object.defineProperty(signer, method, {
+      value: async (...args: unknown[]) => {
+        if (!(await budget(env, 'provider')))
+          throw new Error('Daily chain-provider allowance reached');
+        return Reflect.apply(original, signer, args);
+      },
+      writable: true,
+    });
+  }
+  // Cache only protocol parameters briefly. Never cache UTXO spentness,
+  // transaction evidence, submission results, or failures.
+  const readParameters = signer.getProtocolParameters?.bind(signer);
+  if (readParameters) {
+    let value: Awaited<ReturnType<typeof readParameters>> | undefined;
+    let expires = 0;
+    signer.getProtocolParameters = async (network) => {
+      if (value && Date.now() < expires) return value;
+      value = await readParameters(network);
+      expires = Date.now() + 60_000;
+      return value;
+    };
+  }
   const scheme = new ExactCardanoScheme(signer, {
     settlementStore: durableSettlementStore(env.SETTLEMENTS),
     confirmationTimeoutMs: CONFIRMATION_TIMEOUT_MS,
+    confirmationPollMs: CONFIRMATION_POLL_MS,
   });
   const facilitator = new x402Facilitator().register(network as Network, scheme);
   cached = { key, facilitator };

@@ -109,7 +109,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactCardanoScheme } from "@x402/cardano/exact/server";
 
 const facilitator = new HTTPFacilitatorClient({ url: "${origin}" });
-// register ExactCardanoScheme for "${kinds[0]?.network ?? 'cardano:mainnet'}" on your x402ResourceServer
+// register ExactCardanoScheme for "${kinds[0]?.network ?? 'cardano:preview'}" on your x402ResourceServer
 \`\`\`
 
 Flow is *authorization*: verify, run your handler, then settle. If your handler

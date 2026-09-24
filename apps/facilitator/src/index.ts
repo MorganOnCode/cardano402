@@ -5,6 +5,8 @@ import type { PaymentPayload, PaymentRequirements } from '@x402/core/types';
 import { blockfrostUrl, ConfigError, getFacilitator } from './facilitator';
 import { homeHtml, homeToon, llmsTxt, skillMd, type SupportedKind } from './home';
 import { VERSION } from './version';
+import { budget, quotaResponse } from './budget';
+import { demoEnabled } from './demo';
 
 export { SettlementStore } from './settlement-store';
 
@@ -35,7 +37,7 @@ function prefersHtml(c: Context): boolean {
   return (c.req.header('accept') ?? '').includes('text/html');
 }
 
-app.get('/', (c) => {
+app.get('/info', (c) => {
   const origin = new URL(c.req.url).origin;
   const kinds = supportedKinds(c.env);
   c.header('Vary', 'Accept');
@@ -59,6 +61,8 @@ app.get('/health', async (c) => {
   const base = { status: 'ok', version: VERSION, network: c.env.CARDANO_NETWORK };
   if (c.req.query('deep') !== '1') return c.json(base);
 
+  if (!demoEnabled(c.env)) return c.json({ ...base, provider: 'disabled' }, 503);
+  if (!(await budget(c.env, 'probe'))) return quotaResponse(c);
   const settlements = await c.env.SETTLEMENTS.get(c.env.SETTLEMENTS.idFromName('global')).stats();
   let provider: 'up' | 'down' = 'down';
   let tip: number | undefined;
@@ -81,12 +85,6 @@ app.get('/health', async (c) => {
 type PaymentBody = { paymentPayload?: PaymentPayload; paymentRequirements?: PaymentRequirements };
 
 async function readPaymentBody(c: Context<Env>): Promise<Required<PaymentBody> | Response> {
-  const limiter = c.env.PAYMENT_LIMITER;
-  if (limiter) {
-    const key = c.req.header('cf-connecting-ip') ?? 'unknown';
-    const { success } = await limiter.limit({ key });
-    if (!success) return c.json({ error: 'rate limited; retry after 60s' }, 429);
-  }
   let body: PaymentBody;
   try {
     body = await c.req.json<PaymentBody>();
@@ -100,12 +98,50 @@ async function readPaymentBody(c: Context<Env>): Promise<Required<PaymentBody> |
   if (!isObject(paymentPayload) || !isObject(paymentRequirements)) {
     return c.json({ error: 'Missing paymentPayload or paymentRequirements' }, 400);
   }
+  if (
+    paymentRequirements.network !== 'cardano:preview' ||
+    (paymentPayload.accepted as Record<string, unknown> | undefined)?.network !== 'cardano:preview'
+  ) {
+    return c.json({ error: 'This demo only accepts preview testnet transactions' }, 400);
+  }
+  if (!(await budget(c.env, 'payment'))) return quotaResponse(c);
   return { paymentPayload, paymentRequirements };
 }
 
 const limitBody = bodyLimit({
   maxSize: MAX_BODY_BYTES,
   onError: (c) => c.json({ error: `body exceeds ${MAX_BODY_BYTES} bytes` }, 413),
+});
+
+// Disabled until the real Preview/free-tier benchmark passes. This also keeps
+// SDK/provider requests off the page's normal browsing paths.
+for (const path of ['/verify', '/settle', '/demo/*']) {
+  app.use(path, async (c, next) => {
+    if (!demoEnabled(c.env)) return c.json({ error: 'Live testnet demo is not enabled yet.' }, 503);
+    const limiter = c.env.PAYMENT_LIMITER;
+    if (
+      limiter &&
+      !(await limiter.limit({ key: c.req.header('cf-connecting-ip') ?? 'unknown' })).success
+    ) {
+      c.header('Retry-After', '60');
+      return c.json({ error: 'Please wait a minute before trying the live demo again.' }, 429);
+    }
+    c.header('Cache-Control', 'no-store');
+    await next();
+  });
+}
+
+// No request parameters reach the signing service: amount, recipient, network
+// and spending policy are owned by its separate test-wallet Durable Object.
+app.post('/demo/run', async (c) => {
+  const response = await c.env.DEMO.fetch('https://demo.internal/run', { method: 'POST' });
+  return new Response(response.body, {
+    status: response.status,
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+    },
+  });
 });
 
 app.post('/verify', limitBody, async (c) => {
@@ -141,7 +177,7 @@ app.notFound((c) =>
   c.json(
     {
       error: `no route ${c.req.method} ${new URL(c.req.url).pathname}`,
-      help: 'GET / lists the endpoints',
+      help: 'GET /info lists the endpoints',
     },
     404
   )

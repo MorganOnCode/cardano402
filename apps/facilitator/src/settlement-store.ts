@@ -25,7 +25,7 @@ import type {
 
 export const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const STALE_IN_FLIGHT_MS = 10 * 60 * 1000;
-const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+export const DAILY_LIMITS = { payment: 100, provider: 1000, probe: 4 } as const;
 
 type Row = {
   tx_hash: string;
@@ -42,6 +42,7 @@ export class SettlementStore extends DurableObject<CloudflareBindings> {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS budgets (kind TEXT PRIMARY KEY, day INTEGER NOT NULL, used INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS submissions (
         tx_hash      TEXT PRIMARY KEY,
         owner_token  TEXT NOT NULL,
@@ -91,7 +92,6 @@ export class SettlementStore extends DurableObject<CloudflareBindings> {
       now,
       now
     );
-    await this.ensureSweep();
     return 'fresh';
   }
 
@@ -102,6 +102,7 @@ export class SettlementStore extends DurableObject<CloudflareBindings> {
       txHash,
       ownerToken
     );
+    await this.ensureSweep();
   }
 
   async markRejected(txHash: string, ownerToken: string): Promise<void> {
@@ -141,12 +142,39 @@ export class SettlementStore extends DurableObject<CloudflareBindings> {
       `DELETE FROM submissions WHERE state = 'submitted' AND updated_at < ?`,
       Date.now() - RETENTION_MS
     );
-    await this.ctx.storage.setAlarm(Date.now() + SWEEP_INTERVAL_MS);
+    await this.ensureSweep();
+  }
+
+  /** Atomic, account-wide daily caps. Limits are server-owned, never supplied by callers. */
+  async takeBudget(kind: keyof typeof DAILY_LIMITS): Promise<boolean> {
+    if (!(kind in DAILY_LIMITS)) return false;
+    const day = Math.floor(Date.now() / 86_400_000);
+    const row = this.sql
+      .exec<{ used: number }>(
+        `INSERT INTO budgets(kind, day, used) VALUES (?, ?, 1)
+       ON CONFLICT(kind) DO UPDATE SET day = excluded.day,
+       used = CASE WHEN budgets.day = excluded.day THEN budgets.used + 1 ELSE 1 END
+       WHERE budgets.day != excluded.day OR budgets.used < ? RETURNING used`,
+        kind,
+        day,
+        DAILY_LIMITS[kind]
+      )
+      .toArray();
+    return row.length === 1;
   }
 
   private async ensureSweep(): Promise<void> {
-    if ((await this.ctx.storage.getAlarm()) === null) {
-      await this.ctx.storage.setAlarm(Date.now() + SWEEP_INTERVAL_MS);
+    const next = this.sql
+      .exec<{ next: number | null }>(
+        "SELECT MIN(updated_at) AS next FROM submissions WHERE state = 'submitted'"
+      )
+      .one().next;
+    // In-flight records and rejection tombstones must be retained; waking
+    // repeatedly cannot clean them. Only schedule for an expirable record.
+    if (next === null) {
+      await this.ctx.storage.deleteAlarm();
+    } else {
+      await this.ctx.storage.setAlarm(Math.max(Date.now() + 1000, next + RETENTION_MS + 1));
     }
   }
 }

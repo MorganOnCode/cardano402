@@ -6,7 +6,7 @@
 const [base, network] = process.argv.slice(2);
 if (!base || !network) {
   console.log('error: base URL and expected network are required');
-  console.log('help: node scripts/smoke.mjs https://cardano402.com cardano:mainnet');
+  console.log('help: node scripts/smoke.mjs https://cardano402.com cardano:preview');
   process.exit(2);
 }
 
@@ -25,10 +25,14 @@ function assert(cond, message) {
 }
 const get = (path, headers = {}) => fetch(new URL(path, base), { headers, signal: AbortSignal.timeout(15_000) });
 
-await check('home view is TOON for agents', async () => {
-  const text = await (await get('/')).text();
-  assert(text.startsWith('service: cardano402'), 'unexpected home view');
-  assert(text.includes(network), `home view does not name ${network}`);
+await check('portfolio is static HTML', async () => {
+  const res = await get('/');
+  assert(res.ok && res.headers.get('content-type')?.includes('text/html'), 'portfolio unavailable');
+  assert((await res.text()).includes('/dist/app.js'), 'original landing bundle missing');
+});
+await check('agent view is available', async () => {
+  const text = await (await get('/info')).text();
+  assert(text.startsWith('service: cardano402') && text.includes(network), 'unexpected agent view');
 });
 await check('/supported advertises exact on the expected network, keyless', async () => {
   const body = await (await get('/supported')).json();
@@ -41,13 +45,12 @@ await check('/verify rejects an empty body with 400', async () => {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ x402Version: 2 }),
   });
-  assert(res.status === 400, `status ${res.status}`);
+  assert([400, 503].includes(res.status), `status ${res.status}`);
 });
-await check('/health?deep=1 reaches the chain provider', async () => {
-  const res = await get('/health?deep=1');
+await check('shallow health requires no provider request', async () => {
+  const res = await get('/health');
   const body = await res.json();
-  assert(res.status === 200 && body.provider === 'up', `status ${res.status}, provider ${body.provider}`);
-  assert(body.network === network, `network ${body.network}`);
+  assert(res.ok && body.network === network, 'unexpected health');
 });
 
 console.log(failures.length ? `smoke: ${failures.length} failed` : 'smoke: all checks passed');

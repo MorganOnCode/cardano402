@@ -1,3 +1,5 @@
+> Historical facilitator roadmap. The current deployment scope is a static portfolio and bounded Preview demo; see [portfolio-costs.md](portfolio-costs.md). Items below are not commitments to add hosted services.
+
 # v2 roadmap: refunds, edge cases, upgrades
 
 Status key: **done** = in v2 now · **next** = small, planned · **decide** =

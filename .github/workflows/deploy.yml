@@ -1,6 +1,7 @@
 name: Deploy
 
-# Preview (testnet) deploys on every push to master or v2; production (mainnet)
+# Both environments use Cardano Preview testnet. The preview deployment
+# runs on every push to master or v2; production
 # deploys only from master and only after a reviewer approves the
 # `production` environment. Nothing runs until the repository variable
 # CLOUDFLARE_DEPLOY_ENABLED is 'true', so this workflow is inert until the
@@ -24,7 +25,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-cardano402
   cancel-in-progress: false
 
 jobs:
@@ -32,7 +33,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   preview:
-    name: Deploy preview (cardano:preprod)
+    name: Deploy preview (cardano:preview)
     needs: ci
     if: vars.CLOUDFLARE_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
@@ -61,12 +62,24 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build:landing
+      - name: Bootstrap service binding target on first deployment
+        run: node scripts/bootstrap.mjs preview
+      - name: Deploy private test-wallet service
+        run: pnpm --filter @cardano402/demo-worker exec wrangler deploy --env preview
       - run: pnpm exec wrangler deploy --env preview --message "${{ github.sha }}"
+      - name: Configure Preview provider secrets
+        env:
+          BLOCKFROST_PREVIEW_PROJECT_ID: ${{ secrets.BLOCKFROST_PREVIEW_PROJECT_ID }}
+        run: |
+          test -n "$BLOCKFROST_PREVIEW_PROJECT_ID"
+          printf '%s' "$BLOCKFROST_PREVIEW_PROJECT_ID" | pnpm exec wrangler secret put BLOCKFROST_PROJECT_ID --env preview
+          printf '%s' "$BLOCKFROST_PREVIEW_PROJECT_ID" | pnpm --filter @cardano402/demo-worker exec wrangler secret put BLOCKFROST_PROJECT_ID --env preview
       - name: Smoke test
-        run: node scripts/smoke.mjs "${{ vars.PREVIEW_URL }}" cardano:preprod
+        run: node scripts/smoke.mjs "${{ vars.PREVIEW_URL }}" cardano:preview
 
   production:
-    name: Deploy production (cardano:mainnet)
+    name: Deploy production (cardano:preview)
     needs: preview
     if: vars.CLOUDFLARE_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
@@ -95,7 +108,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build:landing
+      - name: Bootstrap service binding target on first deployment
+        run: node scripts/bootstrap.mjs production
+      - name: Deploy private test-wallet service
+        run: pnpm --filter @cardano402/demo-worker exec wrangler deploy --env production
       - run: pnpm exec wrangler deploy --env production --message "${{ github.sha }}"
+      - name: Configure Preview provider secrets
+        env:
+          BLOCKFROST_PREVIEW_PROJECT_ID: ${{ secrets.BLOCKFROST_PREVIEW_PROJECT_ID }}
+        run: |
+          test -n "$BLOCKFROST_PREVIEW_PROJECT_ID"
+          printf '%s' "$BLOCKFROST_PREVIEW_PROJECT_ID" | pnpm exec wrangler secret put BLOCKFROST_PROJECT_ID --env production
+          printf '%s' "$BLOCKFROST_PREVIEW_PROJECT_ID" | pnpm --filter @cardano402/demo-worker exec wrangler secret put BLOCKFROST_PROJECT_ID --env production
       - name: Smoke test
         if: vars.PRODUCTION_URL != ''
-        run: node scripts/smoke.mjs "${{ vars.PRODUCTION_URL }}" cardano:mainnet
+        run: node scripts/smoke.mjs "${{ vars.PRODUCTION_URL }}" cardano:preview

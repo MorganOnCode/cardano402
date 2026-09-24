@@ -4,17 +4,19 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-15",
   "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true },
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": false },
 
   // Top-level config is a local-dev default only. Deploys always name an env.
   "workers_dev": false,
-  "vars": { "CARDANO_NETWORK": "cardano:preprod" },
+  "services": [{ "binding": "DEMO", "service": "cardano402-demo-preview" }],
+  "vars": { "CARDANO_NETWORK": "cardano:preview", "LIVE_DEMO_ENABLED": "false" },
   "durable_objects": {
     "bindings": [{ "name": "SETTLEMENTS", "class_name": "SettlementStore" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SettlementStore"] }],
   "ratelimits": [
-    { "name": "PAYMENT_LIMITER", "namespace_id": "4021", "simple": { "limit": 120, "period": 60 } }
+    { "name": "PAYMENT_LIMITER", "namespace_id": "4021", "simple": { "limit": 12, "period": 60 } }
   ],
 
   // Secrets (wrangler secret put <NAME> --env <env>), never in this file:
@@ -24,24 +26,26 @@
   "env": {
     "preview": {
       "name": "cardano402-preview",
+      "services": [{ "binding": "DEMO", "service": "cardano402-demo-preview" }],
       "workers_dev": true,
-      "vars": { "CARDANO_NETWORK": "cardano:preprod" },
+      "vars": { "CARDANO_NETWORK": "cardano:preview", "LIVE_DEMO_ENABLED": "false" },
       "durable_objects": {
         "bindings": [{ "name": "SETTLEMENTS", "class_name": "SettlementStore" }]
       },
       "ratelimits": [
-        { "name": "PAYMENT_LIMITER", "namespace_id": "4022", "simple": { "limit": 120, "period": 60 } }
+        { "name": "PAYMENT_LIMITER", "namespace_id": "4022", "simple": { "limit": 12, "period": 60 } }
       ]
     },
     "production": {
       "name": "cardano402",
+      "services": [{ "binding": "DEMO", "service": "cardano402-demo" }],
       "workers_dev": false,
-      "vars": { "CARDANO_NETWORK": "cardano:mainnet" },
+      "vars": { "CARDANO_NETWORK": "cardano:preview", "LIVE_DEMO_ENABLED": "false" },
       "durable_objects": {
         "bindings": [{ "name": "SETTLEMENTS", "class_name": "SettlementStore" }]
       },
       "ratelimits": [
-        { "name": "PAYMENT_LIMITER", "namespace_id": "4023", "simple": { "limit": 120, "period": 60 } }
+        { "name": "PAYMENT_LIMITER", "namespace_id": "4023", "simple": { "limit": 12, "period": 60 } }
       ]
       // Routes are added at cutover, not before (the VPS still serves the domain):
       // "routes": [

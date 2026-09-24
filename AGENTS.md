@@ -10,9 +10,18 @@ Foundation `@x402/cardano` + `@x402/core` packages. See README.md.
 - Protocol behaviour comes from `@x402/cardano`. Don't reimplement
   verification; upgrade the pinned version (the `x402` dependabot group)
   instead.
-- Deploys go through `.github/workflows/deploy.yml` only: preview on
-  preprod, production on mainnet behind environment approval. Don't run
+- Deploys go through `.github/workflows/deploy.yml` only: both environments on
+  Cardano Preview testnet behind environment approval. Don't run
   `wrangler deploy --env production` by hand.
+- `apps/demo-worker` is the separate, private project-funded testnet signer,
+  explicitly requested by the owner. Its secret must never be added to the
+  facilitator or static assets. It only self-pays on Preview; five runs/day,
+  ten-minute cooldown, no new payment while an earlier one is unresolved.
+- Preserve the EXACT original v1 landing-page design in apps/facilitator/landing.
+  Do not redesign it. Only adapt transport and hosting for Workers. The page is static assets. `/info` retains the agent
+  home view. Live demo flags stay off until the free-tier benchmark passes;
+  see `docs/portfolio-costs.md`. Do not retire the mainnet VPS until its
+  agent-to-agent dependency is removed or replaced.
 - `packages/` holds the legacy `@cardano402/*` SDKs (published on npm), which
   are superseded by `@x402/*`. Keep them building, but add no new features.
 - v1 (Fastify/Lucid on the VPS, `deploy.sh`) lives at tag `v1-final`, with

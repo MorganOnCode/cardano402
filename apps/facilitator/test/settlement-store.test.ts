@@ -93,3 +93,43 @@ describe('SettlementStore', () => {
     expect(await s.stats()).toEqual({ in_flight: 1, submitted: 0, rejected: 1 });
   });
 });
+
+describe('idle costs and shared quotas', () => {
+  it('does not schedule cleanup for records that cannot expire', async () => {
+    const s = store();
+    await s.claimSettlement({ txHash: tx(1), ownerToken: 'a' });
+    await s.markRejected(tx(1), 'a');
+    await runInDurableObject(s, async (_i, state) =>
+      expect(await state.storage.getAlarm()).toBeNull()
+    );
+  });
+  it('stops cleanup after the final submitted record expires and restarts for new submissions', async () => {
+    const s = store();
+    await s.claimSettlement({ txHash: tx(1), ownerToken: 'a' });
+    await s.markSubmitted(tx(1), 'a');
+    await runInDurableObject(s, (_i, state) => {
+      state.storage.sql.exec(
+        'UPDATE submissions SET updated_at = ?',
+        Date.now() - RETENTION_MS - 1
+      );
+    });
+    expect(await runDurableObjectAlarm(s)).toBe(true);
+    await runInDurableObject(s, async (_i, state) =>
+      expect(await state.storage.getAlarm()).toBeNull()
+    );
+    await s.claimSettlement({ txHash: tx(2), ownerToken: 'b' });
+    await s.markSubmitted(tx(2), 'b');
+    await runInDurableObject(s, async (_i, state) =>
+      expect(await state.storage.getAlarm()).not.toBeNull()
+    );
+  });
+  it('enforces a global quota atomically across concurrent calls and resets next UTC day', async () => {
+    const s = store();
+    const results = await Promise.all(Array.from({ length: 12 }, () => s.takeBudget('probe')));
+    expect(results.filter(Boolean)).toHaveLength(4);
+    await runInDurableObject(s, (_i, state) =>
+      state.storage.sql.exec('UPDATE budgets SET day = day - 1')
+    );
+    expect(await s.takeBudget('probe')).toBe(true);
+  });
+});

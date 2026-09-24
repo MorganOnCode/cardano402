@@ -5,26 +5,30 @@
   "description": "cardano402.com facilitator Worker: @x402/cardano exact scheme behind a Hono HTTP surface, Durable Object settlement guard.",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --env preview",
-    "build": "wrangler deploy --dry-run --outdir dist --env preview",
+    "dev": "pnpm build:landing && wrangler dev --env preview",
+    "build": "pnpm build:landing && wrangler deploy --dry-run --outdir dist --env preview",
     "typecheck": "wrangler types --env-interface CloudflareBindings >/dev/null && tsc --noEmit",
     "lint": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "vitest run",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "deploy:preview": "wrangler deploy --env preview",
-    "deploy:production": "wrangler deploy --env production"
+    "deploy:production": "wrangler deploy --env production",
+    "build:landing": "node scripts/build-landing.mjs"
   },
   "dependencies": {
     "@toon-format/toon": "^4.1.1",
     "@x402/cardano": "2.27.0",
     "@x402/core": "2.27.0",
-    "hono": "^4.13.8"
+    "hono": "^4.13.8",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "prettier": "^3.9.5",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10",
-    "wrangler": "^4.137.0"
+    "wrangler": "^4.137.0",
+    "esbuild": "^0.28.1"
   }
 }

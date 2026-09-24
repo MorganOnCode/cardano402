@@ -1,52 +1,35 @@
-# Cutover runbook: cardano402.com, VPS (v1) to Worker (v2)
+# Portfolio cutover: VPS to static assets + optional Preview demo
 
-Owner approval is required at every step marked **(approve)**. Nothing here
-runs automatically.
+This supersedes the earlier plan to operate a mainnet facilitator on Workers.
+Both future environments use **Cardano Preview**. The existing VPS still serves
+mainnet; changing its domain before handling dependants would break payments.
 
-## Before
+1. Complete the deployment and benchmark checklist in `portfolio-costs.md`.
+   The original static landing page may run with both live-demo flags disabled.
+2. Resolve agent-to-agent's live `http://facilitator:3000` dependency first:
+   remove its paid flow or select a maintained mainnet facilitator. Its
+   existing draft v2 PR alone does NOT solve this: it expects a mainnet service
+   at cardano402.com. Do not merge it unchanged into this testnet-only plan.
+3. Confirm all public API consumers have a replacement or retirement notice.
+4. Configure GitHub secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+   deployment variable `CLOUDFLARE_DEPLOY_ENABLED=true`, URLs, and the protected
+   `production` environment. Add `Testnet demo Worker` to required CI checks.
+5. Deploy through `.github/workflows/deploy.yml`. The private demo service has
+   no routes; the public Worker serves the original static landing page and optionally
+   forwards `/demo/run`. Allow machine API traffic through Cloudflare WAF only
+   for the routes deliberately retained; do not remove the rate limits.
+6. At the agreed cutover, add the custom domains to the public Worker's
+   production config and remove only Cardano402's tunnel ingress entries.
+   The existing tunnel is shared with other apps; do not delete the tunnel.
+7. Verify the original page design in both modes and on mobile, and (if enabled) one real
+   Preview self-payment with an explorer link. No visitor wallet is required.
+8. Stop the old Cardano402 container only after the dependency switch is
+   verified. Preserve the Redis volume and signing backups for rollback.
+9. After a 14-day soak, account for/sweep the old wallets and remove obsolete
+   containers, images, volumes, backup jobs and checkout. The old backup job
+   also covers shared tunnel configuration; arrange replacement coverage first.
 
-1. Preview Worker green on `cardano:preprod`: CI deploy + `scripts/smoke.mjs`
-   pass, and one real preprod payment settles end to end through an
-   `@x402/core` resource server (agent-to-agent's v2 PR against the preview URL).
-2. Production Worker deployed with **no routes** (`wrangler deploy --env
-   production`); `BLOCKFROST_PROJECT_ID` (mainnet) set as a secret; smoke
-   against its `workers.dev` URL or a temporary hostname.
-3. agent-to-agent PR (MorganOnCode/agent-to-agent#1) green against the
-   preview Worker; it merges at the switch, not before.
-4. Cloudflare WAF skip rule on cardano402.com for `POST /verify`, `POST /settle`
-   and `GET /supported`, so resource servers (agent-to-agent on the VPS
-   included) are not bot-challenged. Keep the rate limiter on.
-5. Announce: v1-only features go away. `/demo`, `/status/:tx`,
-   `/upload`/`/download`, `/.well-known/*` cards, `/metrics`, and the v1 wire
-   quirks (`extensions.status`, settle-before-handler) are all removed.
-
-## Switch (approve)
-
-1. Stop new v1 settlements: `docker stop cardano402` on the VPS. Leave
-   `cardano402-redis` and its volume untouched. Redis `settle/*` records only
-   deduplicate v1 access grants. Cardano itself refuses a second broadcast of a
-   spent-input transaction, so v1 records do not need to move.
-2. Add the custom-domain routes to `env.production` in `wrangler.jsonc`
-   (`cardano402.com`, `www.cardano402.com`), merge to master, approve the
-   production deployment. Remove the cloudflared ingress rule for those
-   hostnames in the same change window.
-3. `node apps/facilitator/scripts/smoke.mjs https://cardano402.com cardano:mainnet`.
-4. Merge agent-to-agent#1 and redeploy it. Its default `FACILITATOR_URL` is
-   `https://cardano402.com`, and it no longer joins `cardano402_default`.
-5. Set repo variable `PRODUCTION_URL=https://cardano402.com` to enable the
-   hourly monitor.
-
-## Rollback
-
-Re-add the cloudflared ingress, remove the Worker routes, and run `docker start
-cardano402`. The v1 container and its Redis volume stay stopped but intact
-through the soak period.
-
-## After a 14-day soak (approve each)
-
-- Sweep the remaining ADA from the v1 facilitator and demo wallets to a cold
-  wallet. Then shred `secrets/*.seed` on the VPS; the restic snapshots keep an
-  encrypted copy under the existing retention.
-- Remove the v1 containers, images (`cardano402:latest`, `cardano402:rollback`),
-  the Redis volume, the backup cron, and `/opt/cardano402` (~1.5 GB).
-- Delete `mcp.cardano402.com` DNS or point it at the Worker.
+Rollback: restore Cardano402's tunnel ingress and restart the v1 container,
+then remove its Worker routes. Keep the shared tunnel and other apps intact.
+No cutover, mainnet spending, wallet sweep, or VPS removal is performed by the
+portfolio code changes.

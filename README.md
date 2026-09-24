@@ -1,75 +1,67 @@
 # cardano402
 
-A **keyless Cardano x402 facilitator** on Cloudflare Workers, built on the
-x402 Foundation's reference implementation
-([`@x402/cardano`](https://github.com/x402-foundation/x402/tree/main/typescript/packages/mechanisms/cardano)).
-It verifies payer-signed `exact`-scheme transactions and broadcasts them once.
-It holds no keys and no funds.
+An open-source portfolio project exploring HTTP payments on Cardano using the
+x402 Foundation's `@x402/cardano` reference implementation.
 
-- **Standard:** x402 v2, `exact` scheme, `default` / `script` / `masumi`
-  transfer methods, per-route confirmation policy, `settlement_pending`
-  resume. Any `@x402/core` resource server can use it unchanged.
-- **Keyless:** the payer signs and pays the network fee. The facilitator runs
-  provider-only (Blockfrost), so there is no hot wallet to steal.
-- **Agent-first:** `GET /` returns a TOON home view (AXI style) with live
-  network and confirmation bounds and runnable next steps; browsers get HTML.
-  `/SKILL.md` and `/llms.txt` are generated from the same data.
+The v2 site preserves the exact original landing-page design, including its
+Normal/Dev modes, typography, illustrations and demo panel. It is served as
+static assets, with no background API polling. An optional live demo uses the project's
+own **Cardano Preview** wallet to send 2 test ADA to itself, pay the network fee,
+and return a transaction explorer link. Visitors need no wallet or funds.
 
-## Endpoints
+## Architecture
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/` | Home view: TOON for agents, HTML for browsers |
-| GET | `/supported` | x402 payment kinds, confirmation bounds, signers (always empty) |
-| POST | `/verify` | `{ x402Version, paymentPayload, paymentRequirements }` → `VerifyResponse` |
-| POST | `/settle` | Same body → `SettleResponse`; retry once on `settlement_pending` |
-| GET | `/health` | Liveness; `?deep=1` also probes Blockfrost and reports settlement counts |
-| GET | `/SKILL.md`, `/llms.txt` | Agent integration docs |
+- `apps/facilitator/landing`: original v1 React page source and artwork.
+- `apps/facilitator/public`: built page served by Workers Static Assets.
+- `apps/facilitator/src`: keyless x402 verification, settlement and duplicate
+  protection; `/info` is the agent-readable view.
+- `apps/demo-worker`: private signing service and single Durable Object for the
+  dedicated Preview test wallet. Five new runs/day, ten-minute cooldown,
+  bounded retries, durable pending-payment protection. No public routes.
+- `packages/`: preserved legacy `@cardano402/*` SDKs, superseded by `@x402/*`.
 
-## Use it from a resource server
+Both Workers default to live-demo **disabled**. The page still renders; the demo reports that it is unavailable. The current production VPS is unchanged and still serves mainnet until
+its dependants have migrated. This branch's future deployment is testnet-only;
+it is not a drop-in mainnet replacement for agent-to-agent.
 
-```ts
-import { HTTPFacilitatorClient } from "@x402/core/server";
-
-const facilitator = new HTTPFacilitatorClient({ url: "https://cardano402.com" });
-```
-
-The flow is *authorization*: verify, run your handler, then settle. If the
-handler fails, don't settle: nothing is broadcast and the payer is not charged.
-
-## Layout
-
-```
-apps/facilitator/   The Worker (Hono + @x402/cardano + Durable Object settlement guard)
-packages/           Legacy @cardano402/* SDKs (core, mcp-server), superseded by @x402/*
-docs/v2-roadmap.md  Refunds, edge cases and other planned upgrades
-docs/v2-cutover.md  Runbook for moving cardano402.com from the VPS to the Worker
-docs/v1/            v1 (Fastify/Lucid, VPS) documentation, kept for history
-```
-
-## Develop
+## Develop and check
 
 ```sh
-pnpm install
-cp apps/facilitator/.dev.vars.example apps/facilitator/.dev.vars   # preprod Blockfrost id
-pnpm --filter @cardano402/facilitator dev     # wrangler dev on cardano:preprod
-pnpm --filter @cardano402/facilitator test    # runs inside workerd
+pnpm install --frozen-lockfile
+pnpm --filter @cardano402/facilitator dev
+pnpm --filter @cardano402/facilitator --filter @cardano402/demo-worker typecheck
+pnpm --filter @cardano402/facilitator --filter @cardano402/demo-worker test
+pnpm --filter @cardano402/facilitator --filter @cardano402/demo-worker build
 ```
 
-## Deploy
+Tests run in workerd with synthetic data and blocked external provider traffic.
+The build is a dry-run deploy requiring no credentials. For interactive local
+integration, run Wrangler with both apps' config paths; never load mainnet
+signing material into the demo.
 
-GitHub Actions (`.github/workflows/deploy.yml`): every push to `master` or
-`v2` deploys the **preview** Worker on `cardano:preprod` and smoke-tests it.
-**Production** (`cardano:mainnet`) deploys only from `master`, after a
-reviewer approves the `production` environment. The Blockfrost id is a Worker
-secret (`wrangler secret put BLOCKFROST_PROJECT_ID --env <env>`).
+## API
 
-## v1
+| Route | Purpose |
+|---|---|
+| `/` | Original landing page |
+| `POST /demo/run` | Start/resume the bounded project-funded Preview demo |
+| `/info`, `/SKILL.md`, `/llms.txt` | Agent integration information |
+| `/supported` | Reference SDK capabilities on Preview |
+| `POST /verify`, `POST /settle` | Capped Preview-only x402 facilitator API |
+| `/health` | Shallow health; explicit `?deep=1` is capped at four probes/day |
 
-The Fastify/Lucid facilitator that ran on a VPS (with a hot-wallet signer,
-Redis, and the `/demo` testnet trial) is preserved at tag
-[`v1-final`](https://github.com/MorganOnCode/cardano402/tree/v1-final).
+## Deployment and cost
 
-## License
+Use the GitHub deployment workflow. Both preview and production environments
+use Cardano Preview, with a separate signing service in each. The production
+job remains behind environment approval. No paid account upgrade is automatic.
 
-Apache-2.0
+See [cost controls and benchmark checklist](docs/portfolio-costs.md) and the
+[cutover runbook](docs/v2-cutover.md). Hosting targets the free tier but actual
+verification CPU must be measured before enabling the live demo.
+
+## History and license
+
+The original VPS facilitator is preserved at
+[`v1-final`](https://github.com/MorganOnCode/cardano402/tree/v1-final), with its
+notes in `docs/v1`. Apache-2.0.

@@ -66,5 +66,7 @@ x402-rs-main/
 
 # Workers
 .wrangler/
-.dev.vars
+.dev.vars*
 apps/facilitator/worker-configuration.d.ts
+
+apps/demo-worker/worker-configuration.d.ts

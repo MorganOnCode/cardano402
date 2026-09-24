@@ -19,19 +19,19 @@ beforeAll(async () => {
 
 describe('home view', () => {
   it('serves agents TOON with live kinds and next steps', async () => {
-    const res = await get('/');
+    const res = await get('/info');
     expect(res.headers.get('content-type')).toContain('text/plain');
     const text = await res.text();
     expect(text).toContain('service: cardano402');
     expect(text).toMatch(
-      /kinds\[1\]\{x402Version,scheme,network,l1Confirmations\}:\n\s+2,exact,"cardano:preprod",0\.\.20\n/
+      /kinds\[1\]\{x402Version,scheme,network,l1Confirmations\}:\n\s+2,exact,"cardano:preview",0\.\.20\n/
     );
     expect(text).toMatch(/\nhelp\[3\]:\n  Run `curl -s https:\/\/cardano402.test\/supported`/);
     expect(text).toContain('https://cardano402.test/supported');
   });
 
   it('serves browsers HTML', async () => {
-    const res = await get('/', { accept: 'text/html' });
+    const res = await get('/info', { accept: 'text/html' });
     expect(res.headers.get('content-type')).toContain('text/html');
     expect(await res.text()).toContain('<title>cardano402</title>');
   });
@@ -39,7 +39,7 @@ describe('home view', () => {
   it('generates SKILL.md and llms.txt from the same data', async () => {
     const skill = await (await get('/SKILL.md')).text();
     expect(skill).toMatch(/^---\nname: cardano402\n/);
-    expect(skill).toContain('cardano:preprod');
+    expect(skill).toContain('cardano:preview');
     expect(await (await get('/llms.txt')).text()).toContain('https://cardano402.test/SKILL.md');
   });
 });
@@ -51,7 +51,7 @@ describe('x402 facilitator endpoints', () => {
       signers: Record<string, string[]>;
     };
     expect(body.kinds).toEqual([
-      expect.objectContaining({ x402Version: 2, scheme: 'exact', network: 'cardano:preprod' }),
+      expect.objectContaining({ x402Version: 2, scheme: 'exact', network: 'cardano:preview' }),
     ]);
     expect(Object.values(body.signers).flat()).toEqual([]);
   });
@@ -76,12 +76,12 @@ describe('x402 facilitator endpoints', () => {
       x402Version: 2,
       paymentPayload: {
         x402Version: 2,
-        accepted: { scheme: 'exact', network: 'cardano:preprod' },
+        accepted: { scheme: 'exact', network: 'cardano:preview' },
         payload: { transaction: 'bm90LWNib3I=', nonce: '00' },
       },
       paymentRequirements: {
         scheme: 'exact',
-        network: 'cardano:preprod',
+        network: 'cardano:preview',
         amount: '1000000',
         asset: 'lovelace',
         payTo: 'addr_test1vz0000000000000000000000000000000000000000000000000000',
@@ -96,7 +96,7 @@ describe('x402 facilitator endpoints', () => {
   it('reports shallow health without touching the provider', async () => {
     expect(await (await get('/health')).json()).toMatchObject({
       status: 'ok',
-      network: 'cardano:preprod',
+      network: 'cardano:preview',
     });
   });
 
@@ -107,8 +107,18 @@ describe('x402 facilitator endpoints', () => {
   });
 
   it('returns a structured 404', async () => {
-    const res = await get('/demo/run');
+    const res = await get('/missing');
     expect(res.status).toBe(404);
-    expect(await res.json()).toMatchObject({ help: 'GET / lists the endpoints' });
+    expect(await res.json()).toMatchObject({ help: 'GET /info lists the endpoints' });
+  });
+});
+
+describe('portfolio cost controls', () => {
+  it('rejects mainnet before contacting a provider', async () => {
+    const res = await post('/verify', {
+      paymentPayload: { accepted: { network: 'cardano:mainnet' } },
+      paymentRequirements: { network: 'cardano:mainnet' },
+    });
+    expect(res.status).toBe(400);
   });
 });
