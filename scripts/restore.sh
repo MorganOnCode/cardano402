@@ -40,6 +40,9 @@ if [ "$ACTION" = "list" ]; then
 fi
 
 mkdir -p "$TARGET"
+# Restored snapshots hold config.json, .env, signing files and payment-gated
+# content. Lock the target before restic writes into it, not after.
+chmod 700 "$TARGET"
 
 echo "Restoring snapshot '$ACTION' to $TARGET ..."
 restic restore "$ACTION" --target "$TARGET"
@@ -53,3 +56,18 @@ find "$TARGET" -maxdepth 4 -type f | sort | head -40
 echo
 echo "MANIFEST.txt contents (if present):"
 find "$TARGET" -name MANIFEST.txt -exec cat {} \; 2>/dev/null
+
+# Signer coverage. Snapshots taken before signer staging existed restore
+# cleanly but cannot rebuild a signing facilitator — say so loudly here rather
+# than letting an operator discover it mid-recovery.
+echo
+signer_dir=$(find "$TARGET" -type d -path '*/sensitive/secrets' -print -quit 2>/dev/null || true)
+if [ -n "$signer_dir" ]; then
+  echo "Signing files in this snapshot (names/modes only, contents never printed):"
+  find "$signer_dir" -type f -exec stat -c '  %n  mode %a  uid:gid %u:%g  %s bytes' {} \;
+else
+  echo "WARNING: this snapshot contains no sensitive/secrets/ directory."
+  echo "  Either this install does not sign locally, or the snapshot predates"
+  echo "  signer staging in scripts/backup.sh. Recover signing material from"
+  echo "  your offline seed backup — see docs/backup-restore.md, Scenario C."
+fi
