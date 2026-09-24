@@ -13,14 +13,15 @@ and return a transaction explorer link. Visitors need no wallet or funds.
 
 - `apps/facilitator/landing`: original v1 React page source and artwork.
 - `apps/facilitator/public`: built page served by Workers Static Assets.
-- `apps/facilitator/src`: keyless x402 verification, settlement and duplicate
-  protection; `/info` is the agent-readable view.
+- `apps/facilitator/src`: keyless x402 verification and settlement inside a
+  `PaymentExecutor` Durable Object, plus durable duplicate protection; `/info` is the agent-readable view.
 - `apps/demo-worker`: private signing service and single Durable Object for the
   dedicated Preview test wallet. Five new runs/day, ten-minute cooldown,
   bounded retries, durable pending-payment protection. No public routes.
 - `packages/`: preserved legacy `@cardano402/*` SDKs, superseded by `@x402/*`.
 
-Both Workers default to live-demo **disabled**. The page still renders; the demo reports that it is unavailable. The current production VPS is unchanged and still serves mainnet until
+The preview live demo is enabled after a confirmed on-chain benchmark.
+Production live-demo flags remain **disabled**. The current production VPS is unchanged and still serves mainnet until
 its dependants have migrated. This branch's future deployment is testnet-only;
 it is not a drop-in mainnet replacement for agent-to-agent.
 

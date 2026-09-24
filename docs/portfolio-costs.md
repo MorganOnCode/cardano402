@@ -13,6 +13,10 @@ The original UI displays confirmed receipts and errors; it never labels a
 pending payment as settled. Technical mode fetches shallow health/capabilities
 on demand. No redesigned simulation page remains.
 
+The preview live demo is now enabled after the revised benchmark below passed.
+Production remains disabled; the main domain and agent-to-agent still use the
+VPS. Its old testnet demo is paused so only one service signs for the wallet.
+
 ## Live demo: same wallet sends, receives, and pays fees
 
 The current VPS demo uses **Cardano Preview**, not preprod. The replacement
@@ -220,3 +224,57 @@ without protocol changes into a separate `PaymentExecutor` Durable Object;
 the HTTP Worker retains body validation, network guards and atomic budgets.
 The SDK result crosses RPC as JSON to preserve arbitrary protocol extensions.
 A second benchmark is required before considering the demo ready.
+
+## Revised benchmark passed (2026-09-24)
+
+Commit `a617d7f` deployed through GitHub run `36059100006`; all CI checks and
+live smoke checks passed. Clicking **Test Now** in headless Chromium on the
+original deployed page produced a confirmed receipt with no browser errors:
+https://preview.cardanoscan.io/transaction/526d52ce29f159d021b5270fa6063548157ca0eadbf6dd24bd4fe46d2a974f6f
+
+Blockfrost independently confirmed the same-wallet inputs and outputs, a
+2,000,000 lovelace payment output and 170,165 lovelace fee. This run completed
+in approximately 19 seconds. It was the second newly started demo of the day;
+no quota or cooldown state was cleared to run it.
+
+Cloudflare execution measurements for that payment:
+
+| Execution | CPU | Wall time | Result |
+|---|---:|---:|---|
+| HTTP `/verify` (first real request after deployment) | 5 ms | 1,919 ms | OK |
+| HTTP `/settle` | 1 ms | 15,895 ms | OK |
+| HTTP `/demo/run` | 3 ms | 19,153 ms | Complete HTTP 200 receipt received |
+| Durable Object verification RPC | 83 ms | 1,148 ms | OK |
+| Durable Object settlement RPC | 52 ms | 30,819 ms | OK |
+
+The front-door demo invocation is tagged `canceled` in Cloudflare telemetry
+despite curl and Chromium receiving complete 200/confirmed responses; the
+chain receipts were independently checked. The reason for that telemetry
+classification has not been established. The settlement RPC trace remained
+open longer than the HTTP response. No CPU-exceeded or memory-exceeded errors were observed.
+
+The ordinary HTTP requests now fit the 10 ms Free allowance in this measured
+run; cryptographic work runs under the Durable Object allowance. This is
+measured evidence for the bounded demo, not a guarantee for every request or
+other applications sharing the account. The five-start/day cap, ten-minute
+cooldown, 100-payment-call/day and 1,000-provider-operation/day limits remain.
+
+Cloudflare's periodic metrics for the signing object during the second run
+recorded about 418 ms CPU and 7.68 GB-seconds of active duration (metrics use
+microseconds for CPU/active time). Its six subrequests include the facilitator
+service calls, so this is not a pure Blockfrost request count. The settlement
+store recorded 35 rows read and 19 written in that query window.
+
+Both Worker bundles are below the Free upload limit: public 2,890.47 KiB raw /
+551.47 KiB gzip; private 2,717.53 KiB raw / 511.36 KiB gzip. Deployment reported
+165 ms and 166 ms startup respectively.
+
+The first receipt survived the redeployment and was reused during cooldown.
+After the second payment, two concurrent callers both received its cached
+receipt with no new transaction. Synthetic workerd tests cover quota
+exhaustion, pending confirmation and restart/resume; they do not require
+spending extra test ADA. The updated facilitator suite has 25 passing tests.
+
+Preview stays enabled for review on Workers Free. Production and domain
+cutover remain out of scope until agent-to-agent's mainnet dependency is
+resolved. The old VPS demo must remain paused while the preview signer is on.
