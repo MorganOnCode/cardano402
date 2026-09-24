@@ -55,7 +55,9 @@
       "nanoid@<4": "^3.3.18",
       "@opentelemetry/core": "^2.8.0",
       "postcss": "^8.5.23",
-      "sharp": "^0.35.4"
+      "sharp": "^0.35.4",
+      "qs": "^6.16.0",
+      "browserslist": "^4.28.8"
     }
   },
   "devDependencies": {
