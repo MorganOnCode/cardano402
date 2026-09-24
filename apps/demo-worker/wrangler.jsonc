@@ -10,8 +10,9 @@
   "services": [{ "binding": "FACILITATOR", "service": "cardano402-preview" }],
   "env": {
     "preview": {
+      "observability": { "enabled": true, "head_sampling_rate": 1 },
       "name": "cardano402-demo-preview", "workers_dev": false, "preview_urls": false,
-      "vars": { "LIVE_DEMO_ENABLED": "false" },
+      "vars": { "LIVE_DEMO_ENABLED": "true" },
       "durable_objects": { "bindings": [{ "name": "WALLET", "class_name": "DemoWallet" }] },
       "services": [{ "binding": "FACILITATOR", "service": "cardano402-preview" }]
     },

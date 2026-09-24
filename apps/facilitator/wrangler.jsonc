@@ -25,10 +25,11 @@
   // payer-signed transactions, so it holds no keys and no funds.
   "env": {
     "preview": {
+      "observability": { "enabled": true, "head_sampling_rate": 1 },
       "name": "cardano402-preview",
       "services": [{ "binding": "DEMO", "service": "cardano402-demo-preview" }],
       "workers_dev": true,
-      "vars": { "CARDANO_NETWORK": "cardano:preview", "LIVE_DEMO_ENABLED": "false" },
+      "vars": { "CARDANO_NETWORK": "cardano:preview", "LIVE_DEMO_ENABLED": "true" },
       "durable_objects": {
         "bindings": [{ "name": "SETTLEMENTS", "class_name": "SettlementStore" }]
       },
