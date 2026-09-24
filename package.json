@@ -63,7 +63,7 @@
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^17.0.7",
-    "prettier": "^3.9.5",
+    "prettier": "^3.9.8",
     "typescript": "^6.0.3"
   },
   "lint-staged": {
