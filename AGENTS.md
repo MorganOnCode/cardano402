@@ -10,8 +10,8 @@ Foundation `@x402/cardano` + `@x402/core` packages. See README.md.
 - Protocol behaviour comes from `@x402/cardano`. Don't reimplement
   verification; upgrade the pinned version (the `x402` dependabot group)
   instead.
-- Deploys go through `.github/workflows/deploy.yml` only: both environments on
-  Cardano Preview testnet behind environment approval. Don't run
+- Deploys go through `.github/workflows/deploy.yml` only: preview on
+  Cardano Preview testnet; the production website retains the VPS mainnet API and uses the existing production environment approval. Don't run
   `wrangler deploy --env production` by hand.
 - `apps/demo-worker` is the separate, private project-funded testnet signer,
   explicitly requested by the owner. Its secret must never be added to the
@@ -25,5 +25,5 @@ Foundation `@x402/cardano` + `@x402/core` packages. See README.md.
 - `packages/` holds the legacy `@cardano402/*` SDKs (published on npm), which
   are superseded by `@x402/*`. Keep them building, but add no new features.
 - v1 (Fastify/Lucid on the VPS, `deploy.sh`) lives at tag `v1-final`, with
-  its notes in `docs/v1/`. Until cutover (docs/v2-cutover.md) the VPS still serves
-  cardano402.com from the `master` checkout at `/opt/cardano402`.
+  its notes in `docs/v1/`. The staged website cutover (docs/v2-cutover.md) retains
+  the VPS mainnet API at `/opt/cardano402`; do not replace tunnel DNS/ingress with Custom Domains.

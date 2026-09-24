@@ -1,4 +1,4 @@
-name: Facilitator Monitor
+name: Preview Facilitator Monitor
 
 # Manual read-only check. No background monitoring calls for the portfolio.
 on:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   smoke:
-    if: vars.PRODUCTION_URL != ''
+    if: vars.PREVIEW_URL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -24,4 +24,4 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
-      - run: node apps/facilitator/scripts/smoke.mjs "${{ vars.PRODUCTION_URL }}" cardano:preview
+      - run: node apps/facilitator/scripts/smoke.mjs "${{ vars.PREVIEW_URL }}" cardano:preview
