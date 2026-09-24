@@ -70,8 +70,9 @@ Durable Object duration has its own accounting.
 No paid subscription or account-plan change is made by these files. Free-plan
 limits stop requests rather than create usage overages. If the account is
 already paid, caps reduce use but do not cancel the account's base subscription.
-Domain renewal remains separate. The current default flags are disabled in BOTH
-Workers: enabling only one must not allow spending.
+Domain renewal remains separate. Production flags remain disabled in both Workers. Preview flags are enabled
+only for the isolated live benchmark; enabling only one Worker must not allow
+spending.
 
 Official references (checked 2026-09-24):
 - https://developers.cloudflare.com/workers/platform/limits/
@@ -103,7 +104,8 @@ Official references (checked 2026-09-24):
    measurement and a successful testnet receipt are recorded.
 
 The original page renders when the signing service is disabled; clicking Test Now reports that the live demo is unavailable.
-There has been no live Cloudflare benchmark or deployment from this change.
+The original page has been deployed to the preview URL; live benchmark
+measurements are recorded below.
 
 ## Local validation record (2026-09-24)
 
@@ -189,3 +191,32 @@ unrouted placeholder only when its binding target is absent. Bootstrap checks
 passed for existing-service skip, denied access (no mutation), and missing
 service creation with workers.dev/preview URLs disabled. Deployment remains
 gated by `CLOUDFLARE_DEPLOY_ENABLED`; no Worker or DNS change has been made.
+
+## First live benchmark (2026-09-24)
+
+The owner confirmed Workers Free. Preview deployment and all smoke tests
+passed. The exact original page remains at
+https://cardano402-preview.morganoncode.workers.dev.
+
+Before enabling the preview signer, the old VPS demo configuration was backed
+up under root-only `/etc/cardano402/cloudflare-migration/` and removed from the
+runtime config. After a graceful container restart, mainnet health and
+agent-to-agent health were verified; old `POST /demo/run` returns 503. The
+existing demo seed was uploaded only to `cardano402-demo-preview` as a Worker
+secret. Production has no signing secret or enabled live flag.
+
+First confirmed self-payment:
+https://preview.cardanoscan.io/transaction/1ded03b19e9e90896e23afdc580834c3ab406f2c13de73bce83496e04528a992
+
+Blockfrost independently confirms a 2,000,000 lovelace output, with all input
+and output addresses equal to the project Preview wallet. Fee: 170,165
+lovelace. The full demo took approximately 49 seconds.
+
+Cloudflare invocation logs measured 118 ms CPU for `/verify` and 56 ms for
+`/settle` as ordinary Worker requests. Although the transaction completed,
+these exceed the 10 ms Free allowance and are **not a passing benchmark**.
+`/demo/run` used 4 ms CPU. Verification and settlement are therefore moved
+without protocol changes into a separate `PaymentExecutor` Durable Object;
+the HTTP Worker retains body validation, network guards and atomic budgets.
+The SDK result crosses RPC as JSON to preserve arbitrary protocol extensions.
+A second benchmark is required before considering the demo ready.

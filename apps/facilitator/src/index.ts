@@ -9,6 +9,7 @@ import { budget, quotaResponse } from './budget';
 import { demoEnabled } from './demo';
 
 export { SettlementStore } from './settlement-store';
+export { PaymentExecutor } from './payment-executor';
 
 type Env = { Bindings: CloudflareBindings };
 
@@ -147,19 +148,20 @@ app.post('/demo/run', async (c) => {
 app.post('/verify', limitBody, async (c) => {
   const body = await readPaymentBody(c);
   if (body instanceof Response) return body;
-  return c.json(await getFacilitator(c.env).verify(body.paymentPayload, body.paymentRequirements));
+  const executor = c.env.EXECUTOR.get(c.env.EXECUTOR.idFromName('preview-payments'));
+  return c.json(JSON.parse(await executor.verify(body.paymentPayload, body.paymentRequirements)));
 });
 
 app.post('/settle', limitBody, async (c) => {
   const body = await readPaymentBody(c);
   if (body instanceof Response) return body;
-  const facilitator = getFacilitator(c.env);
-  const settlement = facilitator.settle(body.paymentPayload, body.paymentRequirements);
+  const executor = c.env.EXECUTOR.get(c.env.EXECUTOR.idFromName('preview-payments'));
+  const settlement = executor.settle(body.paymentPayload, body.paymentRequirements);
   // If the caller disconnects mid-settle, keep the isolate alive long enough
   // to record the broadcast in the settlement store.
   c.executionCtx.waitUntil(settlement.catch(() => undefined));
   try {
-    return c.json(await settlement);
+    return c.json(JSON.parse(await settlement));
   } catch (error) {
     if (error instanceof Error && error.message.includes('Settlement aborted:')) {
       return c.json({

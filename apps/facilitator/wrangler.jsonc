@@ -12,9 +12,15 @@
   "services": [{ "binding": "DEMO", "service": "cardano402-demo-preview" }],
   "vars": { "CARDANO_NETWORK": "cardano:preview", "LIVE_DEMO_ENABLED": "false" },
   "durable_objects": {
-    "bindings": [{ "name": "SETTLEMENTS", "class_name": "SettlementStore" }]
+    "bindings": [
+      { "name": "SETTLEMENTS", "class_name": "SettlementStore" },
+      { "name": "EXECUTOR", "class_name": "PaymentExecutor" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SettlementStore"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["SettlementStore"] },
+    { "tag": "v2", "new_sqlite_classes": ["PaymentExecutor"] }
+  ],
   "ratelimits": [
     { "name": "PAYMENT_LIMITER", "namespace_id": "4021", "simple": { "limit": 12, "period": 60 } }
   ],
@@ -31,7 +37,10 @@
       "workers_dev": true,
       "vars": { "CARDANO_NETWORK": "cardano:preview", "LIVE_DEMO_ENABLED": "true" },
       "durable_objects": {
-        "bindings": [{ "name": "SETTLEMENTS", "class_name": "SettlementStore" }]
+        "bindings": [
+          { "name": "SETTLEMENTS", "class_name": "SettlementStore" },
+          { "name": "EXECUTOR", "class_name": "PaymentExecutor" }
+        ]
       },
       "ratelimits": [
         { "name": "PAYMENT_LIMITER", "namespace_id": "4022", "simple": { "limit": 12, "period": 60 } }
@@ -43,7 +52,10 @@
       "workers_dev": false,
       "vars": { "CARDANO_NETWORK": "cardano:preview", "LIVE_DEMO_ENABLED": "false" },
       "durable_objects": {
-        "bindings": [{ "name": "SETTLEMENTS", "class_name": "SettlementStore" }]
+        "bindings": [
+          { "name": "SETTLEMENTS", "class_name": "SettlementStore" },
+          { "name": "EXECUTOR", "class_name": "PaymentExecutor" }
+        ]
       },
       "ratelimits": [
         { "name": "PAYMENT_LIMITER", "namespace_id": "4023", "simple": { "limit": 12, "period": 60 } }
