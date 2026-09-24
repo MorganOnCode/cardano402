@@ -19,7 +19,7 @@
 
   // Secrets (wrangler secret put <NAME> --env <env>), never in this file:
   //   BLOCKFROST_PROJECT_ID  Blockfrost project id for the env's network.
-  // There is deliberately no mnemonic: the facilitator only broadcasts
+  // There is deliberately no wallet key. The facilitator only broadcasts
   // payer-signed transactions, so it holds no keys and no funds.
   "env": {
     "preview": {
