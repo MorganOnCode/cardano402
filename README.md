@@ -21,8 +21,9 @@ and return a transaction explorer link. Visitors need no wallet or funds.
 - `packages/`: preserved legacy `@cardano402/*` SDKs, superseded by `@x402/*`.
 
 The preview live demo is enabled after a confirmed on-chain benchmark.
-Production live-demo flags remain **disabled**. The current production VPS is unchanged and still serves mainnet until
-its dependants have migrated. This branch's future deployment is testnet-only;
+Production live-demo flags remain **disabled**. The VPS still serves mainnet
+until its dependants have migrated; its old testnet demo is paused while the
+preview Worker uses that wallet. This branch's future deployment is testnet-only;
 it is not a drop-in mainnet replacement for agent-to-agent.
 
 ## Develop and check
