@@ -4,7 +4,7 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/"
+    directories: ["/", "/apps/facilitator", "/packages/*"]
     schedule:
       interval: "weekly"
       day: "monday"
@@ -33,12 +33,14 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      # Group Fastify ecosystem updates
-      fastify-ecosystem:
+      # The x402 Foundation packages move in lockstep; bump them together.
+      x402:
         patterns:
-          - "fastify"
-          - "@fastify/*"
-          - "fastify-*"
+          - "@x402/*"
+      cloudflare:
+        patterns:
+          - "wrangler"
+          - "@cloudflare/*"
         update-types:
           - "minor"
           - "patch"
@@ -60,27 +62,6 @@ updates:
       include: "scope"
     groups:
       github-actions:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:30"
-      timezone: "UTC"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    groups:
-      docker-images:
         patterns:
           - "*"
         update-types:

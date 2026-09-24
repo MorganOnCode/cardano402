@@ -2,86 +2,22 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, v2]
   pull_request:
-    branches: [master]
-  # Allow deploy.yml to depend on this workflow as a reusable workflow
-  # (`uses: ./.github/workflows/ci.yml`). Without workflow_call, deploy.yml
-  # fails at parse time with a 0-second failure on every merge.
+    branches: [master, v2]
   workflow_call:
 
 permissions:
   contents: read
 
 jobs:
-  lint-and-typecheck:
-    name: Lint & Type Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm typecheck
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test:coverage
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-
-  docker:
-    name: Docker Build
+  facilitator:
+    name: Facilitator Worker
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/facilitator
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -91,14 +27,20 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Build Docker image
-        run: docker build -t cardano402:ci .
-      - name: Verify image runs
-        run: |
-          docker run --rm cardano402:ci node -e "console.log('Container starts OK')"
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - name: Bundle (dry-run deploy, no credentials)
+        run: pnpm build
 
-  security:
-    name: Security Audit
+  packages:
+    name: SDK packages
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -113,17 +55,28 @@ jobs:
       - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Dependency audit
-        run: pnpm audit --audit-level=high
-        continue-on-error: true  # Don't block on dev-only findings
-      - name: Check for secrets in code
+      - run: pnpm --filter @cardano402/core --filter @cardano402/mcp-server build
+      - run: pnpm --filter @cardano402/core --filter @cardano402/mcp-server test
+
+  secrets-grep:
+    name: No seed material in source
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Reject mnemonic/seed configuration
         run: |
-          if grep -rn 'purse glad\|mainnet0iKP\|previewzFEQ' --include='*.ts' --include='*.js' --include='*.json' . | grep -v node_modules | grep -v .git | grep -v config.example; then
-            echo "❌ Possible secret found in source code!"
-            exit 1
-          else
-            echo "✅ No secrets in source code"
+          # v2 is keyless by design; any mnemonic or seed wiring is a regression.
+          if grep -rniE 'mnemonic *[:=]|seedPhrase|CARDANO_MNEMONIC' apps/facilitator/src apps/facilitator/wrangler.jsonc; then
+            echo "error: the facilitator must not be configured with a key"; exit 1
           fi
