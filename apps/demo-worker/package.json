@@ -1,0 +1,10 @@
+{
+  "name": "@cardano402/demo-worker", "version": "2.0.0", "private": true, "type": "module",
+  "scripts": {
+    "test": "vitest run", "build": "wrangler deploy --dry-run --outdir dist --env preview",
+    "typecheck": "wrangler types --env-interface DemoBindings >/dev/null && tsc --noEmit",
+    "lint": "prettier --check 'src/**/*.ts' 'test/**/*.ts'"
+  },
+  "dependencies": { "@x402/cardano": "2.27.0", "@x402/core": "2.27.0" },
+  "devDependencies": { "@cloudflare/vitest-pool-workers": "^0.22.0", "prettier": "^3.9.5", "typescript": "^6.0.3", "vitest": "^4.1.10", "wrangler": "^4.137.0" }
+}

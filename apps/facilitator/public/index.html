@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>cardano402 — pay-per-request for the agent web</title>
+
+<meta property="og:title" content="cardano402 — Cardano Payment Facilitator">
+<meta property="og:description" content="The first x402 payment facilitator for Cardano mainnet. Pay for any API with ADA.">
+<meta property="og:url" content="https://cardano402.com">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://cardano402.com/og-image.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="cardano402 — Cardano Payment Facilitator">
+<meta name="twitter:description" content="The first x402 payment facilitator for Cardano mainnet. Pay for any API with ADA.">
+<meta name="twitter:image" content="https://cardano402.com/og-image.svg">
+
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="alternate icon" href="/favicon.ico" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+<!-- Agent-discovery hints: AI agents reading this page can follow these to the machine-readable surface. -->
+<link rel="alternate" type="text/markdown" title="SKILL.md — agent skill file" href="/SKILL.md" />
+<link rel="alternate" type="text/plain" title="agents.txt — guidance for AI agents" href="/agents.txt" />
+<link rel="alternate" type="application/json" title="x402 service manifest" href="/.well-known/x402.json" />
+<link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+<style>
+  :root {
+    /* Cardano deep blue, warm cream, hot peach, sticker pink, mint */
+    --ink: #0a1024;
+    --ink-soft: #1c2545;
+    --paper: #fbf6ec;
+    --paper-2: #f3ead7;
+    --cream: #fff8e8;
+    --blue: #0033ad;       /* cardano */
+    --blue-2: #2a52ff;
+    --peach: #ff8a4c;
+    --pink: #ff4d8d;
+    --mint: #7be0a3;
+    --lemon: #ffd84d;
+    --lilac: #c9b8ff;
+
+    --r-lg: 28px;
+    --r-md: 18px;
+    --r-sm: 10px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    transition: background .25s ease;
+  }
+  body[data-mode="dev"] { background: #f1ede2; }
+  a { color: inherit; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+  .serif { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; }
+
+  /* layout */
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 28px; }
+
+  /* nav */
+  .nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 0;
+    gap: 16px;
+  }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 18px; letter-spacing: -0.01em;
+    text-decoration: none;
+  }
+  .logo-mark {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: var(--ink); color: var(--paper);
+    display: grid; place-items: center;
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px;
+    transform: rotate(-4deg);
+    flex-shrink: 0;
+  }
+  .nav-links { display: flex; gap: 28px; align-items: center; font-size: 15px; }
+  .nav-links a { text-decoration: none; opacity: 0.75; }
+  .nav-links a:hover { opacity: 1; }
+  .nav-burger {
+    display: none;
+    background: transparent; border: 1.5px solid var(--ink);
+    width: 40px; height: 40px; border-radius: 10px;
+    cursor: pointer; padding: 0;
+    align-items: center; justify-content: center;
+    color: var(--ink);
+  }
+  .nav-burger:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .nav-burger span {
+    display: block; width: 18px; height: 2px;
+    background: currentColor; border-radius: 2px;
+    position: relative;
+  }
+  .nav-burger span::before,
+  .nav-burger span::after {
+    content: ''; position: absolute; left: 0;
+    width: 18px; height: 2px; background: currentColor; border-radius: 2px;
+  }
+  .nav-burger span::before { top: -6px; }
+  .nav-burger span::after { top: 6px; }
+  .nav-drawer {
+    display: none;
+    flex-direction: column; gap: 14px;
+    padding: 18px 0 4px;
+    border-top: 1.5px solid rgba(10,16,36,0.12);
+    margin-top: 4px;
+  }
+  .nav-drawer a { text-decoration: none; font-size: 17px; padding: 6px 0; }
+  .nav-drawer.open { display: flex; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 18px; border-radius: 999px;
+    background: var(--ink); color: var(--paper);
+    text-decoration: none; font-weight: 600; font-size: 14.5px;
+    border: none; cursor: pointer;
+    transition: transform .15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.ghost {
+    background: transparent; color: var(--ink);
+    border: 1.5px solid var(--ink);
+  }
+  .btn.peach { background: var(--peach); color: var(--ink); }
+  .btn.blue { background: var(--blue); color: white; }
+  .btn.pink { background: var(--pink); color: white; }
+
+  /* universal flair */
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px 6px 8px; border-radius: 999px;
+    background: white; border: 1.5px solid var(--ink);
+    font-size: 13px; font-weight: 500;
+  }
+  .pill .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--peach); display: inline-block;
+    box-shadow: 0 0 0 3px rgba(255,138,76,0.25);
+  }
+
+  /* sections */
+  section { padding: 80px 0; position: relative; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-soft); opacity: 0.7;
+  }
+  h2.section-title {
+    font-size: clamp(38px, 5vw, 64px);
+    line-height: 1.02; letter-spacing: -0.025em;
+    font-weight: 700; margin: 14px 0 24px; max-width: 900px;
+    text-wrap: balance;
+  }
+  h2 .scribble { color: var(--blue); position: relative; }
+
+  /* shared sticker bits */
+  .sticker {
+    position: absolute; pointer-events: none;
+    font-family: 'Bricolage Grotesque'; font-weight: 700;
+  }
+
+  /* footer */
+  footer {
+    border-top: 1.5px solid var(--ink);
+    padding: 40px 0 60px; margin-top: 40px;
+    background: var(--paper-2);
+  }
+  footer .row { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  footer .col h4 { margin: 0 0 12px; font-size: 13px; opacity: 0.6; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+  footer .col a { display: block; text-decoration: none; padding: 4px 0; opacity: 0.85; }
+  footer .col a:hover { opacity: 1; }
+  footer .signoff { font-size: 14px; opacity: 0.7; margin-top: 28px; }
+
+  /* selection */
+  ::selection { background: var(--peach); color: var(--ink); }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 900px) {
+    .wrap { padding: 0 20px; }
+    section { padding: 56px 0; }
+    .nav { padding: 18px 0; }
+    .nav-links { display: none; }
+    .nav-burger { display: inline-flex; }
+    h2.section-title { font-size: clamp(30px, 7vw, 48px); margin: 10px 0 18px; }
+    footer { padding: 32px 0 44px; margin-top: 24px; }
+    footer .row { gap: 28px; }
+    footer .col { flex: 1 1 45%; min-width: 140px; }
+  }
+  @media (max-width: 480px) {
+    .wrap { padding: 0 16px; }
+    section { padding: 44px 0; }
+    .btn { padding: 10px 16px; font-size: 14px; }
+    .pill { font-size: 12px; }
+    h2.section-title { font-size: clamp(28px, 8.5vw, 40px); }
+    footer .col { flex: 1 1 100%; }
+    footer .signoff { font-size: 12.5px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- Precompiled by scripts/build-landing.mjs (bundled React 18.3.1 + app). -->
+<!-- Source files live in landing/*.jsx and landing/components/*.jsx.       -->
+<!-- CSP is strict: no inline scripts, no eval, no third-party script src.  -->
+<script src="/dist/app.js" defer></script>
+
+</body>
+</html>

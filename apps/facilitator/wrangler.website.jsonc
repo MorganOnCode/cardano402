@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "cardano402-website",
+  "main": "src/website.ts",
+  "compatibility_date": "2026-08-15",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": false },
+  "services": [{ "binding": "PREVIEW", "service": "cardano402-preview" }],
+  // Keep the existing proxied tunnel DNS and ingress. These MUST be Routes,
+  // not Custom Domains: unmatched asset paths still reach the mainnet origin.
+  "routes": [
+    { "pattern": "cardano402.com/*", "zone_name": "cardano402.com" },
+    { "pattern": "www.cardano402.com/*", "zone_name": "cardano402.com" }
+  ]
+}

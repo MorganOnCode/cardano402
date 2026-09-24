@@ -73,5 +73,24 @@ jobs:
             Python-2.0,
             MPL-2.0
 
+          # Explicit exception, decided in PR #163: sharp's prebuilt libvips
+          # binaries are LGPL-3.0. They arrive only through wrangler/miniflare
+          # (local dev and tests) and are never bundled into the Worker.
+          allow-dependencies-licenses: >
+            pkg:npm/%40img/sharp-libvips-darwin-arm64,
+            pkg:npm/%40img/sharp-libvips-darwin-x64,
+            pkg:npm/%40img/sharp-libvips-linux-arm,
+            pkg:npm/%40img/sharp-libvips-linux-arm64,
+            pkg:npm/%40img/sharp-libvips-linuxmusl-arm64,
+            pkg:npm/%40img/sharp-libvips-linuxmusl-x64,
+            pkg:npm/%40img/sharp-libvips-linux-ppc64,
+            pkg:npm/%40img/sharp-libvips-linux-riscv64,
+            pkg:npm/%40img/sharp-libvips-linux-s390x,
+            pkg:npm/%40img/sharp-libvips-linux-x64,
+            pkg:npm/%40img/sharp-wasm32,
+            pkg:npm/%40img/sharp-win32-arm64,
+            pkg:npm/%40img/sharp-win32-ia32,
+            pkg:npm/%40img/sharp-win32-x64
+
           # Show what changed on the PR for human eyes.
           comment-summary-in-pr: on-failure

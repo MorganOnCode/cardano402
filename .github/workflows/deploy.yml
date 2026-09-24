@@ -1,0 +1,143 @@
+name: Deploy
+
+# The demo uses Cardano Preview. The production website preserves the VPS
+# mainnet API through the existing tunnel. The preview deployment
+# runs on every push to master or v2; production
+# deploys only from master and only after a reviewer approves the
+# `production` environment. Nothing runs until the repository variable
+# CLOUDFLARE_DEPLOY_ENABLED is 'true', so this workflow is inert until the
+# Cloudflare credentials are in place.
+#
+# Required settings:
+#   secrets.CLOUDFLARE_API_TOKEN   Workers Scripts:Edit (+ Workers Routes:Edit at cutover)
+#   secrets.CLOUDFLARE_ACCOUNT_ID
+#   vars.CLOUDFLARE_DEPLOY_ENABLED 'true'
+#   vars.PREVIEW_URL               e.g. https://cardano402-preview.<subdomain>.workers.dev
+#   vars.PRODUCTION_URL            https://cardano402.com (set at cutover)
+#   environment `production` with required reviewers
+# Worker secrets (BLOCKFROST_PROJECT_ID) are set once with `wrangler secret put`.
+
+on:
+  push:
+    branches: [master, v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cardano402
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  preview:
+    name: Deploy preview (cardano:preview)
+    needs: ci
+    if: vars.CLOUDFLARE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: preview
+      url: ${{ vars.PREVIEW_URL }}
+    defaults:
+      run:
+        working-directory: apps/facilitator
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:landing
+      - name: Bootstrap service binding target on first deployment
+        run: node scripts/bootstrap.mjs preview
+      - name: Deploy private test-wallet service
+        run: pnpm --filter @cardano402/demo-worker exec wrangler deploy --env preview
+      - run: pnpm exec wrangler deploy --env preview --message "${{ github.sha }}"
+      - name: Configure Preview provider secrets
+        env:
+          BLOCKFROST_PREVIEW_PROJECT_ID: ${{ secrets.BLOCKFROST_PREVIEW_PROJECT_ID }}
+        run: |
+          test -n "$BLOCKFROST_PREVIEW_PROJECT_ID"
+          printf '%s' "$BLOCKFROST_PREVIEW_PROJECT_ID" | pnpm exec wrangler secret put BLOCKFROST_PROJECT_ID --env preview
+          printf '%s' "$BLOCKFROST_PREVIEW_PROJECT_ID" | pnpm --filter @cardano402/demo-worker exec wrangler secret put BLOCKFROST_PROJECT_ID --env preview
+      - name: Smoke test
+        run: node scripts/smoke.mjs "${{ vars.PREVIEW_URL }}" cardano:preview
+
+  production:
+    name: Deploy website (retain mainnet origin)
+    needs: preview
+    if: vars.CLOUDFLARE_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    defaults:
+      run:
+        working-directory: apps/facilitator
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:landing
+      - name: Check existing mainnet origin before changing routes
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          for (const host of ['cardano402.com', 'www.cardano402.com']) {
+            const response = await fetch(`https://${host}/supported`, { signal: AbortSignal.timeout(20000) });
+            assert.equal(response.status, 200, `${host}: mainnet discovery unavailable; no routes changed`);
+            const supported = await response.json();
+            assert(supported.kinds.some(kind => kind.network === 'cardano:mainnet'));
+          }
+          JS
+      - name: Deploy website routes (keep tunnel DNS and mainnet API)
+        run: pnpm exec wrangler deploy --config wrangler.website.jsonc --message "${{ github.sha }}"
+      - name: Check website assets and retained mainnet discovery
+        run: |
+          node --input-type=module <<'JS'
+          import { readFile } from 'node:fs/promises';
+          import assert from 'node:assert/strict';
+          for (const host of ['cardano402.com', 'www.cardano402.com']) {
+            for (const [path, file] of [['/', 'index.html'], ['/dist/app.js', 'dist/app.js']]) {
+              const response = await fetch(`https://${host}${path}`, { signal: AbortSignal.timeout(20000) });
+              assert.equal(response.status, 200);
+              assert.equal(await response.text(), await readFile(`public/${file}`, 'utf8'));
+            }
+            const response = await fetch(`https://${host}/supported`, { signal: AbortSignal.timeout(20000) });
+            assert.equal(response.status, 200);
+            const supported = await response.json();
+            assert(supported.kinds.some(kind => kind.network === 'cardano:mainnet'));
+          }
+          console.log('Original website assets and mainnet discovery verified on both hosts.');
+          JS
