@@ -11,9 +11,12 @@ runs automatically.
 2. Production Worker deployed with **no routes** (`wrangler deploy --env
    production`); `BLOCKFROST_PROJECT_ID` (mainnet) set as a secret; smoke
    against its `workers.dev` URL or a temporary hostname.
-3. agent-to-agent v2 PR merged but pointed at the preview facilitator until the
-   switch.
-4. Announce: v1-only features go away. `/demo`, `/status/:tx`,
+3. agent-to-agent PR (MorganOnCode/agent-to-agent#1) green against the
+   preview Worker; it merges at the switch, not before.
+4. Cloudflare WAF skip rule on cardano402.com for `POST /verify`, `POST /settle`
+   and `GET /supported`, so resource servers (agent-to-agent on the VPS
+   included) are not bot-challenged. Keep the rate limiter on.
+5. Announce: v1-only features go away. `/demo`, `/status/:tx`,
    `/upload`/`/download`, `/.well-known/*` cards, `/metrics`, and the v1 wire
    quirks (`extensions.status`, settle-before-handler) are all removed.
 
@@ -28,8 +31,8 @@ runs automatically.
    production deployment. Remove the cloudflared ingress rule for those
    hostnames in the same change window.
 3. `node apps/facilitator/scripts/smoke.mjs https://cardano402.com cardano:mainnet`.
-4. Point agent-to-agent's `FACILITATOR_URL` at `https://cardano402.com` and
-   redeploy it. It no longer joins the `cardano402_default` Docker network.
+4. Merge agent-to-agent#1 and redeploy it. Its default `FACILITATOR_URL` is
+   `https://cardano402.com`, and it no longer joins `cardano402_default`.
 5. Set repo variable `PRODUCTION_URL=https://cardano402.com` to enable the
    hourly monitor.
 
