@@ -75,10 +75,21 @@ runs it on every pull request without credentials.
 
 ## Stage 2: production website (needs approval)
 
-1. Confirm no outstanding operation depends on public cardano402.com API
-   paths (see the checklist). After this step external x402 clients get 404s.
-   agent-to-agent is not affected: it calls `http://facilitator:3000` on the
-   Docker network, not the public hostname.
+1. **Gate: withdraw the public facilitator advertisement first.** Once the
+   routes attach, every public cardano402.com API path (`/supported`,
+   `/verify`, `/settle`, `/.well-known/x402.json`) returns 404 or 405.
+   - *Internal settlement* is not affected: agent-to-agent's `/paid/ask`
+     calls `http://facilitator:3000` on the Docker network, not the public
+     hostname.
+   - *Public discovery* is affected: agent-to-agent's catalog advertises
+     `https://cardano402.com` as its facilitator, so clients following it
+     would break. Remove or repoint that advertisement in agent-to-agent
+     (owner change in that repo), then verify the live catalog no longer
+     names `cardano402.com` as a facilitator and that no other outstanding
+     operation depends on the public API paths.
+   - If the catalog still advertises `https://cardano402.com`, **stop**: do
+     not run the production target, and leave the VPS origin serving the
+     whole domain.
 2. Run the workflow with `target=production`; approve the `production`
    environment. It deploys `cardano402-website` with both routes and runs the
    smoke check against both hosts.
@@ -112,11 +123,11 @@ Do not start until stage 2 has soaked and every item below is resolved.
       deployed commit on both hosts.
 - [ ] **TLS:** both hosts serve a valid Cloudflare certificate.
 - [ ] **agent-to-agent private dependency:** its `/paid/ask` calls
-      `http://facilitator:3000` (`FACILITATOR_URL`), its catalog advertises
-      `https://cardano402.com`, and its compose file requires the external
-      network `cardano402_default`. Disable or repoint that paid route and
-      update the catalog first. Use `docker compose stop`, not `down`, while
-      agent-to-agent still needs the network.
+      `http://facilitator:3000` (`FACILITATOR_URL`) and its compose file
+      requires the external network `cardano402_default`. The public catalog
+      advertisement was withdrawn before stage 2; re-check it is still absent,
+      then disable or repoint that paid route first. Use `docker compose stop`,
+      not `down`, while agent-to-agent still needs the network.
 - [ ] **Outstanding operations:** confirm no settlement is in flight and no
       reservation is pending in `cardano402-redis` before stopping
       (operator check).
