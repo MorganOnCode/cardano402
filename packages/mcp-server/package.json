@@ -57,8 +57,8 @@
     "@cardano402/core": "workspace:^",
     "@lucid-evolution/lucid": "0.5.1",
     "@lucid-evolution/provider": "0.1.95",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "zod": "^4.4.3"
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

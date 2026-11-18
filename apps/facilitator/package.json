@@ -17,8 +17,8 @@
   },
   "dependencies": {
     "@toon-format/toon": "^4.1.1",
-    "@x402/cardano": "2.27.0",
-    "@x402/core": "2.27.0",
+    "@x402/cardano": "2.29.0",
+    "@x402/core": "2.29.0",
     "hono": "^4.13.8",
     "react": "19.2.7",
     "react-dom": "19.2.7"
