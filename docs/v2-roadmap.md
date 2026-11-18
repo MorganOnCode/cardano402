@@ -1,4 +1,4 @@
-> Historical facilitator roadmap. The current deployment scope is a static portfolio and bounded Preview demo; see [portfolio-costs.md](portfolio-costs.md). Items below are not commitments to add hosted services.
+> Historical facilitator roadmap. The current deployment scope is a static website archive; see [v2-cutover.md](v2-cutover.md). Items below are not commitments to add hosted services.
 
 # v2 roadmap: refunds, edge cases, upgrades
 
