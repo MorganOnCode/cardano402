@@ -2,7 +2,7 @@
 // scripts/build-landing.mjs
 // Precompile the landing-page JSX so we can drop 'unsafe-eval' from CSP.
 //
-// Strategy: concatenate the existing 8 .jsx files in the order they were
+// Strategy: concatenate the existing .jsx files in the order they were
 // loaded via <script type="text/babel"> (hooks first, components, app last),
 // prepend an `import React, ...` shim, then bundle with esbuild into a
 // single IIFE at landing/dist/app.js.
@@ -31,7 +31,6 @@ const SOURCE_ORDER = [
   'hooks.jsx',
   'components/HeroReceipt.jsx',
   'components/HeroTerminal.jsx',
-  'components/LiveDemo.jsx',
   'components/HowItWorks.jsx',
   'components/UseCases.jsx',
   'components/MorganBlock.jsx',

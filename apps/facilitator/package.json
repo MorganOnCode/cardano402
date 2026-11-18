@@ -13,7 +13,9 @@
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "deploy:preview": "wrangler deploy --env preview",
     "deploy:production": "wrangler deploy --env production",
-    "build:landing": "node scripts/build-landing.mjs"
+    "build:landing": "node scripts/build-landing.mjs",
+    "build:website": "node scripts/build-website.mjs",
+    "test:website": "pnpm build:website && node scripts/check-website-routing.mjs"
   },
   "dependencies": {
     "@toon-format/toon": "^4.1.1",

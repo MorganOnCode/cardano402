@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>cardano402 — pay-per-request for the agent web</title>
 
-<meta property="og:title" content="cardano402 — Cardano Payment Facilitator">
-<meta property="og:description" content="The first x402 payment facilitator for Cardano mainnet. Pay for any API with ADA.">
+<meta property="og:title" content="cardano402 — x402 on Cardano (portfolio archive)">
+<meta property="og:description" content="Static archive of an open-source x402 facilitator for Cardano. The hosted API is retired; see the x402 Foundation Cardano exact-scheme spec.">
 <meta property="og:url" content="https://cardano402.com">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://cardano402.com/og-image.svg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="cardano402 — Cardano Payment Facilitator">
-<meta name="twitter:description" content="The first x402 payment facilitator for Cardano mainnet. Pay for any API with ADA.">
+<meta name="twitter:title" content="cardano402 — x402 on Cardano (portfolio archive)">
+<meta name="twitter:description" content="Static archive of an open-source x402 facilitator for Cardano. The hosted API is retired; see the x402 Foundation Cardano exact-scheme spec.">
 <meta name="twitter:image" content="https://cardano402.com/og-image.svg">
 
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -22,11 +22,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 
-<!-- Agent-discovery hints: AI agents reading this page can follow these to the machine-readable surface. -->
-<link rel="alternate" type="text/markdown" title="SKILL.md — agent skill file" href="/SKILL.md" />
-<link rel="alternate" type="text/plain" title="agents.txt — guidance for AI agents" href="/agents.txt" />
-<link rel="alternate" type="application/json" title="x402 service manifest" href="/.well-known/x402.json" />
-<link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+<!-- Agent hints: static notes for AI agents. There is no live payment service or discovery manifest. -->
+<link rel="alternate" type="text/markdown" title="SKILL.md — agent notes" href="/SKILL.md" />
+<link rel="alternate" type="text/plain" title="llms.txt — guidance for AI agents" href="/llms.txt" />
 
 <style>
   :root {
@@ -68,6 +66,12 @@
 
   /* layout */
   .wrap { max-width: 1240px; margin: 0 auto; padding: 0 28px; }
+
+  /* static-archive banner */
+  .spec-banner { background: var(--ink); color: var(--paper); font-size: 14.5px; line-height: 1.45; }
+  .spec-banner-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 14px; padding-top: 11px; padding-bottom: 11px; text-align: center; }
+  .spec-banner a { color: var(--lemon); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  .spec-banner a:focus-visible { outline: 2px solid var(--lemon); outline-offset: 3px; border-radius: 4px; }
 
   /* nav */
   .nav {

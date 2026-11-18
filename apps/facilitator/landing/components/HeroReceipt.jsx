@@ -19,7 +19,7 @@ function HeroReceipt({ showStickers }) {
           <div>
             <div className="pill" style={{ marginBottom: isMobile ? 20 : 28 }}>
               <span className="dot"></span>
-              <span className="mono" style={{ fontSize: 12 }}>HTTP 402 · Cardano · live on preview</span>
+              <span className="mono" style={{ fontSize: 12 }}>HTTP 402 · Cardano · portfolio archive</span>
             </div>
 
             <h1 style={{
@@ -52,9 +52,10 @@ function HeroReceipt({ showStickers }) {
             }}>
               <strong style={{ fontWeight: 600, opacity: 1 }}>x402</strong> turns the dusty
               "<span className="mono" style={{ fontSize: isMobile ? 14 : 17 }}>402 Payment Required</span>" status code
-              into a real payment rail. <strong style={{ fontWeight: 600, opacity: 1 }}>cardano402</strong> is
-              the open implementation that settles those payments on Cardano — built so agents,
-              APIs and humans can pay per-request without sign-ups, subscriptions, or middlemen.
+              into a real payment rail. <strong style={{ fontWeight: 600, opacity: 1 }}>cardano402</strong> was
+              an open implementation that settled those payments on Cardano — built so agents,
+              APIs and humans could pay per-request without sign-ups, subscriptions, or middlemen.
+              Its hosted service is retired; the code stays open.
             </p>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -62,7 +63,7 @@ function HeroReceipt({ showStickers }) {
                 Read the code
                 <span aria-hidden style={{ fontSize: 16 }}>→</span>
               </a>
-              <a href="#how" className="btn ghost">See it work</a>
+              <a href="#how" className="btn ghost">See how it works</a>
             </div>
 
             <div style={{
@@ -138,7 +139,7 @@ function Receipt({ isMobile }) {
 
       <div style={{ textAlign: 'center', marginBottom: 18 }}>
         <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '0.08em' }}>cardano402</div>
-        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>—— FACILITATOR · PREVIEW ——</div>
+        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>—— HISTORICAL EXAMPLE · PREVIEW ——</div>
       </div>
 
       <div style={{ borderTop: '1px solid #0a1024', opacity: 0.2, margin: '14px 0' }}></div>

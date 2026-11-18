@@ -39,7 +39,10 @@ jobs:
       - name: Bundle (dry-run deploy, no credentials)
         run: |
           pnpm build
+          pnpm build:website
           pnpm exec wrangler deploy --config wrangler.website.jsonc --dry-run --outdir dist-website
+      - name: Static website routing fixtures (offline, no credentials)
+        run: node scripts/check-website-routing.mjs
 
   demo:
     name: Testnet demo Worker

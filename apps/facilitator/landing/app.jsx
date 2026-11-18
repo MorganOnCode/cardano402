@@ -18,6 +18,7 @@ function App() {
 
   return (
     <>
+      <SpecBanner />
       <Nav mode={mode} setMode={setMode} />
       {mode === 'normal' ? <HeroReceipt showStickers={true} /> : <HeroTerminal showStickers={true} />}
       <HowItWorks />
@@ -25,6 +26,26 @@ function App() {
       <MorganBlock />
       <SiteFooter />
     </>
+  );
+}
+
+const CARDANO_EXACT_SPEC = 'https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md';
+
+// Static-archive notice. A plain link (no script, no tracking) so it works
+// under the strict CSP and is read first by screen readers.
+function SpecBanner() {
+  return (
+    <aside className="spec-banner" aria-label="Cardano x402 specification">
+      <div className="wrap spec-banner-inner">
+        <span>
+          cardano402 is now a static portfolio archive: the hosted facilitator API and live demo are retired.
+        </span>
+        <a href={CARDANO_EXACT_SPEC}>
+          Read the x402 Foundation's Cardano exact-scheme spec on GitHub
+          <span aria-hidden> →</span>
+        </a>
+      </div>
+    </aside>
   );
 }
 
@@ -156,7 +177,7 @@ function SiteFooter() {
             <a href="https://github.com/MorganOnCode/cardano402">GitHub repo</a>
             <a href="#how">How it works</a>
             <a href="#cases">Use cases</a>
-            <a href="https://github.com/MorganOnCode/cardano402/blob/master/docs/architecture.md">Architecture</a>
+            <a href="https://github.com/MorganOnCode/cardano402/blob/master/docs/v1/architecture.md">Architecture (v1)</a>
           </div>
           <div className="col">
             <h4>Morgan</h4>
@@ -166,6 +187,7 @@ function SiteFooter() {
           </div>
           <div className="col">
             <h4>Resources</h4>
+            <a href={CARDANO_EXACT_SPEC}>x402 Cardano spec</a>
             <a href="https://x402.org" target="_blank" rel="noopener">x402.org</a>
             <a href="https://cardano.org" target="_blank" rel="noopener">cardano.org</a>
             <a href="https://blockfrost.io" target="_blank" rel="noopener">Blockfrost</a>

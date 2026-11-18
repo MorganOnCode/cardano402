@@ -3,72 +3,68 @@
 An open-source portfolio project exploring HTTP payments on Cardano using the
 x402 Foundation's `@x402/cardano` reference implementation.
 
-The v2 site preserves the exact original landing-page design, including its
-Normal/Dev modes, typography, illustrations and demo panel. It is served as
-static assets, with no background API polling. An optional live demo uses the project's
-own **Cardano Preview** wallet to send 2 test ADA to itself, pay the network fee,
-and return a transaction explorer link. Visitors need no wallet or funds.
+> **Specification:** the x402 payment scheme for Cardano is the x402
+> Foundation's [exact scheme for Cardano](https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md).
+> cardano402 implements it; no endorsement by the Cardano Foundation or the
+> x402 Foundation is implied.
+
+The cardano402.com website is a **static archive**: the original landing-page
+design (Normal/Dev modes, typography, illustrations) with a banner pointing to
+the specification above, static agent notes (`/llms.txt`, `/SKILL.md`) and a
+404 page. The live demo panel is removed, and the website no longer offers
+or forwards to a payment, verification, settlement or discovery API.
 
 ## Architecture
 
 - `apps/facilitator/landing`: original v1 React page source and artwork.
-- `apps/facilitator/public`: built page served by Workers Static Assets.
-- `apps/facilitator/src`: keyless x402 verification and settlement inside a
-  `PaymentExecutor` Durable Object, plus durable duplicate protection; `/info` is the agent-readable view.
-- `apps/demo-worker`: private signing service and single Durable Object for the
-  dedicated Preview test wallet. Five new runs/day, ten-minute cooldown,
-  bounded retries, durable pending-payment protection. No public routes.
+- `apps/facilitator/site`: website-only static files (`llms.txt`, `SKILL.md`,
+  `robots.txt`, `_redirects`, `404.html`).
+- `apps/facilitator/wrangler.website.jsonc`: the static website. Assets only:
+  no Worker script, bindings or secrets.
+- `apps/facilitator/src`: keyless x402 facilitator Worker (Cardano Preview),
+  kept as source. It is **not** part of the website and the deploy workflow no
+  longer deploys it.
+- `apps/demo-worker`: the former private Preview demo signer, kept as source;
+  no longer deployed by the workflow.
 - `packages/`: preserved legacy `@cardano402/*` SDKs, superseded by `@x402/*`.
-
-The preview live demo is enabled after a confirmed on-chain benchmark.
-The staged production website reuses this preview demo through a service
-binding. The VPS still serves mainnet until its dependants have migrated; its
-old testnet demo stays paused. Cloudflare does not replace the mainnet API.
 
 ## Develop and check
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm --filter @cardano402/facilitator dev
+pnpm --filter @cardano402/facilitator test:website   # build the static site + offline routing fixtures
 pnpm --filter @cardano402/facilitator --filter @cardano402/demo-worker typecheck
 pnpm --filter @cardano402/facilitator --filter @cardano402/demo-worker test
 pnpm --filter @cardano402/facilitator --filter @cardano402/demo-worker build
 ```
 
-Tests run in workerd with synthetic data and blocked external provider traffic.
-The build is a dry-run deploy requiring no credentials. For interactive local
-integration, run Wrangler with both apps' config paths; never load mainnet
-signing material into the demo.
+`test:website` serves `website-dist/` through Wrangler's local asset router
+and checks every case in `apps/facilitator/test/fixtures/website-routes.json`
+against a local stand-in origin that must never be reached. No credentials or
+network access to cardano402.com are used.
 
-## Preview API
+## Website routes
 
-| Route | Purpose |
+| Request | Response |
 |---|---|
-| `/` | Original landing page |
-| `POST /demo/run` | Start/resume the bounded project-funded Preview demo |
-| `/info`, `/SKILL.md`, `/llms.txt` | Agent integration information |
-| `/supported` | Reference SDK capabilities on Preview |
-| `POST /verify`, `POST /settle` | Capped Preview-only x402 facilitator API |
-| `/health` | Shallow health; explicit `?deep=1` is capped at four probes/day |
+| `GET`/`HEAD` `/`, `/dist/app.js`, images, `/llms.txt`, `/SKILL.md`, `/robots.txt` | Static file, with the strict CSP from `_headers` |
+| `GET /info` | 302 to `/llms.txt` |
+| Any other path, including the retired `/supported`, `/verify`, `/settle`, `/status`, `/health`, `/.well-known/x402.json`, `/demo/*` | 404 with the static `404.html` (never the landing page) |
+| Any method other than `GET`/`HEAD` | 405 |
 
 ## Deployment and cost
 
-Use the GitHub deployment workflow. Preview runs the testnet facilitator and
-private demo. Production deploys the website with the same demo service, while
-forwarding API and discovery requests to the existing mainnet tunnel origin.
-The production job remains behind environment approval. No paid account
-upgrade is automatic.
-
-See [cost controls and benchmark checklist](docs/portfolio-costs.md) and the
-[cutover runbook](docs/v2-cutover.md). The measured demo fits the Free request CPU allowance; its daily quota and
-cooldown remain enforced.
+`.github/workflows/deploy.yml` runs only when started by hand from `master`:
+`target=staging` deploys a workers.dev review copy; `target=production`
+attaches the `cardano402.com` and `www` Workers Routes after the `production`
+environment reviewer approves. Pushes and pull requests never deploy. With no
+Worker script, requests are served as static assets and are not billed as
+Worker invocations. See the [static website cutover and VPS retirement
+runbook](docs/v2-cutover.md).
 
 ## History and license
 
 The original VPS facilitator is preserved at
 [`v1-final`](https://github.com/MorganOnCode/cardano402/tree/v1-final), with its
-notes in `docs/v1`. Apache-2.0.
-
-The prepared production deployment moves only the website and its testnet demo
-to Cloudflare, preserving all mainnet API paths through the existing tunnel.
-It reuses the preview demo state; see the [staged cutover runbook](docs/v2-cutover.md).
+notes in `docs/v1`. The Preview demo benchmark is recorded in
+[docs/portfolio-costs.md](docs/portfolio-costs.md). Apache-2.0.
