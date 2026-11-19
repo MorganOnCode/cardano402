@@ -54,7 +54,11 @@ runs it on every pull request without credentials.
   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are **repository**
   secrets, so any workflow on a pushed branch could reference them. Move both
   to the `production` and `preview` environment secrets (owner action) so only
-  environment-gated jobs can read them. `CLOUDFLARE_DEPLOY_ENABLED` is `true`.
+  environment-gated jobs can read them.
+- Enable flags: the website jobs read only `WEBSITE_DEPLOY_ENABLED`. The
+  legacy `CLOUDFLARE_DEPLOY_ENABLED` is `false` (2026-11-19) and must stay
+  `false`: old push-triggered workflows on other refs (for example `v2`) still
+  read it and would redeploy the Preview facilitator and demo.
 - Workflow: `deploy.yml` has no push or pull-request trigger. It runs only by
   hand from `master`; the old preview and demo deployment is removed. CI
   (`ci.yml`) never receives Cloudflare secrets.
@@ -64,7 +68,9 @@ runs it on every pull request without credentials.
 ## Stage 1: staged static preview (no production change)
 
 1. Merge the reviewed PR. Nothing deploys on merge.
-2. Actions → Deploy website → Run workflow on `master` with `target=staging`.
+2. Set the repository variable `WEBSITE_DEPLOY_ENABLED` to `true` (owner
+   action; leave `CLOUDFLARE_DEPLOY_ENABLED` at `false`), then Actions →
+   Deploy website → Run workflow on `master` with `target=staging`.
    It deploys `cardano402-website-staging` on workers.dev (no routes) and runs
    `scripts/smoke-website.mjs`, which compares `/`, `/dist/app.js`, `/llms.txt`
    and `/SKILL.md` byte for byte with the build and prints their SHA-256
