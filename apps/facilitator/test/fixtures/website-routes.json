@@ -1,0 +1,282 @@
+{
+  "comment": "Expected static cardano402.com routing (wrangler.website.jsonc, assets only). asset = served from website-dist/ with the site headers; redirect = static _redirects rule; not-found = 404 status with the static 404.html, never the landing page; method-not-allowed = any non-GET/HEAD method is answered 405 without processing a body. No case may reach the origin. Navigation-header cases prove no SPA fallback answers a retired path with the page. Used by scripts/check-website-routing.mjs.",
+  "cases": [
+    {
+      "method": "GET",
+      "path": "/",
+      "expect": "asset",
+      "file": "index.html"
+    },
+    {
+      "method": "HEAD",
+      "path": "/",
+      "expect": "asset",
+      "file": "index.html"
+    },
+    {
+      "method": "GET",
+      "path": "/?utm_source=test",
+      "expect": "asset",
+      "file": "index.html"
+    },
+    {
+      "method": "GET",
+      "path": "/dist/app.js",
+      "expect": "asset",
+      "file": "dist/app.js"
+    },
+    {
+      "method": "GET",
+      "path": "/favicon.svg",
+      "expect": "asset",
+      "file": "favicon.svg"
+    },
+    {
+      "method": "GET",
+      "path": "/og-image.svg",
+      "expect": "asset",
+      "file": "og-image.svg"
+    },
+    {
+      "method": "GET",
+      "path": "/llms.txt",
+      "expect": "asset",
+      "file": "llms.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/SKILL.md",
+      "expect": "asset",
+      "file": "SKILL.md"
+    },
+    {
+      "method": "GET",
+      "path": "/robots.txt",
+      "expect": "asset",
+      "file": "robots.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "expect": "asset",
+      "file": "index.html",
+      "headers": {
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-dest": "document",
+        "accept": "text/html,application/xhtml+xml"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/info",
+      "expect": "redirect",
+      "location": "/llms.txt"
+    },
+    {
+      "method": "GET",
+      "path": "/info",
+      "expect": "redirect",
+      "location": "/llms.txt",
+      "headers": {
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-dest": "document",
+        "accept": "text/html,application/xhtml+xml"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/supported",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/verify",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/settle",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/status?txHash=abc",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/health?deep=1",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/x402.json",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/x402",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/docs",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/metrics",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/demo/run",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/demo/status",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/agents.txt",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/sitemap.xml",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/no-such-page",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/dist/app.js.map",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/_headers",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/_redirects",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/.assetsignore",
+      "expect": "not-found"
+    },
+    {
+      "method": "GET",
+      "path": "/supported",
+      "expect": "not-found",
+      "headers": {
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-dest": "document",
+        "accept": "text/html,application/xhtml+xml"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/verify",
+      "expect": "not-found",
+      "headers": {
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-dest": "document",
+        "accept": "text/html,application/xhtml+xml"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/x402.json",
+      "expect": "not-found",
+      "headers": {
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-dest": "document",
+        "accept": "text/html,application/xhtml+xml"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/demo/run",
+      "expect": "not-found",
+      "headers": {
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-dest": "document",
+        "accept": "text/html,application/xhtml+xml"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/no-such-page",
+      "expect": "not-found",
+      "headers": {
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-dest": "document",
+        "accept": "text/html,application/xhtml+xml"
+      }
+    },
+    {
+      "method": "HEAD",
+      "path": "/supported",
+      "expect": "not-found"
+    },
+    {
+      "method": "POST",
+      "path": "/verify",
+      "expect": "method-not-allowed"
+    },
+    {
+      "method": "POST",
+      "path": "/settle",
+      "expect": "method-not-allowed"
+    },
+    {
+      "method": "POST",
+      "path": "/demo/run",
+      "expect": "method-not-allowed"
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/settle",
+      "expect": "method-not-allowed"
+    },
+    {
+      "method": "PUT",
+      "path": "/supported",
+      "expect": "method-not-allowed"
+    },
+    {
+      "method": "DELETE",
+      "path": "/health",
+      "expect": "method-not-allowed"
+    },
+    {
+      "method": "POST",
+      "path": "/",
+      "expect": "method-not-allowed"
+    },
+    {
+      "method": "PUT",
+      "path": "/dist/app.js",
+      "expect": "method-not-allowed"
+    },
+    {
+      "method": "POST",
+      "path": "/llms.txt",
+      "expect": "method-not-allowed"
+    }
+  ]
+}

@@ -70,3 +70,4 @@ x402-rs-main/
 apps/facilitator/worker-configuration.d.ts
 
 apps/demo-worker/worker-configuration.d.ts
+apps/facilitator/website-dist/

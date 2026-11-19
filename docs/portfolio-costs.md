@@ -1,5 +1,11 @@
 # Portfolio hosting and bounded testnet demo
 
+> **Status (2026-11-18):** historical record. The website is now a static
+> archive without the live demo panel (see [the cutover runbook](v2-cutover.md)),
+> and the deploy workflow no longer deploys the Preview facilitator or demo
+> Workers. Retiring the already-deployed `cardano402-preview` and
+> `cardano402-demo-preview` Workers is a separate Cloudflare change.
+
 The owner's latest instruction is to preserve the **EXACT original page design**,
 not replace it with a new portfolio or simulation page. The v1 landing source
 is restored under `apps/facilitator/landing`: Normal/Dev modes, original fonts,

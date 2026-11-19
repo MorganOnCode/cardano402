@@ -1,4 +1,4 @@
-// HowItWorks.jsx — section: intro + LiveDemo first, then a single sequence diagram
+// HowItWorks.jsx — section: intro, then a single sequence diagram
 
 function HowItWorks() {
   const isMobile = (window.useIsMobile || (() => false))();
@@ -15,16 +15,13 @@ function HowItWorks() {
             lineHeight: 1.5, opacity: 0.78, maxWidth: 600,
           }}>
             x402 is just HTTP with a payment in the middle. Your server says <span className="mono" style={{ fontSize: isMobile ? 14 : 16, fontWeight: 500 }}>402</span>, the
-            client signs a Cardano tx, retries, your server verifies via cardano402, and the resource is delivered.
+            client signs a Cardano tx, retries, your server verifies it through an x402 facilitator, and the resource is delivered.
             That's it.
           </p>
         </div>
 
-        {/* Live demo first */}
-        <LiveDemo />
-
-        {/* Sequence diagram below */}
-        <div style={{ marginTop: isMobile ? 48 : 80 }}>
+        {/* Sequence diagram */}
+        <div>
           <div className="eyebrow" style={{ marginBottom: 12 }}>§ the four steps</div>
           <h3 style={{
             fontSize: 'clamp(22px, 4vw, 36px)',
@@ -65,7 +62,7 @@ function SequenceDiagram() {
         marginBottom: 24,
       }}>
         <Lane emoji="🤖" name="Client" sub="agent · app · script" />
-        <Lane emoji="📡" name="Your API + cardano402" sub="server · facilitator" align="right" />
+        <Lane emoji="📡" name="Your API + facilitator" sub="server · facilitator" align="right" />
       </div>
 
       {/* Diagram body */}
@@ -98,7 +95,7 @@ function SequenceDiagram() {
         display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
         fontSize: 13, opacity: 0.7,
       }}>
-        <span className="mono">total: ~30–60s on Cardano Preview</span>
+        <span className="mono">measured: ~30–60s on Cardano Preview</span>
         <span>≈ <span className="mono">$0.004</span> end-to-end</span>
       </div>
     </div>

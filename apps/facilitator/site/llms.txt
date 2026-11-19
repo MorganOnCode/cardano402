@@ -1,0 +1,22 @@
+# cardano402
+
+> Static archive of cardano402, an open-source portfolio project that implemented the x402 HTTP payment protocol on Cardano. The hosted facilitator API and the live demo are retired. This site serves only static pages: it offers no payment, verification, settlement or discovery endpoint, and it holds no keys or funds.
+
+## Specification
+
+- [x402 exact scheme for Cardano (x402 Foundation, GitHub)](https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_cardano.md): the specification to build against.
+- [x402 Foundation repository](https://github.com/x402-foundation/x402)
+
+## Source
+
+- [cardano402 on GitHub](https://github.com/MorganOnCode/cardano402): code and history, Apache-2.0. The v1 VPS facilitator is preserved at tag `v1-final`.
+- The x402 Foundation packages `@x402/cardano` and `@x402/core` supersede the legacy `@cardano402/*` npm packages.
+
+## Historical API (retired; do not call)
+
+The hosted service used to answer `GET /supported`, `POST /verify`, `POST /settle`, `GET /status`, `GET /health`, `GET /.well-known/x402.json` and `POST /demo/run`. On this site those paths now return an HTTP error (404 Not Found, or 405 for methods other than GET/HEAD). Do not send payment payloads here.
+
+## Notes
+
+- No endorsement by the Cardano Foundation or the x402 Foundation is implied.
+- [Agent notes](/SKILL.md)
