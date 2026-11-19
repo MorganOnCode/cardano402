@@ -11,7 +11,10 @@ name: Deploy website
 # Required settings:
 #   secrets.CLOUDFLARE_API_TOKEN   Workers Scripts:Edit (+ Workers Routes:Edit for production)
 #   secrets.CLOUDFLARE_ACCOUNT_ID
-#   vars.CLOUDFLARE_DEPLOY_ENABLED 'true'
+#   vars.WEBSITE_DEPLOY_ENABLED    'true' to allow these website jobs. Website-only:
+#                                  the legacy CLOUDFLARE_DEPLOY_ENABLED flag (still read
+#                                  by old push-triggered workflows on other refs, e.g.
+#                                  v2) is deliberately not used here and stays 'false'.
 #   vars.PRODUCTION_URL            https://cardano402.com
 #   environment `production` with required reviewers, limited to master
 
@@ -39,7 +42,7 @@ jobs:
   staging:
     name: Deploy static website (staging, workers.dev)
     needs: ci
-    if: vars.CLOUDFLARE_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/master' && inputs.target == 'staging'
+    if: vars.WEBSITE_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/master' && inputs.target == 'staging'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -67,7 +70,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm exec wrangler deploy --config wrangler.website.jsonc --env staging --message "${GITHUB_SHA}" | tee staging-deploy.log
+        # pipefail: a failed wrangler deploy fails this step even though tee succeeds.
+        run: |
+          set -o pipefail
+          pnpm exec wrangler deploy --config wrangler.website.jsonc --env staging --message "${GITHUB_SHA}" | tee staging-deploy.log
       - name: Check staging copy (read-only)
         run: |
           url="$(grep -oE 'https://cardano402-website-staging\.[a-z0-9-]+\.workers\.dev' staging-deploy.log | head -1)"
@@ -77,7 +83,7 @@ jobs:
   production:
     name: Deploy static website (cardano402.com routes)
     needs: ci
-    if: vars.CLOUDFLARE_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/master' && inputs.target == 'production'
+    if: vars.WEBSITE_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/master' && inputs.target == 'production'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
